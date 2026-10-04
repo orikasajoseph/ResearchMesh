@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "PlannerTask": {
+      "additionalProperties": false,
+      "description": "Leader 内部任务，额外包含发现和依赖信息。",
+      "properties": {
+        "schemaVersion": {
+          "const": "0.1",
+          "title": "Schemaversion",
+          "type": "string"
+        },
+        "subtaskId": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Subtaskid",
+          "type": "string"
+        },
+        "taskType": {
+          "enum": [
+            "literature_search",
+            "paper_read",
+            "code_search"
+          ],
+          "title": "Tasktype",
+          "type": "string"
+        },
+        "goal": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Goal",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "constraints": {
+          "additionalProperties": true,
+          "title": "Constraints",
+          "type": "object"
+        },
+        "outputSchema": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Outputschema",
+          "type": "string"
+        },
+        "requiredCapability": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Requiredcapability",
+          "type": "string"
+        },
+        "dependsOn": {
+          "items": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "title": "Dependson",
+          "type": "array"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "subtaskId",
+        "taskType",
+        "goal",
+        "input",
+        "constraints",
+        "outputSchema",
+        "requiredCapability",
+        "dependsOn"
+      ],
+      "title": "PlannerTask",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "tasks": {
+            "minItems": 1
+          },
+          "clarificationQuestion": {
+            "type": "null"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "needsClarification": {
+            "const": true
+          }
+        },
+        "required": [
+          "needsClarification"
+        ]
+      },
+      "then": {
+        "properties": {
+          "tasks": {
+            "maxItems": 0
+          },
+          "clarificationQuestion": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "userQuery": {
+      "maxLength": 6000,
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Userquery",
+      "type": "string"
+    },
+    "needsClarification": {
+      "title": "Needsclarification",
+      "type": "boolean"
+    },
+    "clarificationQuestion": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "pattern": "\\S",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Clarificationquestion"
+    },
+    "tasks": {
+      "items": {
+        "$ref": "#/$defs/PlannerTask"
+      },
+      "title": "Tasks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "userQuery",
+    "needsClarification",
+    "clarificationQuestion",
+    "tasks"
+  ],
+  "title": "Plan",
+  "type": "object"
+}

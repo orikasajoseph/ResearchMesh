@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ResultItem": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Kind",
+          "type": "string"
+        },
+        "data": {
+          "additionalProperties": true,
+          "title": "Data",
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "data"
+      ],
+      "title": "ResultItem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "业务结果，状态仍由未来真实 AIP TaskResult 承载。",
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "subtaskId": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Subtaskid",
+      "type": "string"
+    },
+    "taskType": {
+      "enum": [
+        "literature_search",
+        "paper_read",
+        "code_search"
+      ],
+      "title": "Tasktype",
+      "type": "string"
+    },
+    "summary": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Summary",
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/ResultItem"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "subtaskId",
+    "taskType",
+    "summary",
+    "items",
+    "warnings"
+  ],
+  "title": "ResearchResult",
+  "type": "object"
+}

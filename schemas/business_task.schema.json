@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "可放入结构化数据项的业务内容；本身不是 TaskCommand。",
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1",
+      "title": "Schemaversion",
+      "type": "string"
+    },
+    "subtaskId": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Subtaskid",
+      "type": "string"
+    },
+    "taskType": {
+      "enum": [
+        "literature_search",
+        "paper_read",
+        "code_search"
+      ],
+      "title": "Tasktype",
+      "type": "string"
+    },
+    "goal": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Goal",
+      "type": "string"
+    },
+    "input": {
+      "additionalProperties": true,
+      "title": "Input",
+      "type": "object"
+    },
+    "constraints": {
+      "additionalProperties": true,
+      "title": "Constraints",
+      "type": "object"
+    },
+    "outputSchema": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Outputschema",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "subtaskId",
+    "taskType",
+    "goal",
+    "input",
+    "constraints",
+    "outputSchema"
+  ],
+  "title": "BusinessTask",
+  "type": "object"
+}

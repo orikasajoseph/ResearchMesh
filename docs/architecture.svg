@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="760" viewBox="0 0 1100 760">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8" fill="#53647b"/></marker>
+    <style>
+      text { font-family: 'Microsoft YaHei','Noto Sans CJK SC',sans-serif; fill:#223047; font-size:16px; }
+      .title {font-size:27px;font-weight:700} .small {font-size:14px;fill:#56647a} .label {font-size:19px;font-weight:700}
+      .box {fill:#ffffff;stroke:#b6c6da;stroke-width:1.5;rx:12}
+      .flow {fill:none;stroke:#53647b;stroke-width:2;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1100" height="760" fill="#f4f7fb"/>
+  <text x="40" y="48" class="title">ResearchMesh：当前本地架构与待接入边界</text>
+  <text x="40" y="80" class="small">仅预写样例 + 同进程模拟执行。没有真实模型、科研工具、平台发现或 AIP 通信。</text>
+  <rect x="35" y="104" width="1030" height="445" rx="18" fill="#eaf2ff"/>
+  <text x="55" y="135" class="label">实线区域：已实现、可独立验收</text>
+  <rect class="box" x="55" y="155" width="235" height="84"/>
+  <text x="73" y="187" class="label">本地 API：api.py</text>
+  <text x="73" y="216" class="small">/plan 只规划，不执行科研任务</text>
+  <rect class="box" x="55" y="273" width="235" height="92"/>
+  <text x="73" y="306" class="label">CLI：run_demo.py</text>
+  <text x="73" y="335" class="small">串联完整的模拟工作流</text>
+  <rect class="box" x="350" y="155" width="275" height="116"/>
+  <text x="370" y="185" class="label">Planner：planner.py</text>
+  <text x="370" y="212">ExampleModel 提供固定计划</text>
+  <text x="370" y="239" class="small">解析 / 校验 / 重试 / 超时</text>
+  <path class="flow" d="M290 197 H350"/>
+  <path class="flow" d="M290 311 H318 V241 H350"/>
+  <path class="flow" d="M490 271 V306"/>
+  <text x="510" y="292" class="small">CLI 继续；API 到此返回</text>
+  <rect class="box" x="350" y="311" width="275" height="100"/>
+  <text x="370" y="342" class="label">LocalOrchestrator</text>
+  <text x="370" y="370">依赖 → 并发 → 结果校验</text>
+  <text x="370" y="395" class="small">隔离失败、保留成功结果</text>
+  <rect class="box" x="720" y="155" width="320" height="90"/>
+  <text x="739" y="185" class="label">MockAgentResolver</text>
+  <text x="739" y="215" class="small">按能力选本地执行者；不是平台发现</text>
+  <path class="flow" d="M625 325 H645 V202 H720"/>
+  <text x="650" y="186" class="small">找执行者</text>
+  <rect class="box" x="720" y="285" width="320" height="126"/>
+  <text x="739" y="316" class="label">三个 Mock 科研执行者</text>
+  <text x="739" y="345">S1 检索 → S2 阅读 + S3 代码</text>
+  <text x="739" y="374" class="small">S2/S3 在 S1 后并发；全部是模拟数据</text>
+  <path class="flow" d="M625 355 H720"/>
+  <text x="645" y="343" class="small">执行</text>
+  <path class="flow" d="M720 390 H625"/>
+  <text x="640" y="415" class="small">返回结果</text>
+  <rect class="box" x="350" y="450" width="690" height="73"/>
+  <text x="370" y="479" class="label">Aggregator → 模拟 Markdown 报告 + JSON 日志</text>
+  <text x="370" y="507" class="small">聚合已校验结果并注明错误；保留 demoOnly、模拟来源警示</text>
+  <path class="flow" d="M488 411 V450"/>
+  <rect x="35" y="572" width="1030" height="130" rx="18" fill="#fff7e8" stroke="#d79d39" stroke-dasharray="7 5"/>
+  <text x="55" y="607" class="label">待组员提供，未实现、未接入</text>
+  <text x="55" y="640">真实模型 → 替换 ExampleModel；官方发现 / AIP → 替换本地 Resolver 与执行适配器</text>
+  <text x="55" y="674">真实检索 / 论文阅读 / 代码工具 → 替换 Mock；只在 Leader ↔ Partner 边界使用官方 AIP</text>
+  <text x="40" y="736" class="small">统一数据来源：common/models.py → schemas/。内部依赖字段 ≠ AIP 字段；业务结果没有第二套 status。</text>
+</svg>

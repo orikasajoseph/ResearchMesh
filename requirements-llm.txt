@@ -1,0 +1,5 @@
+# 在当前 Anaconda Python 3.9.13 中验证的可选模型依赖。
+# 原 Mock 程序不需要这些依赖。
+openai==2.48.0
+python-dotenv==1.2.1
+httpx==0.28.1

@@ -1,5 +1,7 @@
 # v0.2 开发分支交接
 
+> 2026-10-04 后续更新：已收到并适配张的 Literature Wrapper，完成交付样例回放及实际 Wrapper 的离线调用检查；自动测试增至 152 项。v0.2 六类真实 DeepSeek 规划回归已自动通过，待用户人工确认。Semantic Scholar Key 尚未在赵侧配置，真实 AIP/ADP 未接通。详见 [文献接入说明](literature_integration.md)。以下早期计数与“未收到 Wrapper”描述保留为历史。
+
 分支：zhao/planner-integration。业务接口已在赵侧实现，等待三方确认后合并；不是已冻结的全组接口。
 
 ## 2026年10月4日验证结果

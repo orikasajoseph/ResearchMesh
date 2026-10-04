@@ -164,5 +164,9 @@ Schema 导出和校验细节见 [数据模型说明](docs/schema_notes.md)。Pla
 
 ## 尚未完成
 
-DeepSeek 先前已接通，v0.1 的五个真实规划样例已经人工确认；这些记录不能自动算作 v0.2 验收。真实平台发现、张的科研 Wrapper、三方统一后的端到端科研执行仍未完成。吴当前交付包的本地 AIP 传输已通过，v0.2 分支通过限定文献任务的兼容入口继续对接它。
+DeepSeek 已接通，v0.1 五例已人工确认，v0.2 六例真实回归已自动通过、待人工确认。张的 Literature Wrapper 已交付并完成离线适配，赵侧实时检索等待 Semantic Scholar Key 配置。Reader/Repository Wrapper、真实平台发现和三方完整科研链仍未接通。吴当前交付包的本地 AIP 传输已通过，v0.2 分支通过限定文献任务的兼容入口继续对接它。
 Mock 数据和格式检查不证明科研结论真实，也不证明平台发现或赛事互联已完成。
+
+## 最新文献接入进展
+
+张的 Literature Wrapper 已增加独立适配与运行入口：`run_literature.py`。支持交付样例回放和显式实时调用，不等于 AIP/ADP 已接通。安装、字段映射、运行步骤及最新 152 项测试结果见 [文献接入说明](docs/literature_integration.md)。

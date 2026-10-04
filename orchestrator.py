@@ -34,7 +34,7 @@ class LocalOrchestrator:
     async def _execute(self, task, dependencies):
         record = {
             "subtaskId": task["subtaskId"],
-            "requiredCapability": task["requiredCapability"],
+            "requiredSkill": task["requiredSkill"],
             "dependsOn": list(task["dependsOn"]),
             "agentId": None,
             "succeeded": False,
@@ -49,9 +49,9 @@ class LocalOrchestrator:
         started = perf_counter()
         try:
             handle = await asyncio.wait_for(
-                self.resolver.resolve(task["requiredCapability"]), self.task_timeout_seconds,
+                self.resolver.resolve(task["requiredSkill"]), self.task_timeout_seconds,
             )
-            if task["requiredCapability"] not in map(canonical_skill, handle.capabilities):
+            if task["requiredSkill"] not in map(canonical_skill, handle.capabilities):
                 raise ValueError("解析器返回了不具备所需能力的执行者")
             record["agentId"] = handle.agent_id
         except NoMatchingAgentError as exc:
@@ -110,7 +110,7 @@ class LocalOrchestrator:
                 failed_dependencies = [dep for dep in task["dependsOn"] if not records[dep]["succeeded"]]
                 if failed_dependencies:
                     records[task_id] = {
-                        "subtaskId": task_id, "requiredCapability": task["requiredCapability"],
+                        "subtaskId": task_id, "requiredSkill": task["requiredSkill"],
                         "dependsOn": list(task["dependsOn"]), "agentId": None,
                         "succeeded": False, "skipped": True,
                         "error": {"code": "DEPENDENCY_FAILED", "message": f"上游任务未成功：{', '.join(failed_dependencies)}"},

@@ -44,7 +44,7 @@ CASES = json.loads(
 
 app = FastAPI(
     title="ResearchMesh 本地 Planner（模拟模式）",
-    version="0.1",
+    version="0.2",
     description=(
         "仅接受 /demo/cases 中的预写问题。此服务不是科研 Partner，也不是 AIP 接口；"
         "没有连接真实模型或真实 Agent。/plan 只规划，不执行科研任务。"

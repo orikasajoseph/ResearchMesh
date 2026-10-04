@@ -3,12 +3,12 @@
 SKILLS = {
     "literature_search": "literature.search",
     "paper_read": "paper.analyze",
-    "code_search": "repository.analyze",
+    "repository_analyze": "repository.analyze",
 }
 OUTPUT_SCHEMAS = {
     "literature_search": "paper_records.v1",
     "paper_read": "paper_notes.v1",
-    "code_search": "code_records.v1",
+    "repository_analyze": "code_records.v1",
 }
 
 

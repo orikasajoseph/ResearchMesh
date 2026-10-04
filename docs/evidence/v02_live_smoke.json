@@ -1,0 +1,80 @@
+{
+  "verifiedAt": "2026-10-04",
+  "scope": "真实规划冒烟测试；未执行科研 Agent 或平台发现；不是六场景完整验收",
+  "records": [
+    {
+      "case": "指定仓库",
+      "plan": {
+        "schemaVersion": "0.2",
+        "userQuery": "仅静态分析 https://github.com/scikit-learn/scikit-learn 的模块结构、依赖和使用门槛，不运行代码、不检索论文、不搜索其他仓库。",
+        "needsClarification": false,
+        "clarificationQuestion": null,
+        "tasks": [
+          {
+            "schemaVersion": "0.2",
+            "subtaskId": "S1",
+            "taskType": "repository_analyze",
+            "goal": "对指定仓库做静态分析，梳理模块结构、依赖关系与使用门槛",
+            "input": {
+              "papers": [],
+              "paperNotes": [],
+              "repositoryUrls": [
+                "https://github.com/scikit-learn/scikit-learn"
+              ]
+            },
+            "constraints": {
+              "executeCode": false,
+              "allowRepositorySearch": false,
+              "maxRepositories": 1
+            },
+            "outputSchema": "code_records.v1",
+            "requiredSkill": "repository.analyze",
+            "dependsOn": []
+          }
+        ]
+      },
+      "metadata": {
+        "plannerMode": "deepseek_live",
+        "model": "deepseek-flash",
+        "requestCount": 1,
+        "lastResponseUsage": {
+          "promptTokens": 1551,
+          "completionTokens": 203,
+          "totalTokens": 1754
+        },
+        "elapsedMs": 1821,
+        "planValidated": true,
+        "agentsExecuted": false,
+        "aipUsed": false
+      },
+      "currentValidatorReplayPassed": true,
+      "humanAccepted": false
+    },
+    {
+      "case": "缺少仓库地址",
+      "plan": {
+        "schemaVersion": "0.2",
+        "userQuery": "只静态分析我的代码仓库结构，不检索论文；我还没提供仓库地址。",
+        "needsClarification": true,
+        "clarificationQuestion": "请提供需要静态分析的代码仓库地址（例如 GitHub 仓库 URL），我再为你规划仓库结构分析任务。",
+        "tasks": []
+      },
+      "metadata": {
+        "plannerMode": "deepseek_live",
+        "model": "deepseek-flash",
+        "requestCount": 1,
+        "lastResponseUsage": {
+          "promptTokens": 1534,
+          "completionTokens": 77,
+          "totalTokens": 1611
+        },
+        "elapsedMs": 1637,
+        "planValidated": true,
+        "agentsExecuted": false,
+        "aipUsed": false
+      },
+      "currentValidatorReplayPassed": true,
+      "humanAccepted": false
+    }
+  ]
+}

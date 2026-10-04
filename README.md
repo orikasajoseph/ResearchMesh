@@ -1,4 +1,21 @@
-# ResearchMesh：本地模拟闭环
+# ResearchMesh 智研协作
+
+> 2026-10-04 开发分支已实现业务接口 v0.2：`requiredSkill`、`repository_analyze`、明确仓库地址后才静态分析。待全组确认后合并，尚非全组冻结版本。请先读 [v0.2 接口](docs/InterfaceContract_v0.2.md) 和 [本次交接](docs/v02_handoff.md)。旧 v0.1 文档、历史验收只作参考。
+
+## 组员首次运行
+
+建议使用 Python 3.12（吴当前交付包至少需要 3.11）。在克隆的项目目录创建各自的环境：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt -r requirements-llm.txt -r requirements-aip.txt
+.\.venv\Scripts\python.exe -X utf8 verify_project.py
+.\.venv\Scripts\python.exe -X utf8 run_demo.py
+```
+
+上述验证不需要 API Key、不调用真实模型。真实规划另将 `.env.example` 复制成自己的 `.env` 并填写本机 Key；不要覆盖已有 `.env`。团队不共享密钥和虚拟环境。
+
+`run_wu_aip.py` 另外需要吴的交付目录，通过 `--wu-root` 指定；默认计划已放入仓库 `examples/aip_transport_plan_v02.json`，不再依赖赵电脑上的 outputs。该入口仅检查本地 AIP 传输。
 
 > 2026-10-04 新增：运行 `.\.venv\Scripts\python.exe -X utf8 run_wu_aip.py`，用已保存的真实计划对接吴的本地 AIP Partner。只验证文献检索任务传输，不执行真实科研或平台发现。见 [本地联调说明](docs/wu_local_integration.md)。
 
@@ -118,7 +135,8 @@ python -X utf8 verify_project.py
 | `test_deepseek_connection.py` | 手动付费连通性检查，不属于自动测试 |
 | `run_deepseek_planner.py` | 独立的真实规划入口及计划保存 |
 | `demo_planner.py` | 固定响应的 ExampleModel；不处理任意新问题 |
-| `planner_contract.py` / `result_contract.py` | 共享 v0.1 任务与结果校验 |
+| `planner_contract.py` / `result_contract.py` | 当前开发版 v0.2 任务与结果校验 |
+| `compatibility.py` / `migrate_plan.py` | 显式迁移旧计划，缺少仓库地址时阻止迁移，不覆盖历史记录 |
 | `common/models.py` | 唯一的 Pydantic 数据模型来源 |
 | `export_schemas.py` / `schemas/` | 导出和保存内部计划、任务、业务任务、业务结果 Schema |
 | `api.py` | 明确标注 fixture 模式的本地 /plan、/health、/demo/cases |
@@ -133,8 +151,8 @@ python -X utf8 verify_project.py
 
 ## 格式与 AIP 边界
 
-沿用共享 v0.1 的 camelCase 字段，不照搬旧个人流程中的 task_id/task_type/status。
-`requiredCapability`、`dependsOn` 属于 Leader 内部调度，不直接放进跨 Agent 的业务任务负载。
+v0.2 沿用 camelCase 字段风格，任务名和技能名见新的接口文档。
+`requiredSkill`、`dependsOn` 属于 Leader 内部调度，不直接放进跨 Agent 的业务任务负载。
 业务结果只包含 `schemaVersion/subtaskId/taskType/summary/items/warnings`，没有另一套 status。
 
 当前 resolver 和 executor 是同一个进程里的函数调用，并未声称符合完整 AIP 通信流程。
@@ -146,5 +164,5 @@ Schema 导出和校验细节见 [数据模型说明](docs/schema_notes.md)。Pla
 
 ## 尚未完成
 
-DeepSeek 的本机 Key 配置、真实连通性与新问题规划验收；真实平台发现与 AIP 生命周期；真实科研 Agent；真实端到端联调。
-Mock 演示与测试通过仅证明这一步的本地框架有效，不代表第一周所有交付或赛事要求均已完成。
+DeepSeek 先前已接通，v0.1 的五个真实规划样例已经人工确认；这些记录不能自动算作 v0.2 验收。真实平台发现、张的科研 Wrapper、三方统一后的端到端科研执行仍未完成。吴当前交付包的本地 AIP 传输已通过，v0.2 分支通过限定文献任务的兼容入口继续对接它。
+Mock 数据和格式检查不证明科研结论真实，也不证明平台发现或赛事互联已完成。

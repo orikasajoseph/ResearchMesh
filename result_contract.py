@@ -8,11 +8,13 @@ from input_binding import paper_ref, web_url
 
 def validate_result(result: dict[str, Any], task: dict[str, Any]) -> None:
     parsed = ResearchResult.model_validate(result)
+    if parsed.schemaVersion != task["schemaVersion"]:
+        raise ValueError("结果 schemaVersion 与请求不一致")
     if parsed.subtaskId != task["subtaskId"]:
         raise ValueError("结果 subtaskId 与请求不一致")
     if parsed.taskType != task["taskType"]:
         raise ValueError("结果 taskType 与请求不一致")
-    expected_kind = {"literature_search": "paper", "paper_read": "paper_note", "code_search": "repository"}[parsed.taskType]
+    expected_kind = {"literature_search": "paper", "paper_read": "paper_note", "repository_analyze": "repository"}[parsed.taskType]
     for item in parsed.items:
         if item.kind != expected_kind:
             raise ValueError("结果条目类型与任务不一致")

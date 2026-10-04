@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from hashlib import sha256
+import re
 from urllib.parse import urlparse
 
 
@@ -14,6 +15,13 @@ def web_url(value):
         return False
     parsed = urlparse(value)
     return parsed.scheme in ("http", "https") and bool(parsed.hostname) and not parsed.username
+
+
+def github_repository_url(value):
+    """首期只接受明确的 HTTPS GitHub 仓库根地址，不做网络请求。"""
+    if not isinstance(value, str):
+        return False
+    return re.fullmatch(r"https://github\.com/[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_][A-Za-z0-9_.-]*/?", value) is not None
 
 
 def paper_ref(data):
@@ -54,7 +62,7 @@ def validate_task_input(task, *, dispatch=False):
     allowed = {
         "literature_search": {"query"},
         "paper_read": {"papers"},
-        "code_search": {"papers", "paperNotes", "repositoryUrls"},
+        "repository_analyze": {"papers", "paperNotes", "repositoryUrls"},
     }[kind]
     if set(data) - allowed:
         raise InputBindingError("input 含未约定字段；上游结果通过 dependsOn 绑定，不写占位字符串")
@@ -69,15 +77,19 @@ def validate_task_input(task, *, dispatch=False):
             paper_ref(paper)
         if kind == "paper_read" and not papers and (dispatch or not task.get("dependsOn")):
             raise InputBindingError("阅读任务没有可定位论文或上游依赖")
-        if kind == "code_search":
+        if kind == "repository_analyze":
             notes, urls = data.get("paperNotes", []), data.get("repositoryUrls", [])
             if not isinstance(notes, list) or any(not isinstance(note, dict) for note in notes):
                 raise InputBindingError("paperNotes 必须是对象数组")
-            if not isinstance(urls, list) or any(not web_url(url) for url in urls):
-                raise InputBindingError("repositoryUrls 必须是 URL 数组")
+            if not isinstance(urls, list) or any(not github_repository_url(url) for url in urls):
+                raise InputBindingError("repositoryUrls 必须是明确的 HTTPS GitHub 仓库根地址数组")
+            if task["constraints"].get("allowRepositorySearch") is not False:
+                raise InputBindingError("首期不支持自动查找仓库，必须设置 allowRepositorySearch=false")
+            if task["constraints"].get("executeCode") is not False:
+                raise InputBindingError("仓库静态分析必须明确设置 executeCode=false")
             if dispatch or not task.get("dependsOn"):
-                if not urls and not (papers and task["constraints"].get("allowRepositorySearch", True)):
-                    raise InputBindingError("代码任务缺少仓库 URL 或允许查找仓库的论文信息")
+                if not urls:
+                    raise InputBindingError("缺少仓库地址：请提供明确的 GitHub URL；首期不能根据论文自动查找")
                 if task["constraints"].get("requirePaperNotes", False) and not notes:
                     raise InputBindingError("复现分析要求论文阅读结果，当前未提供")
     constraints = task["constraints"]
@@ -88,7 +100,7 @@ def validate_task_input(task, *, dispatch=False):
         if key in constraints and not isinstance(constraints[key], bool):
             raise InputBindingError(f"{key} 必须是布尔值")
     if constraints.get("executeCode", False):
-        raise InputBindingError("v0.1 只支持静态代码分析，不能执行仓库代码")
+        raise InputBindingError("v0.2 只支持静态代码分析，不能执行仓库代码")
     start, end = constraints.get("yearFrom"), constraints.get("yearTo")
     if any(v is not None and (isinstance(v, bool) or not isinstance(v, int)) for v in (start, end)):
         raise InputBindingError("年份必须是整数")
@@ -121,7 +133,7 @@ def bind_task_input(task, dependency_results):
         key = ref["doi"] or ref["url"] or ref["pdfUrl"]
         unique.setdefault(key, ref)
     data["papers"] = list(unique.values())[:_limit(bound["constraints"], "maxPapers", 3)]
-    if bound["taskType"] == "code_search":
+    if bound["taskType"] == "repository_analyze":
         selected = {p["paperId"] for p in data["papers"]}
         locators = {p["doi"] or p["url"] or p["pdfUrl"] for p in data["papers"]}
         def selected_note(note):
@@ -135,8 +147,10 @@ def bind_task_input(task, dependency_results):
             note for note in notes if selected_note(note)
         ]
         urls = list(data.get("repositoryUrls", []))
-        for ref in data["papers"]:
-            urls.extend(ref["repositoryUrls"])
+        # 用户显式指定的仓库优先，不能被上游其他仓库替换或扩充。
+        if not urls:
+            for ref in data["papers"]:
+                urls.extend(ref["repositoryUrls"])
         data["repositoryUrls"] = list(dict.fromkeys(urls))[:_limit(bound["constraints"], "maxRepositories", 3)]
         bound["constraints"].setdefault("executeCode", False)
     validate_task_input(bound, dispatch=True)

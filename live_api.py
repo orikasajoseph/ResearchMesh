@@ -7,7 +7,7 @@ from run_planner import create_plan
 
 
 def create_app(planning_function=create_plan):
-    app = FastAPI(title="ResearchMesh 真实 Planner（调用会消耗额度）", version="0.1")
+    app = FastAPI(title="ResearchMesh 真实 Planner（调用会消耗额度）", version="0.2")
 
     @app.get("/health")
     async def health():

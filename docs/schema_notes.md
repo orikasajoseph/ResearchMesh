@@ -5,7 +5,7 @@
 | 文件 | 适用位置 |
 |---|---|
 | `schemas/plan.schema.json` | Planner 的完整内部计划 |
-| `schemas/task.schema.json` | 内部子任务，包含 requiredCapability、dependsOn |
+| `schemas/task.schema.json` | 当前 v0.2 内部子任务，包含 requiredSkill、dependsOn |
 | `schemas/business_task.schema.json` | 发给执行适配器的业务内容，不包含上述内部字段 |
 | `schemas/result.schema.json` | Agent 结果的业务外壳，不包含 status |
 

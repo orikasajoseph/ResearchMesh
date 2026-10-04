@@ -1,43 +1,43 @@
 [
   {
-    "name": "完整调研",
+    "name": "检索阅读与有条件仓库分析",
     "plan": {
-      "schemaVersion": "0.1",
-      "userQuery": "调研 2023—2026 年图神经网络在药物发现中的研究，阅读代表性论文并查找开源代码。",
+      "schemaVersion": "0.2",
+      "userQuery": "调研 2023—2026 年图神经网络在药物发现中的研究，阅读代表性论文；仅当检索结果明确给出 GitHub 仓库地址时静态分析仓库，不另行搜索仓库，不执行代码。",
       "needsClarification": false,
       "clarificationQuestion": null,
       "tasks": [
         {
-          "schemaVersion": "0.1",
+          "schemaVersion": "0.2",
           "subtaskId": "S1",
           "taskType": "literature_search",
           "goal": "检索相关论文，提供可核验的标题、作者、年份、DOI 或 URL",
           "input": {"query": "图神经网络在药物发现中的研究"},
           "constraints": {"yearFrom": 2023, "yearTo": 2026},
           "outputSchema": "paper_records.v1",
-          "requiredCapability": "literature.search",
+          "requiredSkill": "literature.search",
           "dependsOn": []
         },
         {
-          "schemaVersion": "0.1",
+          "schemaVersion": "0.2",
           "subtaskId": "S2",
           "taskType": "paper_read",
           "goal": "阅读 S1 找到的代表性论文，提炼方法、实验与局限",
           "input": {"papers": []},
           "constraints": {"maxPapers": 3},
           "outputSchema": "paper_notes.v1",
-          "requiredCapability": "paper.analyze",
+          "requiredSkill": "paper.analyze",
           "dependsOn": ["S1"]
         },
         {
-          "schemaVersion": "0.1",
+          "schemaVersion": "0.2",
           "subtaskId": "S3",
-          "taskType": "code_search",
-          "goal": "查找 S1 论文对应的开源仓库并核验链接",
+          "taskType": "repository_analyze",
+          "goal": "仅在 S1 实际提供 GitHub 仓库地址时静态分析；否则提示缺少仓库地址",
           "input": {"papers": [], "paperNotes": [], "repositoryUrls": []},
-          "constraints": {},
+          "constraints": {"executeCode": false, "allowRepositorySearch": false},
           "outputSchema": "code_records.v1",
-          "requiredCapability": "repository.analyze",
+          "requiredSkill": "repository.analyze",
           "dependsOn": ["S1"]
         }
       ]
@@ -46,20 +46,20 @@
   {
     "name": "指定论文",
     "plan": {
-      "schemaVersion": "0.1",
+      "schemaVersion": "0.2",
       "userQuery": "阅读并总结这篇论文 DOI: 10.0000/example",
       "needsClarification": false,
       "clarificationQuestion": null,
       "tasks": [
         {
-          "schemaVersion": "0.1",
+          "schemaVersion": "0.2",
           "subtaskId": "S1",
           "taskType": "paper_read",
           "goal": "阅读指定论文，说明研究问题、方法、实验与局限",
           "input": {"papers": [{"doi": "10.0000/example"}]},
           "constraints": {},
           "outputSchema": "paper_notes.v1",
-          "requiredCapability": "paper.analyze",
+          "requiredSkill": "paper.analyze",
           "dependsOn": []
         }
       ]
@@ -68,7 +68,7 @@
   {
     "name": "需求过于模糊",
     "plan": {
-      "schemaVersion": "0.1",
+      "schemaVersion": "0.2",
       "userQuery": "帮我做科研",
       "needsClarification": true,
       "clarificationQuestion": "你想研究哪个具体方向或问题？",

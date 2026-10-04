@@ -42,7 +42,7 @@ class Week2BindingTests(unittest.TestCase):
 
     def test_non_mock_reading_needs_evidence_and_level(self):
         task = plan()["tasks"][1]
-        value = {"schemaVersion": "0.1", "subtaskId": "S2", "taskType": "paper_read",
+        value = {"schemaVersion": "0.2", "subtaskId": "S2", "taskType": "paper_read",
                  "summary": "analysis", "warnings": [], "items": [{"kind": "paper_note", "data": {
                      "source": {"url": "https://example.invalid/paper"}, "method": "method",
                      "findings": "findings", "limitations": "unknown"}}]}
@@ -89,7 +89,7 @@ class Week2BindingTests(unittest.TestCase):
 
     def test_new_plans_reject_legacy_skill(self):
         value = plan()
-        value["tasks"][0]["requiredCapability"] = "literature_search"
+        value["tasks"][0]["requiredSkill"] = "literature_search"
         with self.assertRaises(ValueError):
             validate_plan(value)
 

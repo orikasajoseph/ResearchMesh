@@ -44,7 +44,7 @@ class LocalWorkflowTests(unittest.TestCase):
     def test_business_payload_excludes_internal_fields(self):
         task = example_plan()["tasks"][1]
         payload = make_task_payload(task)
-        self.assertNotIn("requiredCapability", payload)
+        self.assertNotIn("requiredSkill", payload)
         self.assertNotIn("dependsOn", payload)
         payload["constraints"]["maxPapers"] = 100
         self.assertEqual(task["constraints"]["maxPapers"], 3)
@@ -100,7 +100,7 @@ class LocalWorkflowTests(unittest.TestCase):
         self.assertIn("模拟数据", report)
         self.assertIn("example.invalid", report)
         self.assertIn("EXECUTION_ERROR", report)
-        self.assertIn("S3：code_search", report)
+        self.assertIn("S3：repository_analyze", report)
 
     def test_invalid_result_is_not_accepted(self):
         class WrongResult(LiteratureMockAgent):

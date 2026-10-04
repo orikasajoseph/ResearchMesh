@@ -6,7 +6,7 @@
       "description": "Leader 内部任务，额外包含发现和依赖信息。",
       "properties": {
         "schemaVersion": {
-          "const": "0.1",
+          "const": "0.2",
           "title": "Schemaversion",
           "type": "string"
         },
@@ -20,7 +20,7 @@
           "enum": [
             "literature_search",
             "paper_read",
-            "code_search"
+            "repository_analyze"
           ],
           "title": "Tasktype",
           "type": "string"
@@ -47,10 +47,10 @@
           "title": "Outputschema",
           "type": "string"
         },
-        "requiredCapability": {
+        "requiredSkill": {
           "minLength": 1,
           "pattern": "\\S",
-          "title": "Requiredcapability",
+          "title": "Requiredskill",
           "type": "string"
         },
         "dependsOn": {
@@ -71,7 +71,7 @@
         "input",
         "constraints",
         "outputSchema",
-        "requiredCapability",
+        "requiredSkill",
         "dependsOn"
       ],
       "title": "PlannerTask",
@@ -117,7 +117,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": "0.1",
+      "const": "0.2",
       "title": "Schemaversion",
       "type": "string"
     },

@@ -22,7 +22,22 @@ class WuIntegrationTests(unittest.TestCase):
     def test_only_business_fields_sent(self):
         self.assertEqual(len(self.payload), 7)
         self.assertNotIn("requiredCapability", self.payload)
+        self.assertNotIn("requiredSkill", self.payload)
         self.assertNotIn("dependsOn", self.payload)
+        self.assertEqual(self.task["schemaVersion"], "0.2")
+        self.assertEqual(self.payload["schemaVersion"], "0.1")
+
+    def test_old_full_plan_can_still_select_only_independent_literature(self):
+        old = json.loads((ROOT / "examples/legacy_v01_cases.json").read_text(encoding="utf-8"))[0]["plan"]
+        task, payload = select_task(old)
+        self.assertEqual(task["requiredSkill"], "literature.search")
+        self.assertEqual(payload["schemaVersion"], "0.1")
+        self.assertEqual(old["schemaVersion"], "0.1")
+
+    def test_wrong_wire_version_rejected(self):
+        self.outcome["result"]["schemaVersion"] = "0.2"
+        with self.assertRaisesRegex(ValueError, "WIRE_VERSION"):
+            assess_outcome(self.outcome, self.payload, self.events)
 
     def test_reader_not_silently_converted(self):
         with self.assertRaisesRegex(ValueError, "ONLY_LITERATURE"):

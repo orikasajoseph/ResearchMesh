@@ -7,7 +7,7 @@ JSON 模式、提示词、输出 Schema 与 Pydantic 校验共同控制输出；
 本机已发现 openai 2.48.0、python-dotenv 1.2.1 和 httpx 0.28.1。组员可通过 requirements-llm.txt 安装已验证的版本。
 
 适配器保留当前 Planner 提示词和业务外壳；未改动队友的 Wrapper、Discovery、AIP 或原模拟接口。
-当前 requiredCapability 仍使用现有的下划线标签，与 Mock 注册表兼容。共享回复文档中的 literature.search / paper.analyze / repository.analyze 标签仍需全组确认后集中同步，本次不偷偷更换。
+当前开发分支使用 v0.2：requiredSkill 为 literature.search / paper.analyze / repository.analyze，仓库任务名为 repository_analyze。团队合并待确认；详见 InterfaceContract_v0.2.md。历史 v0.1 规划记录不自动转换。
 
 ## 第一步 只在本机填写 Key
 

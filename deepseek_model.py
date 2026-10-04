@@ -163,14 +163,14 @@ class DeepSeekModel:
 
     async def generate(self, instructions: str, user_query: str) -> str:
         example = {
-            "schemaVersion": "0.1", "userQuery": "检索图神经网络相关论文",
+            "schemaVersion": "0.2", "userQuery": "检索图神经网络相关论文",
             "needsClarification": False, "clarificationQuestion": None,
             "tasks": [{
-                "schemaVersion": "0.1", "subtaskId": "S1",
+                "schemaVersion": "0.2", "subtaskId": "S1",
                 "taskType": "literature_search", "goal": "检索相关论文并保留出处",
                 "input": {"query": "graph neural network"}, "constraints": {"maxResults": 5},
                 "outputSchema": "paper_records.v1",
-                "requiredCapability": "literature.search", "dependsOn": [],
+                "requiredSkill": "literature.search", "dependsOn": [],
             }],
         }
         prompt = instructions + (

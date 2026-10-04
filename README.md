@@ -164,7 +164,7 @@ Schema 导出和校验细节见 [数据模型说明](docs/schema_notes.md)。Pla
 
 ## 尚未完成
 
-DeepSeek 已接通，v0.1 五例已人工确认，v0.2 六例真实回归已自动通过、待人工确认。张的 Literature Wrapper 已交付并完成离线适配，赵侧实时检索等待 Semantic Scholar Key 配置。Reader/Repository Wrapper、真实平台发现和三方完整科研链仍未接通。吴当前交付包的本地 AIP 传输已通过，v0.2 分支通过限定文献任务的兼容入口继续对接它。
+DeepSeek 已接通，v0.1 五例已人工确认，v0.2 六例真实回归已自动通过、待人工确认。张的 Literature Wrapper 已交付并完成适配，赵侧已经用已有计划实时检索 AlphaEvolve，保留 5 篇论文并通过统一结果校验。Reader/Repository Wrapper、真实平台发现和三方完整科研链仍未接通。吴当前交付包的本地 AIP 传输已通过，v0.2 分支通过限定文献任务的兼容入口继续对接它。
 Mock 数据和格式检查不证明科研结论真实，也不证明平台发现或赛事互联已完成。
 
 ## 最新文献接入进展

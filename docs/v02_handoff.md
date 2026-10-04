@@ -1,5 +1,7 @@
 # v0.2 开发分支交接
 
+> 2026-10-04 23:27：Semantic Scholar Key 已在赵侧配置，已有计划 → 张 Wrapper → 真实 Semantic Scholar → 统一结果／报告已通过，返回 5 篇 AlphaEvolve 相关检索记录。未调用 LLM、ADP 或 AIP，尚非平台链路。见 [实测证据](evidence/literature_live_20261004.json)；下文 Key 待配置的描述已过时。
+
 > 2026-10-04 后续更新：已收到并适配张的 Literature Wrapper，完成交付样例回放及实际 Wrapper 的离线调用检查；自动测试增至 152 项。v0.2 六类真实 DeepSeek 规划回归已自动通过，待用户人工确认。Semantic Scholar Key 尚未在赵侧配置，真实 AIP/ADP 未接通。详见 [文献接入说明](literature_integration.md)。以下早期计数与“未收到 Wrapper”描述保留为历史。
 
 分支：zhao/planner-integration。业务接口已在赵侧实现，等待三方确认后合并；不是已冻结的全组接口。

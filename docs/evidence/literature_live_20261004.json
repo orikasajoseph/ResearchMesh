@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "mode": "live",
+    "fixtureReplay": false,
+    "realSourceRequested": true,
+    "llmUsed": false,
+    "aipUsed": false,
+    "platformDiscoveryUsed": false,
+    "paperReadingExecuted": false,
+    "repositoryAnalysisExecuted": false,
+    "verifiedAt": "2026-10-04T23:27:17.108315+08:00"
+  },
+  "diagnostics": {
+    "provider": "semantic-scholar",
+    "requestId": "literature-a9fd3e9378d24d38b25071320e4bcc70",
+    "metrics": {
+      "durationMs": 1587.145,
+      "attempts": 1,
+      "cacheHit": false
+    },
+    "providerTotal": 93,
+    "providerReturned": 5,
+    "outcome": "papers",
+    "returnedCount": 5,
+    "droppedCount": 0
+  },
+  "contractValidated": true,
+  "query": "AlphaEvolve",
+  "maxResults": 5,
+  "papers": [
+    {
+      "paperId": "ed32e5bb11a9e5e2f03ea805782e8670a6e10efd",
+      "title": "AlphaEvolve: A coding agent for scientific and algorithmic discovery",
+      "year": 2025,
+      "doi": "10.48550/arXiv.2506.13131",
+      "url": "https://www.semanticscholar.org/paper/ed32e5bb11a9e5e2f03ea805782e8670a6e10efd",
+      "pdfUrl": null,
+      "repositoryUrls": [],
+      "sourceUrls": [
+        "https://arxiv.org/abs/2506.13131"
+      ]
+    },
+    {
+      "paperId": "e16ed32bd86c903aa6fe84cadd3498f64cb0ee3e",
+      "title": "Scientific Algorithm Discovery by Augmenting AlphaEvolve with Deep Research",
+      "year": 2025,
+      "doi": "10.48550/arXiv.2510.06056",
+      "url": "https://www.semanticscholar.org/paper/e16ed32bd86c903aa6fe84cadd3498f64cb0ee3e",
+      "pdfUrl": null,
+      "repositoryUrls": [],
+      "sourceUrls": [
+        "https://arxiv.org/abs/2510.06056"
+      ]
+    },
+    {
+      "paperId": "7b7a1b3b0e10f9317ae3709a021eb663fccda957",
+      "title": "Sums and differences of sets (improvement over AlphaEvolve)",
+      "year": 2025,
+      "doi": null,
+      "url": "https://www.semanticscholar.org/paper/7b7a1b3b0e10f9317ae3709a021eb663fccda957",
+      "pdfUrl": null,
+      "repositoryUrls": [],
+      "sourceUrls": [
+        "https://arxiv.org/abs/2505.16105"
+      ]
+    },
+    {
+      "paperId": "a20b2871413478330a824174495e53b4768a6f05",
+      "title": "Sums and differences of sets: a further improvement over AlphaEvolve",
+      "year": 2025,
+      "doi": null,
+      "url": "https://www.semanticscholar.org/paper/a20b2871413478330a824174495e53b4768a6f05",
+      "pdfUrl": null,
+      "repositoryUrls": [],
+      "sourceUrls": [
+        "https://arxiv.org/abs/2506.01896"
+      ]
+    },
+    {
+      "paperId": "00d7af89be51cbfdb3bc28ab21a6fafa0a9caada",
+      "title": "Intelligent Robot Path Planning Performance Optimization and Control Strategy Integrating Reinforcement Learning and AlphaEvolve",
+      "year": 2025,
+      "doi": "10.1109/ICECST66106.2025.11307633",
+      "url": "https://www.semanticscholar.org/paper/00d7af89be51cbfdb3bc28ab21a6fafa0a9caada",
+      "pdfUrl": null,
+      "repositoryUrls": [],
+      "sourceUrls": []
+    }
+  ],
+  "warnings": [
+    "SOURCE_URLS_NORMALIZED：论文地址保存为 sourceUrls，不作为 GitHub 仓库地址。"
+  ]
+}

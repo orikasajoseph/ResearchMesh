@@ -1,5 +1,7 @@
 # 张的 Literature Wrapper 接入说明
 
+> 2026-10-04 23:27 更新：赵侧已经使用本机配置的 Semantic Scholar Key 完成一次实时检索。AlphaEvolve 返回并保留 5 篇论文，统一结果校验通过；单次请求 1587.145 ms，attempts=1、cacheHit=false。未调用 DeepSeek、ADP、AIP、Reader 或 Repository Agent。见 [脱敏实测记录](evidence/literature_live_20261004.json)。下文离线阶段记录保留，不再将 Key 缺失视为当前阻碍。
+
 更新：2026-10-04。此文替代旧进度中“尚未取得 Literature Wrapper”的描述；不代表 PaperQA、CodeWiki 或梧桐已经接通。
 
 ## 本轮实际完成
@@ -62,7 +64,7 @@ $deliveryRoot = 'C:\Users\orika\Desktop\智创赛\张\ResearchMesh_LiteratureAge
 
 ## 真正调用时需要做的事
 
-由持有凭据的人在本机 ResearchMesh/.env 配置 `SEMANTIC_SCHOLAR_API_KEY`，不要发到聊天、共享文档或 GitHub。本轮只检查是否配置，没有输出 Key；当前未配置。
+由持有凭据的人在各自本机 ResearchMesh/.env 配置 `SEMANTIC_SCHOLAR_API_KEY`，不要发到聊天、共享文档或 GitHub。赵侧已经配置并实测通过；代码仓库不会携带该 Key，队友仍需自行配置。
 
 ```powershell
 .\.venv\Scripts\python.exe -X utf8 run_literature.py --mode live --plan examples/literature_alphaevolve_v02.json --wrapper-root "$deliveryRoot"
@@ -81,6 +83,8 @@ $deliveryRoot = 'C:\Users\orika\Desktop\智创赛\张\ResearchMesh_LiteratureAge
 - 队友可查看仓库内的 [六场景真实规划记录](evidence/v02_live_regression.json)，无需拿到赵的 outputs 文件夹。
 - 源码和数据未整体复制进赵的 Git 分支：保留张交付归属，不上传 .env/私钥；队友机器需先取得同一交付包，或等张提交其开发分支后合并。
 
-下一步：配置检索 Key 后实测最短业务链；将本适配交给吴接入 AIP/ADP；等待并对接 Reader 与 Repository Wrapper。真实梧桐注册、发现、跨端闭环仍未完成。
+下一步：将已实时验证的文献业务适配交给吴接入 AIP/ADP；等待并对接 Reader 与 Repository Wrapper。此次使用已有计划，尚不是自然语言实时规划与检索的一键串联，也不代表真实梧桐注册、发现、跨端闭环完成。
+
+实时本地记录：outputs/literature-live-20261004-232717-108835，包含 plan.json、outcome.json、metadata.json、reader_inputs.json、report.md。5 条 pdfUrl 均为 null；代码仓库均未确认。未下载或阅读全文，相关性与论文质量仍需后续判断。1587.145 ms 只是一次调用观测，不能作为平均性能。
 
 新版 Planner 人工复核提醒：案例 2 的模型补出了 arXiv PDF 地址，尚未联网验证可用性；案例 5 写了“最相关”，当前绑定器实际只按结果顺序取前 N 篇，不具备重排评分。自动通过只说明既有断言通过，不等于这些内容已获得人工科研验收。

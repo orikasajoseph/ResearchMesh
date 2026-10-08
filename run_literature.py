@@ -12,6 +12,7 @@ from literature_adapter import (AdapterError, call_wrapper, load_wrapper,
                                 normalize_response, to_wrapper_request, verify_replay_request)
 from orchestrator import make_task_payload
 from planner_contract import validate_plan
+from search_recovery import recover_rate_limit
 
 ROOT = Path(__file__).resolve().parent
 
@@ -25,11 +26,12 @@ def select_task(plan):
     return make_task_payload(plan["tasks"][0])
 
 
-def render_literature_report(plan, outcome, mode):
+def render_literature_report(plan, outcome, mode, *, llm_used=False):
     lines = ["# ResearchMesh 文献检索接入报告", "",
              ("> 队友历史样例回放：本次没有实时请求 Semantic Scholar。" if mode == "replay"
               else "> 本次调用真实 Literature Wrapper；未执行论文阅读或代码分析。"),
-             "> 本次未调用 LLM、ADP 或 AIP，不能作为平台互联验收。", "",
+             ("> 本次使用真实 LLM 规划并直接调用 Literature Wrapper；未调用 ADP 或 AIP，不能作为平台互联验收。"
+              if llm_used else "> 本次未调用 LLM、ADP 或 AIP，不能作为平台互联验收。"), "",
              "研究需求：" + plan["userQuery"], ""]
     if outcome["error"]:
         lines += ["执行未成功：" + outcome["error"]["code"]]
@@ -51,6 +53,42 @@ def render_literature_report(plan, outcome, mode):
     return "\n".join(lines) + "\n"
 
 
+def prepare_live_wrapper(wrapper_root):
+    """预检本机 Key 和 Wrapper；不联网，不回显凭据。"""
+    from dotenv import dotenv_values
+    values = dotenv_values(ROOT / ".env", encoding="utf-8-sig", interpolate=False)
+    key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY",
+                         values.get("SEMANTIC_SCHOLAR_API_KEY") or "").strip()
+    if not key:
+        raise AdapterError("MISSING_SEMANTIC_SCHOLAR_API_KEY")
+    wrapper = load_wrapper(wrapper_root)
+    config = wrapper.LiteratureAgentConfig(api_key=key, timeout_seconds=20, max_retries=0)
+    return wrapper, config
+
+
+async def execute_live_task(payload, wrapper_root, *, prepared=None, progress=print,
+                            request_source="run_literature", retry=True):
+    """供独立检索和自然语言入口共用；不调用模型、发现或 AIP。"""
+    # 在创建 Provider 或联网之前检查所有业务限制。
+    request_id = "literature-" + uuid4().hex
+    to_wrapper_request(payload, request_id)
+    wrapper, config = prepared if prepared is not None else prepare_live_wrapper(wrapper_root)
+    provider = wrapper.SemanticScholarProvider(config=config, request_source=request_source,
+                                               subtask_id=payload["subtaskId"])
+    agent = wrapper.LiteratureAgent(provider)
+
+    async def attempt():
+        result = await call_wrapper(payload, request_id, agent, wrapper.LiteratureSearchRequest)
+        if callable(getattr(provider, "http_diagnostics", None)):
+            diagnostics = provider.http_diagnostics()
+            if isinstance(diagnostics, dict):
+                result["diagnostics"].update(diagnostics)
+        return result
+
+    # 同一个 Agent / Provider / requestId，保留限速器；SDK 和 Provider 配置均无内层重试。
+    return await recover_rate_limit(attempt, progress=progress, delays=() if not retry else (2, 4, 8))
+
+
 async def execute(args):
     plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
     payload = select_task(plan)
@@ -65,17 +103,7 @@ async def execute(args):
     else:
         if not args.wrapper_root:
             raise AdapterError("LIVE_REQUIRES_WRAPPER_ROOT")
-        from dotenv import load_dotenv
-        load_dotenv(ROOT / ".env", override=False)
-        if not os.getenv("SEMANTIC_SCHOLAR_API_KEY", "").strip():
-            raise AdapterError("MISSING_SEMANTIC_SCHOLAR_API_KEY")
-        wrapper = load_wrapper(args.wrapper_root)
-        # Explicit bounded config: don't autoload a second team's .env, don't layer retries.
-        config = wrapper.LiteratureAgentConfig(api_key=os.environ["SEMANTIC_SCHOLAR_API_KEY"],
-                                                timeout_seconds=20, max_retries=0)
-        provider = wrapper.SemanticScholarProvider(config=config)
-        outcome = await call_wrapper(payload, "literature-" + uuid4().hex,
-                                     wrapper.LiteratureAgent(provider), wrapper.LiteratureSearchRequest)
+        outcome = await execute_live_task(payload, args.wrapper_root)
     metadata = {"mode": args.mode, "fixtureReplay": args.mode == "replay",
                 "realSourceRequested": args.mode == "live", "llmUsed": False,
                 "aipUsed": False, "platformDiscoveryUsed": False,

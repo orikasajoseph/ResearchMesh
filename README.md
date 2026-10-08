@@ -32,7 +32,7 @@ python -m venv .venv
   `latencyMs=2750.866`，`retryCount=0`；第一篇有 DOI，`pdfUrl=null` 属正常缺失。
 - DeepSeek LLM Provider v0.1：**PASS**，已在迁移后完成真实联网验证。
 - AIP integration：待团队 AIP 负责人联调。
-- Planner integration：赵分支已有文献适配器，并保存了 2026-10-04 的真实检索记录；自然语言规划与检索的一键串联、真实 AIP / ADP 接入仍待完成。
+- Planner integration：赵分支已有文献适配器与真实检索记录；新增 `run_research.py` 串联自然语言规划与独立文献检索，真实 AIP / ADP 接入仍待完成。
 
 张的 API 实测、赵的业务适配及本地 Mock 分别保留验收记录；它们不代表已经完成真实平台发现或 AIP 科研链路。
 
@@ -41,6 +41,77 @@ Literature Agent 的冻结边界为 `literature.search` / `literature_search.v0.
 [AIP 交接说明](docs/AIP_HANDOFF.md)。这些交接文档中的 `requiredCapability` / `code_search` 属于旧 Leader 业务约定；当前赵分支以 [v0.2 接口](docs/InterfaceContract_v0.2.md) 为准，由 `literature_adapter.py` 转换到张已冻结的 Wrapper 输入与输出。业务版本不同不表示 AIP 协议版本不同，全组仍需确认统一的 Leader 契约。
 
 公共 LLM Provider 已提供同步 `chat` / `generate_json`；当前 Planner 仍使用已验证的异步规划适配层，尚未切换到这个公共模块。
+
+## 自然语言规划与真实检索（新入口）
+
+在 VS Code 打开项目目录，终端运行：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 run_research.py
+```
+
+看到“请输入研究问题：”后输入一句话并按回车，不用写 JSON。例如：
+
+> 只检索 2023—2025 年人工智能用于微生物研究的论文，最多 5 篇，不阅读全文，不分析代码。
+
+也可以一次运行：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 run_research.py --query "只检索 2023—2025 年人工智能用于微生物研究的论文，最多 5 篇，不阅读全文，不分析代码。"
+```
+
+前提：已有虚拟环境、模型依赖和 `requirements-literature.txt` 中的检索依赖。
+本机 `.env` 中配置已有 DeepSeek（或现有 Provider）Key 和 `SEMANTIC_SCHOLAR_API_KEY`；不要把 Key 上传 GitHub。
+Wrapper 默认从仓库的 `agents/literature` 加载，模型最多请求 2 次（格式修正最多一次）。
+所有当前 Provider 的真实 Semantic Scholar HTTP 请求通过 `semantic_http.py` 的共享 gate：同进程串行保护，开始时间最小间隔 1.2 秒，包含不同 task、Provider、线程和 event loop。
+遇到可重试的 `RATE_LIMITED` 时，优先按实际 `Retry-After` 等待；未提供或无效则等待 2、4、8 秒，每次另加 0.1—0.3 秒 jitter，最多重试三次；重试期间不再次调用模型。
+服务端要求等待超过 120 秒时，本轮停止并保存计划，不提前重试绕过限制。长等待分段以保持可取消。
+SDK 和接入时 Provider 的内层重试仍关闭，避免重复重试叠加。
+其他错误、空检索结果不会触发这套限流重试；不能保证服务端一定解除限流。
+两类配置和本机 Wrapper 先预检，再调用模型；真实模型调用会消耗额度。
+
+执行流程：自然语言 → 真实 Planner → v0.2 计划校验 → 检索业务适配 → 张的 Literature Wrapper → Semantic Scholar → 统一结果与报告。
+这是本地直接调用，不走 ADP 或 AIP，不是赛事平台互联证明；没有修改张的 Agent 源码。
+当前只接受一个无依赖的 `literature_search` 任务，不会悄悄截取复合任务中的检索部分。
+模糊需求只追问；阅读或仓库分析需求会明确拒绝执行；接口失败不回放旧样例或伪造论文。
+
+每次保存到独立的 `outputs/research-live-时间戳/`：`plan.json`、`planner_metadata.json`、
+`outcome.json`、`metadata.json`、`pipeline.json`、`reader_inputs.json`（有结果时）与 `report.md`。
+在 VS Code 右键 `report.md`，选择“打开预览”即可阅读。
+Planner 阶段元数据仍说明该阶段未执行 Agent；整条链路的实际执行情况以 `metadata.json` 为准。
+澄清或失败也保存可用的计划和诊断记录；预检失败/空输入不联网。
+澄清目前不自动续接会话，需要补全研究问题后重新运行。
+
+计划通过校验后立即保存检查点，再开始检索。因此限流恢复耗尽或按 Ctrl+C 中断后，不必重新输入问题。
+终端会给出本次计划的续跑命令，例如（替换为你实际的记录目录）：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 run_research.py --resume "outputs/research-live-实际时间戳"
+```
+
+`--resume` 也接受 `plan.json` 文件路径；只需要检索 Key，不要求模型 Key，不调用模型、不提示输入问题。
+每次续跑生成独立的新记录目录，不覆盖此前失败或成功的历史。
+限流恢复次数和各次结果在 `outcome.json` 的 `diagnostics.rateLimitRecovery` 中查看；
+续跑记录的 `metadata.llmUsed=false`，不能把旧计划的模型调用算作本轮调用。
+
+### Semantic Scholar 定向限流诊断
+
+冷启动只调用一次，不调用 Planner，不重试：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 scripts/diagnose_semantic_scholar_rate_limit.py
+```
+
+脚本读取本机 `.env`，创建一次 Provider，先等待 2 秒，搜索 `world model`、`limit=1`；
+输出到 `outputs/semantic-cold-时间戳/diagnostics.json`。
+HTTP 诊断只记录 Key 是否配置/附带、实例 ID、端点、请求顺序、时间、状态码、gate 等待、白名单限流头、脱敏错误说明及非敏感搜索参数，不记录 Key/Authorization、Cookie 或 traceback。
+完整流程的同类记录在 `outcome.json` 的 `diagnostics.httpRequests` / `processHttpRequests`；所有业务 Schema 和 `paper_records.v1` 均不变。
+排查与实测指标见 [定向诊断记录](docs/semantic_rate_diagnosis_20261008.md)。
+
+同一个 Semantic Scholar Key 的配额会被使用它的实例共享；本机 gate 不能协调其他电脑或其他进程。
+正式联调建议 Planner/AIP → 唯一部署的 Literature Agent → Semantic Scholar；组员通过该 Agent 调用，避免多台机器直接使用同 Key 并行测试。
+本轮继续使用 relevance `/paper/search`，并在单次请求传递 query、year 范围和 limit。匹配总数不是下载量。
+未来可评估 `searchMode=relevance|bulk`，仅列入 backlog，本轮未实现或切换。
 
 > 2026-10-04 新增：运行 `.\.venv\Scripts\python.exe -X utf8 run_wu_aip.py`，用已保存的真实计划对接吴的本地 AIP Partner。只验证文献检索任务传输，不执行真实科研或平台发现。见 [本地联调说明](docs/wu_local_integration.md)。
 

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "literature_search.v0.1",
+  "requestId": "literature-live-60e5d23b281e45ca8186e0534cfbb7d2",
+  "query": "AlphaEvolve",
+  "filters": {
+    "year": null,
+    "publicationDateOrYear": null,
+    "publicationTypes": [],
+    "venues": [],
+    "fieldsOfStudy": [],
+    "openAccessOnly": false,
+    "minCitationCount": null
+  },
+  "limit": 5
+}

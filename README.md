@@ -17,6 +17,31 @@ python -m venv .venv
 
 `run_wu_aip.py` 另外需要吴的交付目录，通过 `--wu-root` 指定；默认计划已放入仓库 `examples/aip_transport_plan_v02.json`，不再依赖赵电脑上的 outputs。该入口仅检查本地 AIP 传输。
 
+## 共享仓库目录与当前状态
+
+- `planner/`：规划模块的预留归属目录；当前可运行的 Leader / Planner / Resolver 仍位于根目录与 `resolver/`，本次不移动入口。
+- `aip/`：AIP / 梧桐适配的归属目录；由其他成员继续接入。
+- `agents/`：Literature、Paper Reader、Repository 三类功能 Agent。
+- `common/`：公共基础模块，包括统一 LLM Provider。
+- `docs/`：业务协议、接口说明与联调交接文档。
+
+当前状态：
+
+- Literature Agent v0.1：**DONE / FROZEN**。
+- Semantic Scholar real API：**PASS**。最新 `AlphaEvolve` 回归返回 5 篇，
+  `latencyMs=2750.866`，`retryCount=0`；第一篇有 DOI，`pdfUrl=null` 属正常缺失。
+- DeepSeek LLM Provider v0.1：**PASS**，已在迁移后完成真实联网验证。
+- AIP integration：待团队 AIP 负责人联调。
+- Planner integration：赵分支已有文献适配器，并保存了 2026-10-04 的真实检索记录；自然语言规划与检索的一键串联、真实 AIP / ADP 接入仍待完成。
+
+张的 API 实测、赵的业务适配及本地 Mock 分别保留验收记录；它们不代表已经完成真实平台发现或 AIP 科研链路。
+
+Literature Agent 的冻结边界为 `literature.search` / `literature_search.v0.1` /
+`paper_records.v1`，见 [Wrapper 交接契约](docs/INTERFACE_CONTRACT_v0.1.md) 和
+[AIP 交接说明](docs/AIP_HANDOFF.md)。这些交接文档中的 `requiredCapability` / `code_search` 属于旧 Leader 业务约定；当前赵分支以 [v0.2 接口](docs/InterfaceContract_v0.2.md) 为准，由 `literature_adapter.py` 转换到张已冻结的 Wrapper 输入与输出。业务版本不同不表示 AIP 协议版本不同，全组仍需确认统一的 Leader 契约。
+
+公共 LLM Provider 已提供同步 `chat` / `generate_json`；当前 Planner 仍使用已验证的异步规划适配层，尚未切换到这个公共模块。
+
 > 2026-10-04 新增：运行 `.\.venv\Scripts\python.exe -X utf8 run_wu_aip.py`，用已保存的真实计划对接吴的本地 AIP Partner。只验证文献检索任务传输，不执行真实科研或平台发现。见 [本地联调说明](docs/wu_local_integration.md)。
 
 > 2026-10-02 第二周更新：DeepSeek 已真实接通（不是待办）；新增统一 Provider、严格 skill/input 校验、论文数据绑定、真实规划 HTTP 入口、官方 SDK 完成确认组件及新问题验收。详见 [第二周进展](docs/week2_progress.md) 和 [团队接口约定](docs/InterfaceContract_v0.1.md)。下文 `run_demo.py`、`api.py` 仍特指 Mock 模式。
@@ -170,3 +195,12 @@ Mock 数据和格式检查不证明科研结论真实，也不证明平台发现
 ## 最新文献接入进展
 
 张的 Literature Wrapper 已增加独立适配与运行入口：`run_literature.py`。支持交付样例回放和显式实时调用，不等于 AIP/ADP 已接通。安装、字段映射、运行步骤及最新 152 项测试结果见 [文献接入说明](docs/literature_integration.md)。
+
+张的模块已随 main 合入本分支，后续无需另取文献交付压缩包。以下检查使用仓库内 Wrapper 和离线替身，不读取 Key 或请求真实 API：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 verify_literature_delivery.py --wrapper-root agents/literature
+.\.venv\Scripts\python.exe -X utf8 -m unittest agents.literature.tests.test_researchmesh_literature common.llm.tests.test_researchmesh_llm -v
+```
+
+真实检索仍需本机 Semantic Scholar Key；调用时可将 `run_literature.py` 的 `--wrapper-root` 指定为 `agents/literature`。Paper Reader / Repository 目录目前只有说明，不能据此视为已实现。

@@ -1,0 +1,218 @@
+{
+  "schemaVersion": "paper_records.v1",
+  "requestId": "literature-live-60e5d23b281e45ca8186e0534cfbb7d2",
+  "status": "success",
+  "papers": [
+    {
+      "paperId": "ed32e5bb11a9e5e2f03ea805782e8670a6e10efd",
+      "title": "AlphaEvolve: A coding agent for scientific and algorithmic discovery",
+      "authors": [
+        {
+          "authorId": "2274227521",
+          "name": "Alexander Novikov"
+        },
+        {
+          "authorId": "123629146",
+          "name": "Ngân Vu"
+        },
+        {
+          "authorId": "41022419",
+          "name": "Marvin Eisenberger"
+        },
+        {
+          "authorId": "2274228249",
+          "name": "Emilien Dupont"
+        },
+        {
+          "authorId": "2268826600",
+          "name": "Po-Sen Huang"
+        },
+        {
+          "authorId": "2333642957",
+          "name": "Adam Zsolt Wagner"
+        },
+        {
+          "authorId": "74346544",
+          "name": "S. Shirobokov"
+        },
+        {
+          "authorId": "93972621",
+          "name": "B. Kozlovskii"
+        },
+        {
+          "authorId": "2274226620",
+          "name": "Francisco J. R. Ruiz"
+        },
+        {
+          "authorId": "2265579036",
+          "name": "Abbas Mehrabian"
+        },
+        {
+          "authorId": "2275617322",
+          "name": "M. P. Kumar"
+        },
+        {
+          "authorId": "2268761249",
+          "name": "Abigail See"
+        },
+        {
+          "authorId": "2248225759",
+          "name": "Swarat Chaudhuri"
+        },
+        {
+          "authorId": "2256999012",
+          "name": "George Holland"
+        },
+        {
+          "authorId": "2257008027",
+          "name": "A. Davies"
+        },
+        {
+          "authorId": "2388416",
+          "name": "S. Nowozin"
+        },
+        {
+          "authorId": "143967473",
+          "name": "Pushmeet Kohli"
+        },
+        {
+          "authorId": "2265578914",
+          "name": "Matej Balog"
+        }
+      ],
+      "year": 2025,
+      "abstract": "In this white paper, we present AlphaEvolve, an evolutionary coding agent that substantially enhances capabilities of state-of-the-art LLMs on highly challenging tasks such as tackling open scientific problems or optimizing critical pieces of computational infrastructure. AlphaEvolve orchestrates an autonomous pipeline of LLMs, whose task is to improve an algorithm by making direct changes to the code. Using an evolutionary approach, continuously receiving feedback from one or more evaluators, AlphaEvolve iteratively improves the algorithm, potentially leading to new scientific and practical discoveries. We demonstrate the broad applicability of this approach by applying it to a number of important computational problems. When applied to optimizing critical components of large-scale computational stacks at Google, AlphaEvolve developed a more efficient scheduling algorithm for data centers, found a functionally equivalent simplification in the circuit design of hardware accelerators, and accelerated the training of the LLM underpinning AlphaEvolve itself. Furthermore, AlphaEvolve discovered novel, provably correct algorithms that surpass state-of-the-art solutions on a spectrum of problems in mathematics and computer science, significantly expanding the scope of prior automated discovery methods (Romera-Paredes et al., 2023). Notably, AlphaEvolve developed a search algorithm that found a procedure to multiply two $4 \\times 4$ complex-valued matrices using $48$ scalar multiplications; offering the first improvement, after 56 years, over Strassen's algorithm in this setting. We believe AlphaEvolve and coding agents like it can have a significant impact in improving solutions of problems across many areas of science and computation.",
+      "doi": "10.48550/arXiv.2506.13131",
+      "url": "https://www.semanticscholar.org/paper/ed32e5bb11a9e5e2f03ea805782e8670a6e10efd",
+      "pdfUrl": null,
+      "repositoryUrls": [
+        "https://arxiv.org/abs/2506.13131"
+      ],
+      "citationCount": 989
+    },
+    {
+      "paperId": "e16ed32bd86c903aa6fe84cadd3498f64cb0ee3e",
+      "title": "Scientific Algorithm Discovery by Augmenting AlphaEvolve with Deep Research",
+      "authors": [
+        {
+          "authorId": "2146562364",
+          "name": "Gang Liu"
+        },
+        {
+          "authorId": "2362352897",
+          "name": "Yi-Han Zhu"
+        },
+        {
+          "authorId": "2342894586",
+          "name": "Jie Chen"
+        },
+        {
+          "authorId": "2324854983",
+          "name": "M. Jiang"
+        }
+      ],
+      "year": 2025,
+      "abstract": "Large language models hold promise as scientific assistants, yet existing agents either rely solely on algorithm evolution or on deep research in isolation, both of which face critical limitations. Pure algorithm evolution, as in AlphaEvolve, depends only on the internal knowledge of LLMs and quickly plateaus in complex domains, while pure deep research proposes ideas without validation, resulting in unrealistic or unimplementable solutions. We present DeepEvolve, an agent that integrates deep research with algorithm evolution, uniting external knowledge retrieval, cross-file code editing, and systematic debugging under a feedback-driven iterative loop. Each iteration not only proposes new hypotheses but also refines, implements, and tests them, avoiding both shallow improvements and unproductive over-refinements. Across nine benchmarks in chemistry, mathematics, biology, materials, and patents, DeepEvolve consistently improves the initial algorithm, producing executable new algorithms with sustained gains. By bridging the gap between unguided evolution and research without grounding, DeepEvolve provides a reliable framework for advancing scientific algorithm discovery. Our code is available at https://github.com/liugangcode/deepevolve.",
+      "doi": "10.48550/arXiv.2510.06056",
+      "url": "https://www.semanticscholar.org/paper/e16ed32bd86c903aa6fe84cadd3498f64cb0ee3e",
+      "pdfUrl": null,
+      "repositoryUrls": [
+        "https://arxiv.org/abs/2510.06056"
+      ],
+      "citationCount": 18
+    },
+    {
+      "paperId": "7b7a1b3b0e10f9317ae3709a021eb663fccda957",
+      "title": "Sums and differences of sets (improvement over AlphaEvolve)",
+      "authors": [
+        {
+          "authorId": "2779279",
+          "name": "Robert Gerbicz"
+        }
+      ],
+      "year": 2025,
+      "abstract": "On May 14, 2025, DeepMind announced that AlphaEvolve, a large language model applied to a set of mathematical problems, had matched or exceeded the best known bounds on several problems. In the case of the sum and difference of sets problem, AlphaEvolve, using a set of $54265$ integers, improved the known lower bound of $\\theta=1.14465$ to $\\theta=1.1584$. In this paper, we present an improved bound $\\theta=1.173050$ using an explicit construction of a U set that contains more than $10^{43546}$ elements. For fast integer and floating-point arithmetic, we used the (free) GMP library.",
+      "doi": null,
+      "url": "https://www.semanticscholar.org/paper/7b7a1b3b0e10f9317ae3709a021eb663fccda957",
+      "pdfUrl": null,
+      "repositoryUrls": [
+        "https://arxiv.org/abs/2505.16105"
+      ],
+      "citationCount": 4
+    },
+    {
+      "paperId": "a20b2871413478330a824174495e53b4768a6f05",
+      "title": "Sums and differences of sets: a further improvement over AlphaEvolve",
+      "authors": [
+        {
+          "authorId": "2399084354",
+          "name": "Fan Zheng"
+        }
+      ],
+      "year": 2025,
+      "abstract": "We present a new advancement in the sum and difference of sets problem, which improves upon recent results by both DeepMind's AlphaEvolve ($\\theta = 1.1584$) and subsequent explicit constructions ($\\theta = 1.173050$). In this work, we construct a sequence of $U$ sets which in the limit establishes a new lower bound of $\\theta = 1.173077$.",
+      "doi": null,
+      "url": "https://www.semanticscholar.org/paper/a20b2871413478330a824174495e53b4768a6f05",
+      "pdfUrl": null,
+      "repositoryUrls": [
+        "https://arxiv.org/abs/2506.01896"
+      ],
+      "citationCount": 2
+    },
+    {
+      "paperId": "a1554f498098f177c1b63038f4fe1523f6df364f",
+      "title": "Fault2Flow: An AlphaEvolve-Optimized Human-in-the-Loop Multi-Agent System for Fault-to-Workflow Automation",
+      "authors": [
+        {
+          "authorId": "2392907380",
+          "name": "Yafang Wang"
+        },
+        {
+          "authorId": "2331365783",
+          "name": "Yangjie Tian"
+        },
+        {
+          "authorId": "2316367353",
+          "name": "Xiaoyu Shen"
+        },
+        {
+          "authorId": "2393113994",
+          "name": "Gaoyang Zhang"
+        },
+        {
+          "authorId": "2558494",
+          "name": "Jiaze Sun"
+        },
+        {
+          "authorId": "2482922342",
+          "name": "He Zhang"
+        },
+        {
+          "authorId": "2115803447",
+          "name": "Ruohua Xu"
+        },
+        {
+          "authorId": "2393008937",
+          "name": "Feng Zhao"
+        }
+      ],
+      "year": 2025,
+      "abstract": "Power grid fault diagnosis is a critical process hindered by its reliance on manual, error-prone methods. Technicians must manually extract reasoning logic from dense regulations and attempt to combine it with tacit expert knowledge, which is inefficient, error-prone, and lacks maintainability as ragulations are updated and experience evolves. While Large Language Models (LLMs) have shown promise in parsing unstructured text, no existing framework integrates these two disparate knowledge sources into a single, verified, and executable workflow. To bridge this gap, we propose Fault2Flow, an LLM-based multi-agent system. Fault2Flow systematically: (1) extracts and structures regulatory logic into PASTA-formatted fault trees; (2) integrates expert knowledge via a human-in-the-loop interface for verification; (3) optimizes the reasoning logic using a novel AlphaEvolve module; and (4) synthesizes the final, verified logic into an n8n-executable workflow. Experimental validation on transformer fault diagnosis datasets confirms 100\\% topological consistency and high semantic fidelity. Fault2Flow establishes a reproducible path from fault analysis to operational automation, substantially reducing expert workload.",
+      "doi": "10.48550/arXiv.2511.12916",
+      "url": "https://www.semanticscholar.org/paper/a1554f498098f177c1b63038f4fe1523f6df364f",
+      "pdfUrl": null,
+      "repositoryUrls": [
+        "https://arxiv.org/abs/2511.12916"
+      ],
+      "citationCount": 0
+    }
+  ],
+  "total": 94,
+  "provider": "semantic-scholar",
+  "metrics": {
+    "durationMs": 2750.802,
+    "attempts": 1,
+    "cacheHit": false
+  },
+  "error": null
+}

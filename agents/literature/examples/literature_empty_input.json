@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "literature_search.v0.1",
+  "requestId": "literature-empty-51318eec36994f0db81e6591dd34c1d0",
+  "query": "researchmesh-no-result-d8df3a4855ea4376a5f938ca9f4cfd35",
+  "filters": {
+    "year": null,
+    "publicationDateOrYear": null,
+    "publicationTypes": [],
+    "venues": [],
+    "fieldsOfStudy": [],
+    "openAccessOnly": false,
+    "minCitationCount": null
+  },
+  "limit": 5
+}

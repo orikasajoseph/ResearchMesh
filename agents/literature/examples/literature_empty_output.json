@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "paper_records.v1",
+  "requestId": "literature-empty-51318eec36994f0db81e6591dd34c1d0",
+  "status": "failure",
+  "papers": [],
+  "total": 0,
+  "provider": "semantic-scholar",
+  "metrics": {
+    "durationMs": 4560.556,
+    "attempts": 2,
+    "cacheHit": false
+  },
+  "error": {
+    "code": "NO_RESULTS",
+    "message": "No papers matched the search request.",
+    "retryable": false
+  }
+}

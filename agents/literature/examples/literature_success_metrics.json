@@ -1,0 +1,11 @@
+{
+  "requestStartedAt": "2026-10-08T08:14:26.544692+00:00",
+  "requestFinishedAt": "2026-10-08T08:14:29.295585+00:00",
+  "latencyMs": 2750.866,
+  "query": "AlphaEvolve",
+  "maxResults": 5,
+  "returnedCount": 5,
+  "cacheHit": false,
+  "retryCount": 0,
+  "retryEvents": []
+}

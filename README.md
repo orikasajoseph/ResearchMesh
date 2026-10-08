@@ -1,5 +1,29 @@
 # ResearchMesh：本地模拟闭环
 
+## 共享仓库目录与当前状态
+
+- `planner/`：Leader / Planner / Resolver 的归属目录；由其他成员继续接入。
+- `aip/`：AIP / 梧桐适配的归属目录；由其他成员继续接入。
+- `agents/`：Literature、Paper Reader、Repository 三类功能 Agent。
+- `common/`：公共基础模块，包括统一 LLM Provider。
+- `docs/`：业务协议、接口说明与联调交接文档。
+
+当前状态：
+
+- Literature Agent v0.1：**DONE / FROZEN**。
+- Semantic Scholar real API：**PASS**。最新 `AlphaEvolve` 回归返回 5 篇，
+  `latencyMs=2750.866`，`retryCount=0`；第一篇有 DOI，`pdfUrl=null` 属正常缺失。
+- DeepSeek LLM Provider v0.1：**PASS**，已在迁移后完成真实联网验证。
+- AIP integration：待团队 AIP 负责人联调。
+- Planner integration：待 Planner 负责人联调。
+
+以上真实 API 验收与本地 Mock 相互独立；AIP/Planner 未完成真实联调前，不将其
+标记为已接入。
+
+Literature Agent 的冻结边界为 `literature.search` / `literature_search.v0.1` /
+`paper_records.v1`，见 [接口契约](docs/INTERFACE_CONTRACT_v0.1.md) 和
+[AIP 交接说明](docs/AIP_HANDOFF.md)。
+
 > 2026-10-04 新增：运行 `.\.venv\Scripts\python.exe -X utf8 run_wu_aip.py`，用已保存的真实计划对接吴的本地 AIP Partner。只验证文献检索任务传输，不执行真实科研或平台发现。见 [本地联调说明](docs/wu_local_integration.md)。
 
 > 2026-10-02 第二周更新：DeepSeek 已真实接通（不是待办）；新增统一 Provider、严格 skill/input 校验、论文数据绑定、真实规划 HTTP 入口、官方 SDK 完成确认组件及新问题验收。详见 [第二周进展](docs/week2_progress.md) 和 [团队接口约定](docs/InterfaceContract_v0.1.md)。下文 `run_demo.py`、`api.py` 仍特指 Mock 模式。
@@ -146,5 +170,7 @@ Schema 导出和校验细节见 [数据模型说明](docs/schema_notes.md)。Pla
 
 ## 尚未完成
 
-DeepSeek 的本机 Key 配置、真实连通性与新问题规划验收；真实平台发现与 AIP 生命周期；真实科研 Agent；真实端到端联调。
+Literature Agent 和公共 LLM Provider 已分别通过真实 API 验收。Planner 与 AIP
+平台接入仍由其他成员推进；Paper Reader、Repository Agent 和真实端到端联调
+尚未在本次迁移中完成。
 Mock 演示与测试通过仅证明这一步的本地框架有效，不代表第一周所有交付或赛事要求均已完成。

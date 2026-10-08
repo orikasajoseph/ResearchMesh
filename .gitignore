@@ -6,8 +6,13 @@ outputs/
 .env.*
 !.env.example
 .venv/
+venv/
 .vscode/
 .pytest_cache/
+logs/
+*.log
+cache/
+tmp/
 *.egg-info/
 build/
 dist/

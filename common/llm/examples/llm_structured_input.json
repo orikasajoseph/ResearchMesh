@@ -1,0 +1,38 @@
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是 ResearchMesh 的科研任务规划器。"
+    },
+    {
+      "role": "user",
+      "content": "请把下面科研请求转换成 JSON：‘调研 AlphaEvolve 的研究进展并分析复现难度。’只输出 topic、keywords、requiredSkills；requiredSkills 必须是 literature.search、paper.analyze、repository.analyze。"
+    }
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "topic": {
+        "type": "string"
+      },
+      "keywords": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "requiredSkills": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "topic",
+      "keywords",
+      "requiredSkills"
+    ],
+    "additionalProperties": false
+  }
+}

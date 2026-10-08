@@ -1,0 +1,19 @@
+{
+  "requestStartedAt": "2026-10-08T08:14:29.300295+00:00",
+  "requestFinishedAt": "2026-10-08T08:14:33.860920+00:00",
+  "latencyMs": 4560.605,
+  "query": "researchmesh-no-result-d8df3a4855ea4376a5f938ca9f4cfd35",
+  "maxResults": 5,
+  "returnedCount": 0,
+  "cacheHit": false,
+  "retryCount": 1,
+  "retryEvents": [
+    {
+      "retryNumber": 1,
+      "failedAttempt": 1,
+      "reason": "rate_limit",
+      "httpStatus": 429,
+      "backoffSeconds": 1.0
+    }
+  ]
+}

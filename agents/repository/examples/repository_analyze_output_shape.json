@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "0.2",
+  "subtaskId": "repo-1",
+  "taskType": "repository_analyze",
+  "summary": "Analyzed one repository.",
+  "items": [
+    {
+      "kind": "repository_record",
+      "data": {
+        "repository": {
+          "url": "https://github.com/example/project.git",
+          "commitHash": "<git-commit>"
+        },
+        "structure": [],
+        "dependencies": [],
+        "entrypoints": [],
+        "runCommands": [],
+        "reproductionBarriers": [],
+        "overview": null,
+        "evidence": [],
+        "diagnostics": {
+          "provider": "codewiki-static",
+          "codewikiVersion": "2.0.0",
+          "codewikiCommit": "f0975ea19b17568ceb55cd5422206e1a1ae13c0b",
+          "metrics": {
+            "cloneMs": 0,
+            "staticAnalysisMs": 0,
+            "llmEnrichmentMs": 0,
+            "totalMs": 0
+          },
+          "counts": {
+            "componentCount": 0,
+            "dependencyEdgeCount": 0,
+            "artifactCount": 0,
+            "evidenceCount": 0
+          }
+        }
+      }
+    }
+  ],
+  "warnings": []
+}

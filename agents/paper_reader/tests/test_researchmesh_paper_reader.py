@@ -181,9 +181,10 @@ class PaperReaderAgentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(evidence.text, "The method reveals relationships but evaluation is subjective.")
         self.assertEqual(evidence.summary, "Method, findings, and limitations are described.")
         self.assertEqual(evidence.score, 9)
-        self.assertEqual(
-            set(evidence.supports), {"method", "findings", "limitations"}
-        )
+        self.assertIsInstance(evidence.supports, str)
+        self.assertIn("two-step XAI method", evidence.supports)
+        self.assertIn("structure-property relationships", evidence.supports)
+        self.assertIn("Evaluation remains subjective", evidence.supports)
 
     async def test_pqac_failure_warns_but_keeps_context_evidence(self):
         provider = FakeProvider(provider_analysis(citation_incomplete=True))

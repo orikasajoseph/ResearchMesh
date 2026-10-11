@@ -155,18 +155,15 @@ class PaperReaderAgent:
             "findings": sections.findings,
             "limitations": sections.limitations,
         }
-        supports = [
-            name
+        supported_claims = [
+            value
             for name, value in section_values.items()
-            if context.context_id in value
-            or context.locator in value
-            or (
-                context.context_id in raw_answer
-                and cls._section_mentions_context(raw_answer, name, context.context_id)
-            )
+            if context.locator in value
+            or cls._section_mentions_context(raw_answer, name, context.context_id)
         ]
+        supports = " ".join(supported_claims).strip() or context.summary.strip()
         if not supports:
-            supports = cls._infer_supports(context)
+            supports = context.raw_text.strip()
         return PaperEvidence(
             sourceId=paper.paperId,
             url=paper.pdfUrl,
@@ -189,33 +186,3 @@ class PaperReaderAgent:
             answer,
         )
         return bool(match and context_id in match.group(0))
-
-    @staticmethod
-    def _infer_supports(context: ProviderContext) -> list[str]:
-        text = f"{context.summary}\n{context.raw_text}".lower()
-        supports: list[str] = []
-        if any(
-            term in text
-            for term in ("method", "approach", "model", "framework", "方法", "模型")
-        ):
-            supports.append("method")
-        if any(
-            term in text
-            for term in ("result", "finding", "show", "conclusion", "发现", "结果", "结论")
-        ):
-            supports.append("findings")
-        if any(
-            term in text
-            for term in (
-                "limitation",
-                "challenge",
-                "open question",
-                "lack of",
-                "trade-off",
-                "局限",
-                "挑战",
-                "缺乏",
-            )
-        ):
-            supports.append("limitations")
-        return supports or ["findings"]

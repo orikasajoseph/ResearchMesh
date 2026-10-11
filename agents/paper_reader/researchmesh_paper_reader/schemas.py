@@ -92,7 +92,6 @@ class PaperReadTask(PaperReaderModel):
         return self
 
 
-EvidenceSupport = Literal["method", "findings", "limitations"]
 AnalysisLevel = Literal["abstract", "fulltext"]
 
 
@@ -100,7 +99,7 @@ class PaperEvidence(PaperReaderModel):
     sourceId: str = Field(min_length=1, pattern=r"\S")
     url: str | None = None
     locator: str = Field(min_length=1, pattern=r"\S")
-    supports: list[EvidenceSupport] = Field(min_length=1)
+    supports: str = Field(min_length=1, pattern=r"\S")
     text: str | None = None
     summary: str | None = None
     score: int | float | None = None

@@ -5,9 +5,8 @@ from pathlib import Path
 import unittest
 
 from aip.literature_bridge import build_literature_request, execute_literature, map_literature_response
-from aip.wu_delivery.contracts import ResearchTask
+from aip.wu_delivery.contracts import ResearchTask, ResearchResult
 from aip.wu_delivery.execution import BackendFailure
-from result_contract import validate_result
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / 'agents' / 'literature' / 'examples'
@@ -43,7 +42,10 @@ class LiteratureBridgeTests(unittest.TestCase):
         self.assertTrue(result.items)
         self.assertTrue(all(item.kind == 'paper' for item in result.items))
         self.assertTrue(all(not any(url.startswith('https://arxiv.org') for url in item.data['repositoryUrls']) for item in result.items))
-        validate_result(result.model_dump(mode='json'), search_task.model_dump(mode='json'))
+        ResearchResult.model_validate(result.model_dump(mode='json'))
+        self.assertEqual(result.schemaVersion, search_task.schemaVersion)
+        self.assertEqual(result.subtaskId, search_task.subtaskId)
+        self.assertEqual(result.taskType, search_task.taskType)
 
     def test_empty_fixture_is_not_transport_only_or_provider_error(self):
         search_task = task()
@@ -53,7 +55,10 @@ class LiteratureBridgeTests(unittest.TestCase):
         self.assertEqual(result.items, [])
         self.assertEqual(result.warnings, ['NO_RESULTS'])
         self.assertNotIn('TRANSPORT_TEST_ONLY', result.warnings)
-        validate_result(result.model_dump(mode='json'), search_task.model_dump(mode='json'))
+        ResearchResult.model_validate(result.model_dump(mode='json'))
+        self.assertEqual(result.schemaVersion, search_task.schemaVersion)
+        self.assertEqual(result.subtaskId, search_task.subtaskId)
+        self.assertEqual(result.taskType, search_task.taskType)
 
     def test_provider_error_preserves_safe_code(self):
         response = {'schemaVersion': 'paper_records.v1', 'requestId': 'S1', 'status': 'failure',

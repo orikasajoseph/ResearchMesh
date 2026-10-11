@@ -1,8 +1,25 @@
-# ResearchMesh：本地模拟闭环
+# ResearchMesh 智研协作
+
+> 2026-10-04 开发分支已实现业务接口 v0.2：`requiredSkill`、`repository_analyze`、明确仓库地址后才静态分析。待全组确认后合并，尚非全组冻结版本。请先读 [v0.2 接口](docs/InterfaceContract_v0.2.md) 和 [本次交接](docs/v02_handoff.md)。旧 v0.1 文档、历史验收只作参考。
+
+## 组员首次运行
+
+建议使用 Python 3.12（吴当前交付包至少需要 3.11）。在克隆的项目目录创建各自的环境：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt -r requirements-llm.txt -r requirements-aip.txt
+.\.venv\Scripts\python.exe -X utf8 verify_project.py
+.\.venv\Scripts\python.exe -X utf8 run_demo.py
+```
+
+上述验证不需要 API Key、不调用真实模型。真实规划另将 `.env.example` 复制成自己的 `.env` 并填写本机 Key；不要覆盖已有 `.env`。团队不共享密钥和虚拟环境。
+
+`run_wu_aip.py` 另外需要吴的交付目录，通过 `--wu-root` 指定；默认计划已放入仓库 `examples/aip_transport_plan_v02.json`，不再依赖赵电脑上的 outputs。该入口仅检查本地 AIP 传输。
 
 ## 共享仓库目录与当前状态
 
-- `planner/`：Leader / Planner / Resolver 的归属目录；由其他成员继续接入。
+- `planner/`：规划模块的预留归属目录；当前可运行的 Leader / Planner / Resolver 仍位于根目录与 `resolver/`，本次不移动入口。
 - `aip/`：AIP / 梧桐适配的归属目录；由其他成员继续接入。
 - `agents/`：Literature、Paper Reader、Repository 三类功能 Agent。
 - `common/`：公共基础模块，包括统一 LLM Provider。
@@ -15,14 +32,86 @@
   `latencyMs=2750.866`，`retryCount=0`；第一篇有 DOI，`pdfUrl=null` 属正常缺失。
 - DeepSeek LLM Provider v0.1：**PASS**，已在迁移后完成真实联网验证。
 - AIP integration：待团队 AIP 负责人联调。
-- Planner integration：待 Planner 负责人联调。
+- Planner integration：赵分支已有文献适配器与真实检索记录；新增 `run_research.py` 串联自然语言规划与独立文献检索，真实 AIP / ADP 接入仍待完成。
 
-以上真实 API 验收与本地 Mock 相互独立；AIP/Planner 未完成真实联调前，不将其
-标记为已接入。
+张的 API 实测、赵的业务适配及本地 Mock 分别保留验收记录；它们不代表已经完成真实平台发现或 AIP 科研链路。
 
 Literature Agent 的冻结边界为 `literature.search` / `literature_search.v0.1` /
-`paper_records.v1`，见 [接口契约](docs/INTERFACE_CONTRACT_v0.1.md) 和
-[AIP 交接说明](docs/AIP_HANDOFF.md)。
+`paper_records.v1`，见 [Wrapper 交接契约](docs/INTERFACE_CONTRACT_v0.1.md) 和
+[AIP 交接说明](docs/AIP_HANDOFF.md)。这些交接文档中的 `requiredCapability` / `code_search` 属于旧 Leader 业务约定；当前赵分支以 [v0.2 接口](docs/InterfaceContract_v0.2.md) 为准，由 `literature_adapter.py` 转换到张已冻结的 Wrapper 输入与输出。业务版本不同不表示 AIP 协议版本不同，全组仍需确认统一的 Leader 契约。
+
+公共 LLM Provider 已提供同步 `chat` / `generate_json`；当前 Planner 仍使用已验证的异步规划适配层，尚未切换到这个公共模块。
+
+## 自然语言规划与真实检索（新入口）
+
+在 VS Code 打开项目目录，终端运行：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 run_research.py
+```
+
+看到“请输入研究问题：”后输入一句话并按回车，不用写 JSON。例如：
+
+> 只检索 2023—2025 年人工智能用于微生物研究的论文，最多 5 篇，不阅读全文，不分析代码。
+
+也可以一次运行：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 run_research.py --query "只检索 2023—2025 年人工智能用于微生物研究的论文，最多 5 篇，不阅读全文，不分析代码。"
+```
+
+前提：已有虚拟环境、模型依赖和 `requirements-literature.txt` 中的检索依赖。
+本机 `.env` 中配置已有 DeepSeek（或现有 Provider）Key 和 `SEMANTIC_SCHOLAR_API_KEY`；不要把 Key 上传 GitHub。
+Wrapper 默认从仓库的 `agents/literature` 加载，模型最多请求 2 次（格式修正最多一次）。
+所有当前 Provider 的真实 Semantic Scholar HTTP 请求通过 `semantic_http.py` 的共享 gate：同进程串行保护，开始时间最小间隔 1.2 秒，包含不同 task、Provider、线程和 event loop。
+遇到可重试的 `RATE_LIMITED` 时，优先按实际 `Retry-After` 等待；未提供或无效则等待 2、4、8 秒，每次另加 0.1—0.3 秒 jitter，最多重试三次；重试期间不再次调用模型。
+服务端要求等待超过 120 秒时，本轮停止并保存计划，不提前重试绕过限制。长等待分段以保持可取消。
+SDK 和接入时 Provider 的内层重试仍关闭，避免重复重试叠加。
+其他错误、空检索结果不会触发这套限流重试；不能保证服务端一定解除限流。
+两类配置和本机 Wrapper 先预检，再调用模型；真实模型调用会消耗额度。
+
+执行流程：自然语言 → 真实 Planner → v0.2 计划校验 → 检索业务适配 → 张的 Literature Wrapper → Semantic Scholar → 统一结果与报告。
+这是本地直接调用，不走 ADP 或 AIP，不是赛事平台互联证明；没有修改张的 Agent 源码。
+当前只接受一个无依赖的 `literature_search` 任务，不会悄悄截取复合任务中的检索部分。
+模糊需求只追问；阅读或仓库分析需求会明确拒绝执行；接口失败不回放旧样例或伪造论文。
+
+每次保存到独立的 `outputs/research-live-时间戳/`：`plan.json`、`planner_metadata.json`、
+`outcome.json`、`metadata.json`、`pipeline.json`、`reader_inputs.json`（有结果时）与 `report.md`。
+在 VS Code 右键 `report.md`，选择“打开预览”即可阅读。
+Planner 阶段元数据仍说明该阶段未执行 Agent；整条链路的实际执行情况以 `metadata.json` 为准。
+澄清或失败也保存可用的计划和诊断记录；预检失败/空输入不联网。
+澄清目前不自动续接会话，需要补全研究问题后重新运行。
+
+计划通过校验后立即保存检查点，再开始检索。因此限流恢复耗尽或按 Ctrl+C 中断后，不必重新输入问题。
+终端会给出本次计划的续跑命令，例如（替换为你实际的记录目录）：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 run_research.py --resume "outputs/research-live-实际时间戳"
+```
+
+`--resume` 也接受 `plan.json` 文件路径；只需要检索 Key，不要求模型 Key，不调用模型、不提示输入问题。
+每次续跑生成独立的新记录目录，不覆盖此前失败或成功的历史。
+限流恢复次数和各次结果在 `outcome.json` 的 `diagnostics.rateLimitRecovery` 中查看；
+续跑记录的 `metadata.llmUsed=false`，不能把旧计划的模型调用算作本轮调用。
+
+### Semantic Scholar 定向限流诊断
+
+冷启动只调用一次，不调用 Planner，不重试：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 scripts/diagnose_semantic_scholar_rate_limit.py
+```
+
+脚本读取本机 `.env`，创建一次 Provider，先等待 2 秒，搜索 `world model`、`limit=1`；
+输出到 `outputs/semantic-cold-时间戳/diagnostics.json`。
+HTTP 诊断只记录 Key 是否配置/附带、实例 ID、端点、请求顺序、时间、状态码、gate 等待、白名单限流头、脱敏错误说明及非敏感搜索参数，不记录 Key/Authorization、Cookie 或 traceback。
+完整流程的同类记录在 `outcome.json` 的 `diagnostics.httpRequests` / `processHttpRequests`；所有业务 Schema 和 `paper_records.v1` 均不变。
+排查与实测指标见 [定向诊断记录](docs/semantic_rate_diagnosis_20261008.md)。
+
+同一个 Semantic Scholar Key 的配额会被使用它的实例共享；本机 gate 不能协调其他电脑或其他进程。
+正式联调建议 Planner/AIP → 唯一部署的 Literature Agent → Semantic Scholar；组员通过该 Agent 调用，避免多台机器直接使用同 Key 并行测试。
+本轮继续使用 relevance `/paper/search`，并在单次请求传递 query、year 范围和 limit。匹配总数不是下载量。
+未来可评估 `searchMode=relevance|bulk`，仅列入 backlog，本轮未实现或切换。
 
 > 2026-10-04 新增：运行 `.\.venv\Scripts\python.exe -X utf8 run_wu_aip.py`，用已保存的真实计划对接吴的本地 AIP Partner。只验证文献检索任务传输，不执行真实科研或平台发现。见 [本地联调说明](docs/wu_local_integration.md)。
 
@@ -142,7 +231,8 @@ python -X utf8 verify_project.py
 | `test_deepseek_connection.py` | 手动付费连通性检查，不属于自动测试 |
 | `run_deepseek_planner.py` | 独立的真实规划入口及计划保存 |
 | `demo_planner.py` | 固定响应的 ExampleModel；不处理任意新问题 |
-| `planner_contract.py` / `result_contract.py` | 共享 v0.1 任务与结果校验 |
+| `planner_contract.py` / `result_contract.py` | 当前开发版 v0.2 任务与结果校验 |
+| `compatibility.py` / `migrate_plan.py` | 显式迁移旧计划，缺少仓库地址时阻止迁移，不覆盖历史记录 |
 | `common/models.py` | 唯一的 Pydantic 数据模型来源 |
 | `export_schemas.py` / `schemas/` | 导出和保存内部计划、任务、业务任务、业务结果 Schema |
 | `api.py` | 明确标注 fixture 模式的本地 /plan、/health、/demo/cases |
@@ -157,8 +247,8 @@ python -X utf8 verify_project.py
 
 ## 格式与 AIP 边界
 
-沿用共享 v0.1 的 camelCase 字段，不照搬旧个人流程中的 task_id/task_type/status。
-`requiredCapability`、`dependsOn` 属于 Leader 内部调度，不直接放进跨 Agent 的业务任务负载。
+v0.2 沿用 camelCase 字段风格，任务名和技能名见新的接口文档。
+`requiredSkill`、`dependsOn` 属于 Leader 内部调度，不直接放进跨 Agent 的业务任务负载。
 业务结果只包含 `schemaVersion/subtaskId/taskType/summary/items/warnings`，没有另一套 status。
 
 当前 resolver 和 executor 是同一个进程里的函数调用，并未声称符合完整 AIP 通信流程。
@@ -170,7 +260,18 @@ Schema 导出和校验细节见 [数据模型说明](docs/schema_notes.md)。Pla
 
 ## 尚未完成
 
-Literature Agent 和公共 LLM Provider 已分别通过真实 API 验收。Planner 与 AIP
-平台接入仍由其他成员推进；Paper Reader、Repository Agent 和真实端到端联调
-尚未在本次迁移中完成。
-Mock 演示与测试通过仅证明这一步的本地框架有效，不代表第一周所有交付或赛事要求均已完成。
+DeepSeek 已接通，v0.1 五例已人工确认，v0.2 六例真实回归已自动通过、待人工确认。张的 Literature Wrapper 已交付并完成适配，赵侧已经用已有计划实时检索 AlphaEvolve，保留 5 篇论文并通过统一结果校验。Reader/Repository Wrapper、真实平台发现和三方完整科研链仍未接通。吴当前交付包的本地 AIP 传输已通过，v0.2 分支通过限定文献任务的兼容入口继续对接它。
+Mock 数据和格式检查不证明科研结论真实，也不证明平台发现或赛事互联已完成。
+
+## 最新文献接入进展
+
+张的 Literature Wrapper 已增加独立适配与运行入口：`run_literature.py`。支持交付样例回放和显式实时调用，不等于 AIP/ADP 已接通。安装、字段映射、运行步骤及最新 152 项测试结果见 [文献接入说明](docs/literature_integration.md)。
+
+张的模块已随 main 合入本分支，后续无需另取文献交付压缩包。以下检查使用仓库内 Wrapper 和离线替身，不读取 Key 或请求真实 API：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 verify_literature_delivery.py --wrapper-root agents/literature
+.\.venv\Scripts\python.exe -X utf8 -m unittest agents.literature.tests.test_researchmesh_literature common.llm.tests.test_researchmesh_llm -v
+```
+
+真实检索仍需本机 Semantic Scholar Key；调用时可将 `run_literature.py` 的 `--wrapper-root` 指定为 `agents/literature`。Paper Reader / Repository 目录目前只有说明，不能据此视为已实现。

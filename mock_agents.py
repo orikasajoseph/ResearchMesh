@@ -12,7 +12,7 @@ MOCK_WARNING = "模拟数据：未调用真实检索、未阅读真实论文、�
 
 def _result(payload, summary, items):
     return {
-        "schemaVersion": "0.1",
+        "schemaVersion": "0.2",
         "subtaskId": payload["subtaskId"],
         "taskType": payload["taskType"],
         "summary": summary,
@@ -49,6 +49,7 @@ class LiteratureMockAgent:
             "doi": None,
             "url": "https://example.invalid/mock/paper-001",
             "relevance": "仅演示检索结果结构，不表示真实相关性",
+            "repositoryUrls": ["https://github.com/researchmesh-fixture/mock-repository"],
             "isMock": True,
         }
         return _result(payload, "【模拟】返回一条论文记录。", [{"kind": "paper", "data": paper}])
@@ -61,7 +62,8 @@ class PaperReaderMockAgent:
             "method": "【模拟】这里将来填写从全文中提取的方法",
             "findings": "【模拟】这里将来填写有原文依据的发现",
             "limitations": "【模拟】这里将来填写论文局限",
-            "source": {"title": paper["title"], "doi": paper.get("doi"), "url": paper.get("url")},
+            "source": {"title": paper["title"], "doi": paper.get("doi"), "url": paper.get("url"),
+                       "pdfUrl": paper.get("pdfUrl"), "repositoryUrls": paper.get("repositoryUrls", [])},
             "isMock": True,
         }} for paper in _papers(payload, dependency_results)]
         return _result(payload, "【模拟】生成论文阅读条目，未读取全文。", items)
@@ -72,7 +74,7 @@ class CodeMockAgent:
         papers = _papers(payload, dependency_results)
         return _result(payload, "【模拟】生成一条仓库记录，未进行搜索或核验。", [{"kind": "repository", "data": {
             "name": "mock-repository",
-            "url": "https://example.invalid/mock/repository",
+            "url": payload["input"]["repositoryUrls"][0],
             "license": "UNKNOWN（模拟，未核验）",
             "relatedPaper": papers[0]["title"],
             "relationEvidence": "仅为模拟关联，没有真实证据",
@@ -98,7 +100,7 @@ def build_mock_agents(fail_task=None):
     for capability, executor in (
         ("literature_search", LiteratureMockAgent()),
         ("paper_read", PaperReaderMockAgent()),
-        ("code_search", CodeMockAgent()),
+        ("repository_analyze", CodeMockAgent()),
     ):
         if fail_task:
             executor = FailOnTask(executor, fail_task)

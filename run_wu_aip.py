@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from copy import deepcopy
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import hashlib
@@ -24,14 +25,18 @@ import httpx
 from common.models import BUSINESS_TASK_FIELDS
 from planner_contract import validate_plan
 from result_contract import validate_result
+from compatibility import migrate_plan, validate_legacy_plan
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_WU = ROOT.parent / "wu_delivery(1)" / "ResearchMesh_wu_delivery_v0.2_local"
-DEFAULT_PLAN = ROOT / "outputs/live-planner-20261003-124233-600820/plan.json"
+DEFAULT_PLAN = ROOT / "examples/aip_transport_plan_v02.json"
 
 
 def select_task(plan, subtask_id="S1"):
-    validate_plan(plan)
+    if plan.get("schemaVersion") == "0.1":
+        plan = validate_legacy_plan(plan)
+    else:
+        validate_plan(plan)
     task = next((task for task in plan["tasks"] if task["subtaskId"] == subtask_id), None)
     if task is None:
         raise ValueError("SELECTED_TASK_NOT_FOUND")
@@ -39,7 +44,14 @@ def select_task(plan, subtask_id="S1"):
         raise ValueError("ONLY_LITERATURE_SUPPORTED")
     if task["dependsOn"]:
         raise ValueError("DEPENDENCIES_NOT_EXECUTED")
-    return task, {key: task[key] for key in BUSINESS_TASK_FIELDS}
+    # 只迁移被选中的独立文献任务，其余旧任务不执行、不修改。
+    selected = deepcopy(plan)
+    selected["tasks"] = [task]
+    canonical, _ = migrate_plan(selected)
+    task = canonical["tasks"][0]
+    payload = {key: deepcopy(task[key]) for key in BUSINESS_TASK_FIELDS}
+    payload["schemaVersion"] = "0.1"  # 吴当前交付包的明确旧版传输边界。
+    return task, payload
 
 
 def load_delivery(root):
@@ -62,7 +74,13 @@ def assess_outcome(outcome, payload, events):
     result = outcome.get("result")
     valid = False
     if result is not None:
-        validate_result(result, payload)
+        if payload.get("schemaVersion") != "0.1" or result.get("schemaVersion") != "0.1":
+            raise ValueError("WU_WIRE_VERSION_MISMATCH")
+        if payload.get("taskType") != "literature_search":
+            raise ValueError("ONLY_LITERATURE_SUPPORTED")
+        canonical_result, canonical_task = deepcopy(result), deepcopy(payload)
+        canonical_result["schemaVersion"] = canonical_task["schemaVersion"] = "0.2"
+        validate_result(canonical_result, canonical_task)
         valid = True
     warnings = list(outcome.get("warnings", [])) + (result or {}).get("warnings", [])
     transport_only = any(w.startswith("TRANSPORT_TEST_ONLY") for w in warnings)
@@ -197,18 +215,21 @@ def main():
             "deliveryRoot": str(delivery_root), "deliverySourceHashes": source_hashes,
             "mode": "local-transport-only", "llmCalled": False, "platformDiscoveryUsed": False,
             "tlsIdentityVerified": False, "researchExecuted": False,
+            "plannerSchemaVersion": "0.2", "wireSchemaVersion": "0.1",
+            "compatibilityBridge": "literature-only-v02-to-wu-v01",
         })
         with local_partner(delivery_root, output) as (url, aic):
             outcome, events, assessment = asyncio.run(invoke_local(payload, url, aic, delivery_root))
         save_json(output / "outcome.json", outcome)
         save_json(output / "aip_events.json", events)
         save_json(output / "acceptance.json", {**assessment, "partnerStopped": True,
-            "selectedSubtask": task["subtaskId"], "skill": task["requiredCapability"],
+            "selectedSubtask": task["subtaskId"], "skill": task["requiredSkill"],
             "notExecutedSubtasks": [t["subtaskId"] for t in plan["tasks"] if t["subtaskId"] != task["subtaskId"]]})
         passed = assessment["localAcceptancePassed"]
         report = "# ResearchMesh × 吴：本地 AIP 联调\n\n"
         report += "结论：" + ("传输测试通过；尚未执行论文检索。" if passed else "传输验收未通过，请检查 outcome.json。") + "\n\n"
-        report += f"选择任务：{task['subtaskId']} / {task['requiredCapability']}；协议耗时：{outcome['latencyMs']} ms。\n\n"
+        report += f"选择任务：{task['subtaskId']} / {task['requiredSkill']}；协议耗时：{outcome['latencyMs']} ms。\n\n"
+        report += "兼容范围：Leader v0.2 文献任务 → 吴交付包 v0.1 业务负载；不代表吴已迁移或团队已冻结。\n\n"
         report += "过程：" + " → ".join(f"{e['command']} / {e['state']}" for e in events) + "\n\n"
         report += "只运行选中的文献检索传输任务；未运行阅读、代码分析、ADP、平台认证或 AMP。\n\n"
         report += "临时 Partner 已关闭。关闭 TLS 身份绑定仅用于本机回环测试；不能用此入口部署公网。\n"

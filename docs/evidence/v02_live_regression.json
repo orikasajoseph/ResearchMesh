@@ -1,0 +1,336 @@
+{
+  "source": "2026-10-04 DeepSeek v0.2 six-case regression; no Agent or AIP execution",
+  "humanAccepted": false,
+  "cases": [
+    {
+      "case": "只检索",
+      "query": "只检索 2022—2025 年自监督学习用于显微图像细胞分割的论文，最多 6 篇，暂时不要阅读全文或查代码。",
+      "plan": {
+        "schemaVersion": "0.2",
+        "userQuery": "只检索 2022—2025 年自监督学习用于显微图像细胞分割的论文，最多 6 篇，暂时不要阅读全文或查代码。",
+        "needsClarification": false,
+        "clarificationQuestion": null,
+        "tasks": [
+          {
+            "schemaVersion": "0.2",
+            "subtaskId": "S1",
+            "taskType": "literature_search",
+            "goal": "检索 2022—2025 年自监督学习用于显微图像细胞分割的论文，最多返回 6 篇并保留出处",
+            "input": {
+              "query": "self-supervised learning microscopy image cell segmentation 2022-2025"
+            },
+            "constraints": {
+              "yearFrom": 2022,
+              "yearTo": 2025,
+              "maxResults": 6
+            },
+            "outputSchema": "paper_records.v1",
+            "requiredSkill": "literature.search",
+            "dependsOn": []
+          }
+        ]
+      },
+      "metadata": {
+        "plannerMode": "live",
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "requestCount": 1,
+        "lastResponseUsage": {
+          "promptTokens": 1551,
+          "completionTokens": 208,
+          "totalTokens": 1759
+        },
+        "elapsedMs": 1524,
+        "planValidated": true,
+        "agentsExecuted": false,
+        "aipUsed": false
+      },
+      "semanticChecks": {
+        "taskTypes": true,
+        "clarification": true,
+        "schemaVersion": true,
+        "limits": true
+      },
+      "automatedPassed": true,
+      "humanAccepted": false
+    },
+    {
+      "case": "指定论文",
+      "query": "仅阅读 https://arxiv.org/abs/1706.03762 ，总结方法与局限，不搜索其他论文、不查代码。",
+      "plan": {
+        "schemaVersion": "0.2",
+        "userQuery": "仅阅读 https://arxiv.org/abs/1706.03762 ，总结方法与局限，不搜索其他论文、不查代码。",
+        "needsClarification": false,
+        "clarificationQuestion": null,
+        "tasks": [
+          {
+            "schemaVersion": "0.2",
+            "subtaskId": "S1",
+            "taskType": "paper_read",
+            "goal": "阅读指定论文《Attention Is All You Need》（arXiv:1706.03762），总结其方法（模型架构、注意力机制、训练设置等）与局限性。",
+            "input": {
+              "papers": [
+                {
+                  "paperId": "arxiv:1706.03762",
+                  "title": "Attention Is All You Need",
+                  "url": "https://arxiv.org/abs/1706.03762",
+                  "pdfUrl": "https://arxiv.org/pdf/1706.03762",
+                  "repositoryUrls": []
+                }
+              ]
+            },
+            "constraints": {
+              "maxPapers": 1
+            },
+            "outputSchema": "paper_notes.v1",
+            "requiredSkill": "paper.analyze",
+            "dependsOn": []
+          }
+        ]
+      },
+      "metadata": {
+        "plannerMode": "live",
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "requestCount": 1,
+        "lastResponseUsage": {
+          "promptTokens": 1544,
+          "completionTokens": 241,
+          "totalTokens": 1785
+        },
+        "elapsedMs": 1291,
+        "planValidated": true,
+        "agentsExecuted": false,
+        "aipUsed": false
+      },
+      "semanticChecks": {
+        "taskTypes": true,
+        "clarification": true,
+        "schemaVersion": true,
+        "providedUrl": true
+      },
+      "automatedPassed": true,
+      "humanAccepted": false
+    },
+    {
+      "case": "指定仓库",
+      "query": "仅静态分析 https://github.com/scikit-learn/scikit-learn 的模块结构、依赖及使用门槛，不运行代码、不检索论文。",
+      "plan": {
+        "schemaVersion": "0.2",
+        "userQuery": "仅静态分析 https://github.com/scikit-learn/scikit-learn 的模块结构、依赖及使用门槛，不运行代码、不检索论文。",
+        "needsClarification": false,
+        "clarificationQuestion": null,
+        "tasks": [
+          {
+            "schemaVersion": "0.2",
+            "subtaskId": "S1",
+            "taskType": "repository_analyze",
+            "goal": "对用户指定的 https://github.com/scikit-learn/scikit-learn 进行静态分析，梳理模块结构、依赖关系及使用门槛，不运行代码。",
+            "input": {
+              "papers": [],
+              "paperNotes": [],
+              "repositoryUrls": [
+                "https://github.com/scikit-learn/scikit-learn"
+              ]
+            },
+            "constraints": {
+              "executeCode": false,
+              "allowRepositorySearch": false,
+              "maxRepositories": 1
+            },
+            "outputSchema": "code_records.v1",
+            "requiredSkill": "repository.analyze",
+            "dependsOn": []
+          }
+        ]
+      },
+      "metadata": {
+        "plannerMode": "live",
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "requestCount": 1,
+        "lastResponseUsage": {
+          "promptTokens": 1547,
+          "completionTokens": 215,
+          "totalTokens": 1762
+        },
+        "elapsedMs": 1102,
+        "planValidated": true,
+        "agentsExecuted": false,
+        "aipUsed": false
+      },
+      "semanticChecks": {
+        "taskTypes": true,
+        "clarification": true,
+        "schemaVersion": true,
+        "noRepositorySearch": true,
+        "staticOnly": true,
+        "providedUrl": true
+      },
+      "automatedPassed": true,
+      "humanAccepted": false
+    },
+    {
+      "case": "澄清",
+      "query": "帮我做一个科研调研。",
+      "plan": {
+        "schemaVersion": "0.2",
+        "userQuery": "帮我做一个科研调研。",
+        "needsClarification": true,
+        "clarificationQuestion": "请明确你要调研的具体研究主题或问题，例如“图神经网络在药物发现中的应用”或“大语言模型推理能力评测”，并说明是否需要检索论文、阅读指定论文或分析某个仓库。",
+        "tasks": []
+      },
+      "metadata": {
+        "plannerMode": "live",
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "requestCount": 1,
+        "lastResponseUsage": {
+          "promptTokens": 1521,
+          "completionTokens": 83,
+          "totalTokens": 1604
+        },
+        "elapsedMs": 716,
+        "planValidated": true,
+        "agentsExecuted": false,
+        "aipUsed": false
+      },
+      "semanticChecks": {
+        "taskTypes": true,
+        "clarification": true,
+        "schemaVersion": true
+      },
+      "automatedPassed": true,
+      "humanAccepted": false
+    },
+    {
+      "case": "有条件复现链",
+      "query": "调研 2023—2025 年检索增强生成在临床问答中的研究：检索最多 5 篇论文，阅读其中 2 篇；仅在阅读结果明确给出 GitHub 仓库地址时，依据论文方法和实验设置静态分析复现难度，最多 2 个仓库。缺少地址则提示补充，不另行搜索仓库，不执行代码。",
+      "plan": {
+        "schemaVersion": "0.2",
+        "userQuery": "调研 2023—2025 年检索增强生成在临床问答中的研究：检索最多 5 篇论文，阅读其中 2 篇；仅在阅读结果明确给出 GitHub 仓库地址时，依据论文方法和实验设置静态分析复现难度，最多 2 个仓库。缺少地址则提示补充，不另行搜索仓库，不执行代码。",
+        "needsClarification": false,
+        "clarificationQuestion": null,
+        "tasks": [
+          {
+            "schemaVersion": "0.2",
+            "subtaskId": "S1",
+            "taskType": "literature_search",
+            "goal": "检索 2023—2025 年检索增强生成在临床问答中的研究论文，最多返回 5 篇，保留出处信息",
+            "input": {
+              "query": "retrieval-augmented generation clinical question answering"
+            },
+            "constraints": {
+              "yearFrom": 2023,
+              "yearTo": 2025,
+              "maxResults": 5
+            },
+            "outputSchema": "paper_records.v1",
+            "requiredSkill": "literature.search",
+            "dependsOn": []
+          },
+          {
+            "schemaVersion": "0.2",
+            "subtaskId": "S2",
+            "taskType": "paper_read",
+            "goal": "从检索结果中选择 2 篇最相关的论文进行深度阅读，提取方法、实验设置与仓库地址信息",
+            "input": {
+              "papers": []
+            },
+            "constraints": {
+              "maxPapers": 2
+            },
+            "outputSchema": "paper_notes.v1",
+            "requiredSkill": "paper.analyze",
+            "dependsOn": [
+              "S1"
+            ]
+          },
+          {
+            "schemaVersion": "0.2",
+            "subtaskId": "S3",
+            "taskType": "repository_analyze",
+            "goal": "仅当阅读结果明确给出 GitHub 仓库地址时，依据论文方法与实验设置对最多 2 个仓库做静态分析，评估复现难度；若缺少仓库地址则提示用户补充，不另行搜索仓库，不执行代码",
+            "input": {
+              "papers": [],
+              "paperNotes": [],
+              "repositoryUrls": []
+            },
+            "constraints": {
+              "maxRepositories": 2,
+              "executeCode": false,
+              "allowRepositorySearch": false,
+              "requirePaperNotes": true
+            },
+            "outputSchema": "code_records.v1",
+            "requiredSkill": "repository.analyze",
+            "dependsOn": [
+              "S2"
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "plannerMode": "live",
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "requestCount": 1,
+        "lastResponseUsage": {
+          "promptTokens": 1593,
+          "completionTokens": 517,
+          "totalTokens": 2110
+        },
+        "elapsedMs": 2041,
+        "planValidated": true,
+        "agentsExecuted": false,
+        "aipUsed": false
+      },
+      "semanticChecks": {
+        "taskTypes": true,
+        "clarification": true,
+        "schemaVersion": true,
+        "noRepositorySearch": true,
+        "staticOnly": true,
+        "readerDependency": true,
+        "codeDependency": true,
+        "limits": true,
+        "years": true
+      },
+      "automatedPassed": true,
+      "humanAccepted": false
+    },
+    {
+      "case": "缺少仓库地址",
+      "query": "只静态分析我的代码仓库结构，不检索论文；我还没提供仓库地址。",
+      "plan": {
+        "schemaVersion": "0.2",
+        "userQuery": "只静态分析我的代码仓库结构，不检索论文；我还没提供仓库地址。",
+        "needsClarification": true,
+        "clarificationQuestion": "请提供需要静态分析的 GitHub 仓库 URL（可提供多个），我会据此规划仓库结构分析任务。",
+        "tasks": []
+      },
+      "metadata": {
+        "plannerMode": "live",
+        "provider": "deepseek",
+        "model": "deepseek-flash",
+        "requestCount": 1,
+        "lastResponseUsage": {
+          "promptTokens": 1534,
+          "completionTokens": 76,
+          "totalTokens": 1610
+        },
+        "elapsedMs": 825,
+        "planValidated": true,
+        "agentsExecuted": false,
+        "aipUsed": false
+      },
+      "semanticChecks": {
+        "taskTypes": true,
+        "clarification": true,
+        "schemaVersion": true
+      },
+      "automatedPassed": true,
+      "humanAccepted": false
+    }
+  ]
+}

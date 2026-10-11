@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "0.2",
+  "userQuery": "只检索人工智能在微生物研究中的论文，最多 3 篇。本文件用于本地 AIP 传输测试，不执行科研检索。",
+  "needsClarification": false,
+  "clarificationQuestion": null,
+  "tasks": [{
+    "schemaVersion": "0.2",
+    "subtaskId": "S1",
+    "taskType": "literature_search",
+    "goal": "检索人工智能在微生物研究中的论文",
+    "input": {"query": "artificial intelligence microbiology"},
+    "constraints": {"maxResults": 3},
+    "outputSchema": "paper_records.v1",
+    "requiredSkill": "literature.search",
+    "dependsOn": []
+  }]
+}

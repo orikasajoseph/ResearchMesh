@@ -4,7 +4,7 @@
   "description": "可放入结构化数据项的业务内容；本身不是 TaskCommand。",
   "properties": {
     "schemaVersion": {
-      "const": "0.1",
+      "const": "0.2",
       "title": "Schemaversion",
       "type": "string"
     },
@@ -18,7 +18,7 @@
       "enum": [
         "literature_search",
         "paper_read",
-        "code_search"
+        "repository_analyze"
       ],
       "title": "Tasktype",
       "type": "string"

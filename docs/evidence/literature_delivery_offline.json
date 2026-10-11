@@ -1,0 +1,44 @@
+{
+  "verifiedAt": "2026-10-04T23:15:38.081045+08:00",
+  "mode": "offline-delivery-check",
+  "networkUsed": false,
+  "aipUsed": false,
+  "liveResearchVerified": false,
+  "records": [
+    {
+      "case": "delivered_success",
+      "passed": true,
+      "returned": 5,
+      "fixtureSha256": "76d0858369002997226bd07caa03a0ee7f43297045ecfc069a0440edf9133bdb",
+      "outcome": "papers"
+    },
+    {
+      "case": "delivered_empty",
+      "passed": true,
+      "returned": 0,
+      "fixtureSha256": "f83d974f7ae3649345b35b8b3539df9c4ea3cf9a121cff10175481f6d14ff653",
+      "outcome": "empty"
+    },
+    {
+      "case": "actual_wrapper_with_sdk_stub",
+      "passed": true,
+      "networkUsed": false
+    },
+    {
+      "case": "same_request_cache",
+      "passed": true
+    },
+    {
+      "case": "different_request_id_cache_observation",
+      "cacheSharedAcrossIds": false,
+      "note": "交付包 cache_key 包含 requestId；不同任务 ID 的同查询不能复用缓存。"
+    }
+  ],
+  "sourceHashes": {
+    "researchmesh_literature/__init__.py": "640f3bbe1c9d572df492bebd53f5fc4ae9c01cfcd877e362f59d3e1728e65829",
+    "researchmesh_literature/agent.py": "c8209a6bb426eeed57b6cce3723b64badbd7ebbfb396375e3c8fc0d2d0c7e87a",
+    "researchmesh_literature/config.py": "70174af110b80533b24f7e58e63eb4654a1b63a7e1c50f675de69d964ed54a86",
+    "researchmesh_literature/provider.py": "4fe183c7523a26805fca270436c71208ff50a04b8094a39408bf12d785313e39",
+    "researchmesh_literature/schemas.py": "739d6dad12b8924976e8547de810f9e012d7f3dd6f8246b7fb990d2f486712ca"
+  }
+}

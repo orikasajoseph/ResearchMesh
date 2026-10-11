@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "0.2",
+  "userQuery": "只检索 AlphaEvolve 相关论文，最多 5 篇，不阅读全文或分析代码。",
+  "needsClarification": false,
+  "clarificationQuestion": null,
+  "tasks": [{
+    "schemaVersion": "0.2",
+    "subtaskId": "S1",
+    "taskType": "literature_search",
+    "goal": "检索 AlphaEvolve 相关论文并保留来源",
+    "input": {"query": "AlphaEvolve"},
+    "constraints": {"maxResults": 5},
+    "outputSchema": "paper_records.v1",
+    "requiredSkill": "literature.search",
+    "dependsOn": []
+  }]
+}

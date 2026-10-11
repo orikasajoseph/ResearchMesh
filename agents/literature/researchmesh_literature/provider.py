@@ -18,6 +18,7 @@ from semanticscholar.SemanticScholarException import (
 
 from .config import LiteratureAgentConfig
 from .schemas import LiteratureSearchRequest, PaperAuthor, PaperRecord
+from semantic_http import create_monitored_client, client_diagnostics
 
 
 class ProviderError(Exception):
@@ -73,18 +74,21 @@ class SemanticScholarProvider:
         client: AsyncSemanticScholar | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         retry_observer: Callable[[dict[str, object]], None] | None = None,
+        request_source: str = "literature-agent",
+        subtask_id: str | None = None,
     ) -> None:
         self.config = config or LiteratureAgentConfig.from_env()
-        self.client = client or AsyncSemanticScholar(
-            api_key=self.config.api_key,
-            timeout=self.config.timeout_seconds,
-            retry=False,
-        )
+        self.client = client if client is not None else create_monitored_client(
+            self.config, source=request_source, subtask_id=subtask_id)
         self._sleep = sleep
         self._retry_observer = retry_observer
         self._limiter = _AsyncRateLimiter(self.config.rate_limit_per_second)
         self._cache: dict[str, tuple[float, list[PaperRecord], int]] = {}
         self._cache_lock = asyncio.Lock()
+
+    def http_diagnostics(self):
+        """仅返回安全诊断，绝不加入 paper_records 业务输出。"""
+        return client_diagnostics(self.client, self.config.api_key)
 
     async def search(self, request: LiteratureSearchRequest) -> ProviderSearchResult:
         cache_key = json.dumps(request.model_dump(), sort_keys=True)

@@ -1,4 +1,4 @@
-"""共享 v0.1 业务外壳和 Leader 内部计划，使用严格类型校验。"""
+"""共享 v0.2 业务外壳和 Leader 内部计划，使用严格类型校验。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Annotated, Any, Dict, List, Literal, Optional, get_args
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-TaskType = Literal["literature_search", "paper_read", "code_search"]
+TaskType = Literal["literature_search", "paper_read", "repository_analyze"]
 TASK_TYPES = set(get_args(TaskType))
 NonEmptyString = Annotated[str, Field(min_length=1, pattern=r"\S")]
 UserQuery = Annotated[str, Field(min_length=1, max_length=6000, pattern=r"\S")]
@@ -19,7 +19,7 @@ class ContractModel(BaseModel):
 
 class BusinessTask(ContractModel):
     """可放入结构化数据项的业务内容；本身不是 TaskCommand。"""
-    schemaVersion: Literal["0.1"]
+    schemaVersion: Literal["0.2"]
     subtaskId: NonEmptyString
     taskType: TaskType
     goal: NonEmptyString
@@ -30,7 +30,7 @@ class BusinessTask(ContractModel):
 
 class PlannerTask(BusinessTask):
     """Leader 内部任务，额外包含发现和依赖信息。"""
-    requiredCapability: NonEmptyString
+    requiredSkill: NonEmptyString
     dependsOn: List[NonEmptyString]
 
 
@@ -45,7 +45,7 @@ PLAN_CONDITIONS = {
 
 class Plan(ContractModel):
     model_config = ConfigDict(extra="forbid", strict=True, json_schema_extra=PLAN_CONDITIONS)
-    schemaVersion: Literal["0.1"]
+    schemaVersion: Literal["0.2"]
     userQuery: UserQuery
     needsClarification: bool
     clarificationQuestion: Optional[NonEmptyString] = Field(...)
@@ -63,8 +63,8 @@ class Plan(ContractModel):
             raise ValueError("无需澄清时至少有一个任务，且追问为 null")
         seen = set()
         for task in self.tasks:
-            if task.requiredCapability != SKILLS[task.taskType]:
-                raise ValueError("requiredCapability 必须是任务对应的业务 skill 点分名称")
+            if task.requiredSkill != SKILLS[task.taskType]:
+                raise ValueError("requiredSkill 必须是任务对应的业务 skill 点分名称")
             if task.outputSchema != OUTPUT_SCHEMAS[task.taskType]:
                 raise ValueError("outputSchema 与 taskType 不匹配")
             validate_task_input(task.model_dump())
@@ -74,7 +74,7 @@ class Plan(ContractModel):
                 raise ValueError("dependsOn 不能重复")
             if any(dependency not in seen for dependency in task.dependsOn):
                 raise ValueError("dependsOn 只能引用前面已定义的任务，不能自依赖或循环")
-            if task.taskType == "code_search" and task.constraints.get("requirePaperNotes"):
+            if task.taskType == "repository_analyze" and task.constraints.get("requirePaperNotes"):
                 if not task.input.get("paperNotes") and not any(
                     previous.subtaskId in task.dependsOn and previous.taskType == "paper_read"
                     for previous in self.tasks
@@ -91,7 +91,7 @@ class ResultItem(ContractModel):
 
 class ResearchResult(ContractModel):
     """业务结果，状态仍由未来真实 AIP TaskResult 承载。"""
-    schemaVersion: Literal["0.1"]
+    schemaVersion: Literal["0.2"]
     subtaskId: NonEmptyString
     taskType: TaskType
     summary: NonEmptyString

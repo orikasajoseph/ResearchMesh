@@ -23,8 +23,8 @@ class AipLifecycleTests(unittest.TestCase):
                 commands.append(command["command"])
                 if command["command"] == "start":
                     self.assertEqual(command["dataItems"][0]["type"], "data")
-                    self.assertNotIn("requiredCapability", command["dataItems"][0]["data"])
-                business = {"schemaVersion": "0.1", "subtaskId": "S1", "taskType": "literature_search",
+                    self.assertNotIn("requiredSkill", command["dataItems"][0]["data"])
+                business = {"schemaVersion": "0.2", "subtaskId": "S1", "taskType": "literature_search",
                             "summary": "No matching papers", "items": [], "warnings": []}
                 result = TaskResult(id="r", sentAt=command["sentAt"], senderRole="partner", senderId="partner-test",
                     sessionId=command["sessionId"], taskId=command["taskId"],
@@ -36,7 +36,7 @@ class AipLifecycleTests(unittest.TestCase):
             client = AipRpcClient("https://example.invalid/rpc", "leader-test", transport=httpx.MockTransport(handler),
                                   identity_binding_enabled=False)
             try:
-                payload = {"schemaVersion": "0.1", "subtaskId": "S1", "taskType": "literature_search", "goal": "search",
+                payload = {"schemaVersion": "0.2", "subtaskId": "S1", "taskType": "literature_search", "goal": "search",
                            "input": {"query": "test"}, "constraints": {}, "outputSchema": "paper_records.v1"}
                 value = await AipTaskRunner(sdk_sender(client), "leader-test", "partner-test").run(payload, "session")
                 self.assertEqual(value["state"], "completed")
@@ -46,9 +46,9 @@ class AipLifecycleTests(unittest.TestCase):
         asyncio.run(scenario())
 
     def run_case(self, states, *, wrong_id=False, invalid=False, timeout=1, transport_only=False):
-        payload = {"schemaVersion": "0.1", "subtaskId": "S1", "taskType": "literature_search",
+        payload = {"schemaVersion": "0.2", "subtaskId": "S1", "taskType": "literature_search",
                    "goal": "search", "input": {"query": "test"}, "constraints": {}, "outputSchema": "paper_records.v1"}
-        business = {"schemaVersion": "0.1", "subtaskId": "S1", "taskType": "literature_search",
+        business = {"schemaVersion": "0.2", "subtaskId": "S1", "taskType": "literature_search",
                     "summary": "No matching papers", "items": [], "warnings": []}
         if invalid:
             business["status"] = "custom-invalid-status"

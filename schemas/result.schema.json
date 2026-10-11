@@ -28,7 +28,7 @@
   "description": "业务结果，状态仍由未来真实 AIP TaskResult 承载。",
   "properties": {
     "schemaVersion": {
-      "const": "0.1",
+      "const": "0.2",
       "title": "Schemaversion",
       "type": "string"
     },
@@ -42,7 +42,7 @@
       "enum": [
         "literature_search",
         "paper_read",
-        "code_search"
+        "repository_analyze"
       ],
       "title": "Tasktype",
       "type": "string"

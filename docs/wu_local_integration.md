@@ -1,5 +1,7 @@
 # 吴交付 v0.2：本地 AIP 联调
 
+> 2026-10-04 更新：赵使用业务接口 v0.2（与“吴交付包 v0.2”不是同一版本概念）。默认计划改为仓库中的 examples/aip_transport_plan_v02.json；仍支持 --plan 选择历史计划。仅独立文献任务经明确兼容入口发成吴包所需的业务 v0.1。两个版本写入 environment.json，仍仅验证传输。下文历史默认 outputs 路径已被替换。
+
 更新：2026-10-04。已新增独立入口，不改变 run_demo.py、run_planner.py、live_api.py 的含义。
 
 ## 一条命令运行

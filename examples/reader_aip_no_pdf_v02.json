@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "0.2",
+  "subtaskId": "S-READER-1",
+  "taskType": "paper_read",
+  "goal": "验证 Paper Reader AIP v0.2 的无全文处理和状态生命周期",
+  "input": {
+    "papers": [
+      {
+        "paperId": "ed32e5bb11a9e5e2f03ea805782e8670a6e10efd",
+        "title": "AlphaEvolve: A coding agent for scientific and algorithmic discovery",
+        "doi": "10.48550/arXiv.2506.13131",
+        "url": "https://www.semanticscholar.org/paper/ed32e5bb11a9e5e2f03ea805782e8670a6e10efd",
+        "pdfUrl": null,
+        "repositoryUrls": []
+      }
+    ]
+  },
+  "constraints": {"maxPapers": 1},
+  "outputSchema": "paper_notes.v1",
+  "requiredSkill": "paper.analyze",
+  "dependsOn": []
+}

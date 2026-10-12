@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "0.2",
+  "userQuery": "Offline three-agent AIP handshake: literature, paper reader without PDF, and explicit repository static fixture.",
+  "needsClarification": false,
+  "clarificationQuestion": null,
+  "tasks": [
+    {
+      "schemaVersion": "0.2", "subtaskId": "S1", "taskType": "literature_search",
+      "goal": "Supply ONE synthetic paper reference solely for an AIP binding test",
+      "input": {"query": "offline-fixture-no-publication-claim"},
+      "constraints": {"maxResults": 1}, "outputSchema": "paper_records.v1",
+      "requiredSkill": "literature.search", "dependsOn": []
+    },
+    {
+      "schemaVersion": "0.2", "subtaskId": "S2", "taskType": "paper_read",
+      "goal": "Prove the Reader reports no full text without inventing a PDF",
+      "input": {"papers": []}, "constraints": {"maxPapers": 1},
+      "outputSchema": "paper_notes.v1", "requiredSkill": "paper.analyze",
+      "dependsOn": ["S1"]
+    },
+    {
+      "schemaVersion": "0.2", "subtaskId": "S3", "taskType": "repository_analyze",
+      "goal": "Demonstrate static Repository AIP on an explicitly named URL with fake providers",
+      "input": {"papers": [], "paperNotes": [], "repositoryUrls": ["https://github.com/pypa/sampleproject"]},
+      "constraints": {"maxRepositories": 1, "executeCode": false, "allowRepositorySearch": false},
+      "outputSchema": "code_records.v1", "requiredSkill": "repository.analyze",
+      "dependsOn": ["S1"]
+    }
+  ]
+}

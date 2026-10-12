@@ -1,0 +1,2 @@
+-r ../../common/llm/requirements.txt
+codewiki @ git+https://github.com/FSoft-AI4Code/CodeWiki.git@f0975ea19b17568ceb55cd5422206e1a1ae13c0b

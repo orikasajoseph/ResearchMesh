@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "0.2",
+  "subtaskId": "repo-1",
+  "taskType": "repository_analyze",
+  "goal": "Inspect the explicitly supplied repository using static analysis",
+  "input": {"repositoryUrls": ["https://github.com/pypa/sampleproject.git"]},
+  "constraints": {"maxRepositories": 1, "executeCode": false, "allowRepositorySearch": false},
+  "outputSchema": "code_records.v1",
+  "requiredSkill": "repository.analyze",
+  "dependsOn": []
+}

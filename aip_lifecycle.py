@@ -36,12 +36,16 @@ def sdk_sender(client):
 
 
 class AipTaskRunner:
-    def __init__(self, send, leader_aic, partner_aic, *, timeout_seconds=30, poll_seconds=0.2):
+    def __init__(self, send, leader_aic, partner_aic, *, timeout_seconds=30, poll_seconds=0.2,
+                 allow_mock_results=False):
         if not leader_aic or not partner_aic or timeout_seconds <= 0 or poll_seconds < 0:
             raise ValueError("需要双方身份和有效超时")
         self.send = send
         self.leader_aic, self.partner_aic = leader_aic, partner_aic
         self.timeout_seconds, self.poll_seconds = timeout_seconds, poll_seconds
+        if type(allow_mock_results) is not bool:
+            raise ValueError("allow_mock_results 必须是显式布尔值，仅供模拟联调")
+        self.allow_mock_results = allow_mock_results
 
     async def run(self, payload, session_id):
         if not isinstance(session_id, str) or not session_id.strip():
@@ -78,7 +82,10 @@ class AipTaskRunner:
                 validate_result(candidates[0], payload)
                 if any(warning.startswith("TRANSPORT_TEST_ONLY") for warning in candidates[0]["warnings"]):
                     raise AipExecutionError("TRANSPORT_ONLY_NOT_RESEARCH")
-                if any(item["data"].get("isMock") is True for item in candidates[0]["items"]):
+                simulated = (any(item["data"].get("isMock") is True for item in candidates[0]["items"])
+                             or any(warning.startswith("SIMULATED_RESEARCH")
+                                    for warning in candidates[0]["warnings"]))
+                if simulated and not self.allow_mock_results:
                     raise ValueError("不能确认模拟科研产物")
             except ValueError:
                 raise AipExecutionError("INVALID_BUSINESS_RESULT") from None
@@ -121,6 +128,9 @@ class AipTaskRunner:
             raise
         except Exception:
             raise AipExecutionError("AIP_TRANSPORT_ERROR") from None
+        simulated = (any(item["data"].get("isMock") is True for item in result["items"])
+                     or any(warning.startswith("SIMULATED_RESEARCH") for warning in result["warnings"]))
         return {"result": result, "taskId": task_id, "subtaskId": payload["subtaskId"],
                 "agentAic": self.partner_aic, "state": "completed", "events": events,
+                "simulatedResult": simulated,
                 "latencyMs": round((perf_counter() - started) * 1000, 3)}

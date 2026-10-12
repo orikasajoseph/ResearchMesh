@@ -251,16 +251,18 @@ v0.2 沿用 camelCase 字段风格，任务名和技能名见新的接口文档�
 `requiredSkill`、`dependsOn` 属于 Leader 内部调度，不直接放进跨 Agent 的业务任务负载。
 业务结果只包含 `schemaVersion/subtaskId/taskType/summary/items/warnings`，没有另一套 status。
 
-当前 resolver 和 executor 是同一个进程里的函数调用，并未声称符合完整 AIP 通信流程。
-后续真实发现/AIP 适配器应使用官方 SDK 的 TaskCommand、TaskResult 和标准状态，不能把这些本地字典直接当作协议消息。
-阅读和代码任务的真实输入格式仍需全组与具体 Agent 核对，详见 `docs/interface_notes.md`。
+模拟入口的 resolver 和 executor 是同一个进程里的函数调用，不是 AIP 证明。
+新本地 AIP 入口使用官方 SDK 的 TaskCommand、TaskResult 和标准状态；业务字典是消息内的数据，不是另一套通信协议。
+本机 AIP 文献检索和单篇全文 Reader 都已真实通过（2026-10-12），阅读返回1篇全文笔记和5条证据。平台发现、证书认证及代码 Agent 尚未验收；这些成功记录不等于科研结论已人工核验。
 
 Schema 导出和校验细节见 [数据模型说明](docs/schema_notes.md)。Planner 遇到格式/结构错误最多修正一次，
 单次模型调用默认最多等 30 秒；两次格式错误或调用失败不会用虚构计划兜底。
 
 ## 尚未完成
 
-DeepSeek 已接通，v0.1 五例已人工确认，v0.2 六例真实回归已自动通过、待人工确认。张的 Literature Wrapper 已交付并完成适配，赵侧已经用已有计划实时检索 AlphaEvolve，保留 5 篇论文并通过统一结果校验。Reader/Repository Wrapper、真实平台发现和三方完整科研链仍未接通。吴当前交付包的本地 AIP 传输已通过，v0.2 分支通过限定文献任务的兼容入口继续对接它。
+前两周逐项复核、本轮补齐代码和明日会议所需材料见 [会议进度说明](docs/meeting_progress_20261012.md)。新增ADP接口和公共Provider桥接仅离线验收，不冒充正式平台发现或全组已切换；详情见 [接入说明](docs/week2_integration_ready_20261012.md)。
+
+DeepSeek 已接通，文献实时检索、直接全文阅读、检索→阅读本地链路已运行成功；真实本机 AIP 文献检索与 Reader 分别已通过。新单入口整合仅离线验收，尚未重新付费实测。Repository Agent、ADP/梧桐发现、证书及跨电脑完整科研链、最终用户界面仍未验收。此状态不代表已经提交或合入 main。
 Mock 数据和格式检查不证明科研结论真实，也不证明平台发现或赛事互联已完成。
 
 ## 最新文献接入进展
@@ -275,3 +277,17 @@ Mock 数据和格式检查不证明科研结论真实，也不证明平台发现
 ```
 
 真实检索仍需本机 Semantic Scholar Key；调用时可将 `run_literature.py` 的 `--wrapper-root` 指定为 `agents/literature`。Paper Reader / Repository 目录目前只有说明，不能据此视为已实现。
+
+## 本地 AIP 检索与阅读进展（2026-10-12）
+
+真实文献 AIP 已通过：`run_aip_literature.py`。单篇 Reader AIP 新入口：`run_aip_reader.py`，默认只做免费预检，加 `--execute` 才会调用收费 Reader。复用成功的 AIP 检索结果与已核验 PDF 缓存，不重复规划、检索或下载；没有自动模型重试。Reader 使用显式指定的张 Wrapper 独立副本，并非主仓库里空的 `agents/paper_reader` 目录。
+
+详情和本机命令见 [Reader AIP 接入说明](docs/aip_reader_live_20261012.md)、[文献 AIP 接入说明](docs/aip_literature_live_20261012.md)。382项是Reader接入阶段的历史离线测试数量；最新数量请看新验收记录，离线回归不代替真实 Reader 或平台验收。
+
+## 单入口与可共享交付
+
+`run_aip_research.py` 整合真实Planner（可选已有计划）→本地AIP检索→已知arXiv全文核验→本地AIP单篇阅读→统一报告。默认不联网、不计费；`--execute`才明确启动，失败阶段不自动付费重跑。只支持一个独立检索任务加一个依赖它的单篇阅读任务，不丢弃计划里的其他任务来假装全部完成。
+
+操作、限制及换机说明见 [独立工作收尾与运行指南](docs/independent_completion_20261012.md)。`export_team_evidence.py`只导出经过复核的数量/耗时和文件哈希；`scripts/prepare_team_sync.py`只检查Git候选和泄密风险，不提交或推送。未经审核的PDF、`.env`、证书及`outputs`原始日志不应打包上传。
+
+此次赵开发分支交付范围、425项回归与队友接收方式见 [GitHub交付说明](docs/GitHub_sync_20261012.md)。历史文档中的“尚未提交/推送”描述的是对应开发阶段，不代表本次交付已合入main；以远端分支的实际提交为准。

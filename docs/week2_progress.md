@@ -1,5 +1,7 @@
 # 赵：第二周阶段成果与接续清单
 
+> 2026-10-12最新复核：真实本机AIP Literature和Reader已分别通过；新增ADP接口、公共Provider桥接、AIP调度和统一真实日志，但未完成正式平台发现、S3和全组冻结。下文“没拿到Wrapper/只有MockResolver”等为历史。准确状态见 [会议对齐清单](meeting_progress_20261012.md)。
+
 > v0.2 开发更新：requiredSkill / repository_analyze 已在赵分支实现；仓库首期要求明确地址，新增旧计划迁移与吴旧版文献传输兼容入口。当前状态和接续工作见 [交接说明](v02_handoff.md)。下文五个真实案例是 v0.1 的历史验收，不自动算作新版本通过。
 
 > 2026-10-04 人工验收补充：五个真实规划案例已由赵在对话中逐例确认通过，已同步 case-1..5.json 与 summary.json 的 humanAccepted 标记，并在 docs/week2_live_review.md 保留限制与备注。第二周“至少五个新问题的规划结果与人工验收记录”已完成；不等于真实科研执行或平台互联完成。

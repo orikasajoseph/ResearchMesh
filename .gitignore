@@ -16,3 +16,13 @@ tmp/
 *.egg-info/
 build/
 dist/
+
+# Local paper fixture is not part of the reviewed team source delivery.
+/examples/reader_test.pdf
+# Credentials/certificates remain local, including future platform setup.
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer

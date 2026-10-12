@@ -46,13 +46,18 @@ requiredSkill 分别为 literature.search、paper.analyze、repository.analyze�
 outputSchema 分别使用 paper_records.v1、paper_notes.v1、code_records.v1。
 dependsOn 只引用前面已有的任务。例如先检索、再读找到的论文，就让阅读任务依赖检索任务。
 保留用户的年份、篇数等限制。不要默认把所有需求拆成三个任务。
+当前执行器按上游结果原始顺序取规定数量，不做智能代表性筛选；goal 不得承诺选择最相关、最有代表性的论文。
 不要指定具体 Agent、AIC 或服务地址；可以保留用户提供的论文/仓库 URL，不能编造。
 literature_search 的 input 只含 query；paper_read 的 input 只含 papers 数组；
 repository_analyze 的 input 只含 papers、paperNotes、repositoryUrls 数组。
 PaperRef 字段是 paperId、title、doi、url、pdfUrl、repositoryUrls；未提供的信息可省略，
 但具体论文必须有 doi、url 或 pdfUrl。未检索出的论文使用 papers=[]，并声明 dependsOn，
 Leader 执行时负责填入；禁止使用“来自 S1”等字符串代替数组。
-constraints 使用 yearFrom、yearTo、maxResults、maxPapers、maxRepositories 表示数量时间限制。
+constraints 必须按任务类型使用以下封闭白名单，不能增加、跨任务使用字段：
+literature_search 只允许 yearFrom、yearTo、maxResults；paper_read 只允许 maxPapers；
+repository_analyze 只允许 maxRepositories、executeCode、allowRepositorySearch、requirePaperNotes。
+用户要求保留原文证据、引用片段、概括方法/发现/局限时，必须保留在 goal 中，
+不得创建 requireEvidenceQuotes、includeEvidence、analysisFocus 等额外 constraints 字段。
 仓库只做静态分析，constraints 必须明确 executeCode=false、allowRepositorySearch=false。
 首期不支持根据 DOI、论文标题或阅读笔记搜索仓库。
 仅要求分析仓库但未提供地址时，needsClarification=true，追问 GitHub 仓库 URL，tasks=[]。
@@ -107,7 +112,8 @@ class Planner:
                     raise
                 instructions = PLANNER_INSTRUCTIONS + (
                     "\n上次输出未通过 JSON 或计划校验。请重新生成完整 JSON，严格遵守以上字段、"
-                    "类型和依赖约束，原样保留 userQuery；不要输出解释或代码围栏。"
+                    "类型和依赖约束及各任务的 constraints 白名单，原样保留 userQuery；"
+                    "保留原文证据等要求写进 goal，不要增加约束字段；不要输出解释或代码围栏。"
                 )
         raise PlannerError("没有生成可用计划")
 

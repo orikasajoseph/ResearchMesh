@@ -9,9 +9,11 @@ from datetime import datetime
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
+import time
 from contextlib import contextmanager
 
 from aip_reader_inputs import read_json, prepare_reader_input
@@ -22,6 +24,58 @@ from run_aip_business import save_json
 from run_aip_literature import select_search_task
 
 ROOT = Path(__file__).resolve().parent
+
+
+def failure_code(error):
+    """Expose our own stage codes, never a raw provider exception or credential."""
+    codes = {"STAGE_FAILED_" + name for name in ("LITERATURE", "PDF", "READER")}
+    codes.update("STAGE_NOT_SAFE_TO_REPLAY_" + name for name in ("LITERATURE", "PDF", "READER"))
+    codes.update({"PLAN_NEEDS_CLARIFICATION", "ONLY_SEARCH_THEN_SINGLE_READER_SUPPORTED",
+                  "SINGLE_DEPENDENT_READER_REQUIRED", "MISSING_SAVED_PLAN", "PLANNER_NOT_SAFE_TO_REPLAY",
+                  "PLAN_CHECKPOINT_CHANGED", "INVALID_PIPELINE_CHECKPOINT", "EMPTY_QUERY"})
+    return str(error) if isinstance(error, ValueError) and str(error) in codes else type(error).__name__
+
+
+def search_failure_details(output):
+    """Extract fixed codes only, never arbitrary backend messages or secrets."""
+    try:
+        data = read_json(output / "literature/backend_outcome.json")
+        code = (data.get("error") or {}).get("code")
+        if code not in {"PROVIDER_UNAVAILABLE", "RATE_LIMITED", "INVALID_REQUEST", "UNKNOWN_PROVIDER_ERROR"}:
+            return {}
+        requests = data.get("diagnostics", {}).get("httpRequests", [])
+        latest = requests[-1] if requests else {}
+        details = {"providerError": code}
+        reason = latest.get("transportError")
+        if reason in {"CONNECT_TIMEOUT", "READ_TIMEOUT", "WRITE_TIMEOUT", "POOL_TIMEOUT", "DNS_ERROR",
+                      "CONNECT_ERROR", "CONNECTION_INTERRUPTED", "TLS_CERTIFICATE_ERROR", "TLS_ERROR",
+                      "PROXY_ERROR", "OTHER_TRANSPORT_ERROR", "NETWORK_OR_TIMEOUT"}:
+            details["transportError"] = reason
+        status = latest.get("httpStatus")
+        if type(status) is int and 100 <= status <= 599:
+            details["httpStatus"] = status
+        return details
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return {}
+
+
+def show_search_progress(log, seen):
+    """Relay only known generated search retry lines, not raw child output."""
+    pattern = (r"检索被限流，等待 [0-9.]+ 秒后自动重试（[1-3]/[1-3]）；不再调用模型。|"
+               r"检索网络暂时失败（[A-Z_]+），等待 [0-9.]+ 秒后重试（[1-2]/2）；只重试检索，不再调用模型。")
+    for path in (log, log.parent / "literature/partner.log"):
+        try:
+            # Owned log only; bound reading even if a dependency becomes noisy.
+            with path.open("rb") as stream:
+                stream.seek(0, 2); size = stream.tell()
+                stream.seek(max(0, size - 65536))
+                content = stream.read(65536).decode("utf-8", errors="replace")
+        except OSError:
+            continue
+        for line in content.splitlines():
+            if len(line) <= 300 and line not in seen and re.fullmatch(pattern, line):
+                seen.add(line)
+                print(line, flush=True)
 
 
 @contextmanager
@@ -57,12 +111,21 @@ def persist(output, state):
 
 
 def run_command(command, log, timeout):
-    env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONDONTWRITEBYTECODE="1")
+    env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONDONTWRITEBYTECODE="1", PYTHONUNBUFFERED="1")
     with log.open("w", encoding="utf-8") as handle:
         process = subprocess.Popen(command, cwd=str(ROOT), env=env, stdout=handle, stderr=subprocess.STDOUT,
                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
         try:
-            return process.wait(timeout=timeout)
+            deadline, seen = time.monotonic() + timeout, set()
+            while process.poll() is None:
+                if log.stem == "literature":
+                    show_search_progress(log, seen)
+                if time.monotonic() >= deadline:
+                    raise subprocess.TimeoutExpired(command, timeout)
+                time.sleep(0.25)
+            if log.stem == "literature":
+                show_search_progress(log, seen)
+            return process.wait()
         finally:
             stop_owned_process(process)
 
@@ -83,6 +146,7 @@ def stage(output, state, name, command, *, timeout, runner=run_command):
     persist(output, state)
     if code:
         raise ValueError("STAGE_FAILED_" + name.upper())
+    print("阶段完成：", name, flush=True)
 
 
 def execute_pipeline(output, state, args, *, runner=run_command, planner=None):
@@ -146,8 +210,10 @@ def execute_pipeline(output, state, args, *, runner=run_command, planner=None):
         "billingNote": "Assembly newCalls=0 means assembly does not replay tasks; preceding pipeline stages may be charged.",
         "platformDiscoveryUsed": False, "tlsIdentityVerified": False, "repositoryExecuted": False}
     save_json(output / "research_run.json", record)
-    (output / "report.md").write_text("# 单入口本地科研流程\n\n本流程无 ADP/梧桐认证；下文复核各阶段记录。\n\n" + render(record), encoding="utf-8")
-    state.update(state="completed", finishedAt=datetime.now().astimezone().isoformat())
+    (output / "report.md").write_text(render(record), encoding="utf-8")
+    state["state"] = "completed"
+    # Re-rendering a completed checkpoint must not change its execution end time.
+    state.setdefault("finishedAt", datetime.now().astimezone().isoformat())
     persist(output, state)
     return record
 
@@ -206,13 +272,18 @@ def main(argv=None):
             state = read_json(output / "pipeline.json")
             execute_pipeline(output, state, args)
         print("本地链完成，请查看 report.md；科研结论仍需人工核验。")
+        print("报告：", output / "report.md")
         return 0
     except (Exception, KeyboardInterrupt) as error:
+        code = failure_code(error)
+        details = search_failure_details(output) if output and code == "STAGE_FAILED_LITERATURE" else {}
         if output and output.is_dir():
             # Unknown errors never include raw provider responses or credentials.
-            save_json(output / "pipeline_failure.json", {"code": type(error).__name__,
-                "automaticPaidRetries": 0, "remoteExecutionMayHaveOccurred": True})
-        print("流程停止：", type(error).__name__, "；查看阶段日志。已完成结果保留，不自动重跑付费步骤。")
+            save_json(output / "pipeline_failure.json", {"code": code, "exceptionType": type(error).__name__,
+                "automaticPaidRetries": 0, "remoteExecutionMayHaveOccurred": True, **details})
+        print("流程停止：", code, "；查看阶段日志。已完成结果保留，不自动重跑付费步骤。")
+        if details:
+            print("检索原因：", details["providerError"], details.get("transportError") or details.get("httpStatus", ""))
         return 1
 
 

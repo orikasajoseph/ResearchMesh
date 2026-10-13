@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
 import re
+import socket
+import ssl
 import threading
 import time
 from urllib.parse import parse_qs, urlsplit
@@ -38,6 +40,45 @@ def safe_text(value, secret=None, limit=256):
 def safe_rate_headers(headers, secret=None):
     return {name.lower(): safe_text(value, secret, 128) for name, value in headers.items()
             if name.lower() == "retry-after" or re.fullmatch(r"(?:x-)?rate-?limit[-a-z0-9]*", name.lower())}
+
+
+def transport_failure(error):
+    """Classify without storing exception text, URLs, proxy credentials or keys."""
+    chain, seen = [], set()
+    current = error
+    for _ in range(8):
+        if current is None or id(current) in seen:
+            break
+        seen.add(id(current)); chain.append(current)
+        current = current.__cause__ or current.__context__
+    if any(isinstance(e, ssl.SSLCertVerificationError) for e in chain):
+        reason, retryable = "TLS_CERTIFICATE_ERROR", False
+    elif any(isinstance(e, ssl.SSLError) for e in chain):
+        reason, retryable = "TLS_ERROR", False
+    elif isinstance(error, httpx.ProxyError):
+        reason, retryable = "PROXY_ERROR", False
+    elif isinstance(error, httpx.ConnectTimeout):
+        reason, retryable = "CONNECT_TIMEOUT", True
+    elif isinstance(error, httpx.ReadTimeout):
+        reason, retryable = "READ_TIMEOUT", True
+    elif isinstance(error, httpx.WriteTimeout):
+        reason, retryable = "WRITE_TIMEOUT", True
+    elif isinstance(error, httpx.PoolTimeout):
+        reason, retryable = "POOL_TIMEOUT", True
+    elif any(isinstance(e, socket.gaierror) for e in chain):
+        reason, retryable = "DNS_ERROR", True
+    elif isinstance(error, httpx.ConnectError):
+        reason, retryable = "CONNECT_ERROR", True
+    elif isinstance(error, (httpx.ReadError, httpx.WriteError, httpx.RemoteProtocolError)):
+        reason, retryable = "CONNECTION_INTERRUPTED", True
+    else:
+        reason, retryable = "OTHER_TRANSPORT_ERROR", False
+    known_types = {"ConnectTimeout", "ReadTimeout", "WriteTimeout", "PoolTimeout", "ProxyError", "ConnectError",
+                   "ReadError", "WriteError", "RemoteProtocolError", "SSLCertVerificationError", "SSLError",
+                   "gaierror", "OSError", "TimeoutError", "ConnectionRefusedError"}
+    return {"transportError": reason, "transportRetryable": retryable,
+            "transportExceptionType": type(error).__name__ if type(error).__name__ in known_types else "OtherError",
+            "transportCauseTypes": [type(e).__name__ if type(e).__name__ in known_types else "OtherError" for e in chain]}
 
 
 class ProcessRateGate:
@@ -129,6 +170,7 @@ class ObservedRequester(ApiRequester):
                          "httpStatus": None, "subtaskId": self.subtask_id,
                          "requestSource": self.source, "apiKeyConfigured": bool(self._key),
                          "apiKeyAttached": bool(request.headers.get("x-api-key")),
+                         "requestTimeouts": dict(request.extensions.get("timeout", {})),
                          "retryAfterHeader": None, "rateLimitHeaders": {},
                          "requestParameters": {k: safe_text(v[0], self._key, 500)
                              for k, v in parse_qs(parameters).items() if k in {"query", "year", "limit", "offset"}}}
@@ -147,8 +189,8 @@ class ObservedRequester(ApiRequester):
                             body = {}
                         message = body.get("message") or body.get("error") if isinstance(body, dict) else None
                         event["responseReason"] = safe_text(message or "HTTP_" + str(response.status_code), self._key)
-                except Exception:
-                    event["transportError"] = "NETWORK_OR_TIMEOUT"
+                except Exception as error:
+                    event.update(transport_failure(error))
                     raise RuntimeError("SEMANTIC_SCHOLAR_TRANSPORT_FAILED") from None
                 finally:
                     event.update(requestFinishedAt=now(), durationMs=round((time.monotonic() - started) * 1000, 3))

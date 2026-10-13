@@ -105,9 +105,20 @@ def assemble(search_dir, reader_dir, *, cache_dir):
 
 
 def render(record):
-    lines = ["# ResearchMesh 真实本机 AIP 检索与阅读：证据汇总", "",
-        "> 本报告复核并组合两次已经执行成功的本机 AIP 记录，没有重新执行科研任务。",
-        "> 不是一次新端到端运行，不包含 ADP、梧桐发现、证书或 Repository Agent 验收。", "",
+    pipeline = record.get("pipeline", {})
+    if (pipeline.get("scope") == "LOCAL_AIP_SINGLE_ENTRY_SEARCH_READER"
+            and pipeline.get("singleEntryCompleted") is True):
+        planning = ("本流程包含真实模型规划。" if pipeline.get("plannerExecutedByPipeline")
+                    else "本流程复用已保存的计划，没有再次调用 Planner。")
+        lines = ["# ResearchMesh 本机 AIP 科研演示报告", "",
+            "> 单入口检索与全文阅读链路已完成；各阶段的真实调用及结果见下表和原始记录。",
+            "> " + planning + " 检索和阅读可能计费；模型结论待人工核验。",
+            "> 未包含 ADP、梧桐发现、证书身份或 Repository Agent；不是正式平台端到端验收。", ""]
+    else:
+        lines = ["# ResearchMesh 真实本机 AIP 检索与阅读：证据汇总", "",
+            "> 本报告复核并组合两次已经执行成功的本机 AIP 记录，没有重新执行科研任务。",
+            "> 不是一次新端到端运行，不包含 ADP、梧桐发现、证书或 Repository Agent 验收。", ""]
+    lines += [
         "研究问题：" + record["userQuery"], "",
         "| 子任务 | skill | AIC | AIP taskId | 协议状态 | 原任务耗时 ms |",
         "|---|---|---|---|---|---:|"]

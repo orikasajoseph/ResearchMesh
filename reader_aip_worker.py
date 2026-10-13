@@ -19,6 +19,7 @@ from arxiv_pdf import inspect_pdf, MAX_PDF
 from reader_adapter import ReaderAdapterError, call_reader, load_reader, normalize_reader_result, to_reader_request
 from reader_runtime import prepare_live_reader
 from dotenv import dotenv_values
+from aip_record_paths import require_record_directory
 
 ROOT = Path(__file__).resolve().parent
 
@@ -68,9 +69,10 @@ async def execute_one(task, content, prepared, *, timeout_seconds=600, save_star
 
 
 async def run(args):
-    output = Path(args.record_dir).resolve()
-    if not output.is_dir() or output.parent != ROOT / "outputs":
-        raise ReaderAdapterError("INVALID_READER_RECORD_DIRECTORY")
+    try:
+        output = require_record_directory(args.record_dir, ROOT, "reader")
+    except ValueError:
+        raise ReaderAdapterError("INVALID_READER_RECORD_DIRECTORY") from None
     data = json.loads(Path(args.input).read_text(encoding="utf-8"))
     task, content = inspect_input(data)
     wrapper = load_reader(args.reader_root)
@@ -153,8 +155,11 @@ def main(argv=None):
         return asyncio.run(run(args))
     except (Exception, KeyboardInterrupt) as error:
         code = error.code if isinstance(error, ReaderAdapterError) else type(error).__name__
-        output = Path(args.record_dir).resolve()
-        if output.is_dir() and output.parent == ROOT / "outputs":
+        try:
+            output = require_record_directory(args.record_dir, ROOT, "reader")
+        except ValueError:
+            output = None
+        if output is not None:
             (output / "worker_failure.json").write_text(json.dumps({"error": code}), encoding="utf-8")
         print("Reader worker：", code, "；不要自动重试。")
         return 130 if isinstance(error, KeyboardInterrupt) else 1

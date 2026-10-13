@@ -9,6 +9,7 @@ import subprocess
 from aip_business_partner import create_local_business_app, LocalBackendFailure
 from reader_adapter import normalize_reader_result, to_reader_request
 from local_process import stop_owned_process
+from aip_record_paths import require_record_directory
 
 ROOT = Path(__file__).resolve().parent
 
@@ -39,9 +40,10 @@ def make_reader_executor(worker_call, expected_task):
 
 
 def create_live_app():
-    output = Path(os.environ["RESEARCHMESH_AIP_RECORD_DIR"]).resolve()
-    if not output.is_dir() or output.parent != ROOT / "outputs":
-        raise ValueError("INVALID_READER_RECORD_DIRECTORY")
+    try:
+        output = require_record_directory(os.environ["RESEARCHMESH_AIP_RECORD_DIR"], ROOT, "reader")
+    except ValueError:
+        raise ValueError("INVALID_READER_RECORD_DIRECTORY") from None
     input_path = output / "reader_input.json"
     expected_task = to_reader_request(json.loads(input_path.read_text(encoding="utf-8"))["payload"])
     python = Path(os.environ["RESEARCHMESH_READER_PYTHON"]).resolve()

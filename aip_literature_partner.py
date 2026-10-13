@@ -11,6 +11,9 @@ from pathlib import Path
 from aip_business_partner import create_local_business_app, LocalBackendFailure, validate_local_task
 from literature_adapter import AdapterError, to_wrapper_request
 from run_literature import execute_live_task, prepare_live_wrapper
+from aip_record_paths import require_record_directory
+
+ROOT = Path(__file__).resolve().parent
 
 
 def make_literature_executor(wrapper_root, *, prepared=None, on_outcome=None):
@@ -35,11 +38,8 @@ def make_literature_executor(wrapper_root, *, prepared=None, on_outcome=None):
 def create_live_app():
     """Called only in an owned loopback child, keys never passed on command line."""
     root = Path(os.environ["RESEARCHMESH_AIP_WRAPPER_ROOT"]).resolve()
-    output = Path(os.environ["RESEARCHMESH_AIP_RECORD_DIR"]).resolve()
-    # Parent creates a unique directory. Only write this owned output directory.
-    expected_parent = Path(__file__).resolve().parent / "outputs"
-    if not output.is_dir() or output.parent != expected_parent:
-        raise ValueError("INVALID_AIP_RECORD_DIRECTORY")
+    # The parent owns either a legacy run or a nested single-entry stage.
+    output = require_record_directory(os.environ["RESEARCHMESH_AIP_RECORD_DIR"], ROOT, "literature")
     prepared = prepare_live_wrapper(root)  # no network, only local Key and imports
     def save(outcome):
         (output / "backend_outcome.json").write_text(

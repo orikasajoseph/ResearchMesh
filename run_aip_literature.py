@@ -218,6 +218,9 @@ def main(argv=None):
             print("真实检索结果：", acceptance["returnedPaperCount"], "篇；未阅读全文。")
         else:
             print("未完成：", ((backend or {}).get("error") or outcome.get("error") or {}).get("code", "EVIDENCE_INCOMPLETE"))
+            requests = (backend or {}).get("diagnostics", {}).get("httpRequests", [])
+            if requests and requests[-1].get("transportError"):
+                print("网络原因：", requests[-1]["transportError"], "；查看 backend_outcome.json 的脱敏诊断。")
         print("临时 Partner 已停止。记录：", output)
         return 0 if acceptance["passed"] else 1
     except (Exception, KeyboardInterrupt) as error:

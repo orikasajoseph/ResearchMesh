@@ -3,6 +3,8 @@
 import asyncio
 from datetime import datetime
 import json
+import socket
+import ssl
 from types import SimpleNamespace
 import time
 import unittest
@@ -10,7 +12,7 @@ import unittest
 import httpx
 
 from semantic_http import (GLOBAL_RATE_GATE, ProcessRateGate, ObservedRequester,
-                           create_monitored_client, client_diagnostics)
+                           create_monitored_client, client_diagnostics, transport_failure)
 
 
 class SemanticHTTPTests(unittest.IsolatedAsyncioTestCase):
@@ -128,6 +130,38 @@ class SemanticHTTPTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(RuntimeError, "^SEMANTIC_SCHOLAR_TRANSPORT_FAILED$"):
             await requester.get_data_async("https://api.semanticscholar.org/graph/v1/paper/search", "", {})
         self.assertNotIn("safe-test-key", json.dumps(requester.events))
+        self.assertEqual(requester.events[-1]["transportError"], "CONNECT_ERROR")
+        self.assertTrue(requester.events[-1]["transportRetryable"])
+
+    async def test_timeout_phase_and_effective_timeout_logged_without_secrets(self):
+        for error, reason in ((httpx.ConnectTimeout, "CONNECT_TIMEOUT"), (httpx.ReadTimeout, "READ_TIMEOUT")):
+            def handler(request):
+                raise error("safe-test-key proxy credentials", request=request)
+            requester = ObservedRequester(20, "safe-test-key", transport=httpx.MockTransport(handler), gate=ProcessRateGate(.001))
+            with self.assertRaises(RuntimeError):
+                await requester.get_data_async("https://api.semanticscholar.org/graph/v1/paper/search", "", {})
+            event = requester.events[-1]
+            self.assertEqual(event["transportError"], reason)
+            self.assertEqual(event["requestTimeouts"]["connect"], 20)
+            self.assertTrue(event["transportRetryable"])
+            self.assertNotIn("safe-test-key", json.dumps(event))
+
+    async def test_tls_proxy_unknown_errors_not_marked_retryable(self):
+        tls = httpx.ConnectError("safe-test-key")
+        tls.__cause__ = ssl.SSLCertVerificationError("certificate failure safe-test-key")
+        for error, reason in ((tls, "TLS_CERTIFICATE_ERROR"), (httpx.ProxyError("private"), "PROXY_ERROR"),
+                              (RuntimeError("private"), "OTHER_TRANSPORT_ERROR")):
+            event = transport_failure(error)
+            self.assertEqual(event["transportError"], reason)
+            self.assertFalse(event["transportRetryable"])
+            self.assertNotIn("private", json.dumps(event)); self.assertNotIn("safe-test-key", json.dumps(event))
+
+    async def test_dns_failure_has_safe_classification(self):
+        error = httpx.ConnectError("private")
+        error.__cause__ = socket.gaierror(-3, "private DNS text")
+        event = transport_failure(error)
+        self.assertEqual(event["transportError"], "DNS_ERROR")
+        self.assertTrue(event["transportRetryable"])
 
 
 if __name__ == "__main__":

@@ -2,7 +2,10 @@
 import asyncio
 from copy import deepcopy
 import json
+import io
 import shutil
+import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -16,6 +19,37 @@ import tests.test_aip_evidence_assembly as assembly_fixture
 
 
 class PipelineTests(unittest.TestCase):
+    def test_relay_only_generated_retry_lines_not_raw_logs_or_secrets(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory); child = root / "literature"; child.mkdir()
+            line = "检索网络暂时失败（CONNECT_TIMEOUT），等待 1.2 秒后重试（1/2）；只重试检索，不再调用模型。"
+            (child / "partner.log").write_text(line + "\nSECRET_SENTINEL\nraw exception: private\n", encoding="utf-8")
+            output = io.StringIO(); seen = set()
+            with redirect_stdout(output):
+                pipeline.show_search_progress(root / "literature.log", seen)
+                pipeline.show_search_progress(root / "literature.log", seen)
+            self.assertEqual(output.getvalue().strip(), line)
+
+    def test_actual_offline_subprocess_output_is_polled_and_returns_exit_code(self):
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "literature.log"
+            code = pipeline.run_command([sys.executable, "-c", "print('offline subprocess only')"], output, 5)
+            self.assertEqual(code, 0)
+            self.assertIn("offline subprocess only", output.read_text(encoding="utf-8"))
+
+    def test_failure_details_only_return_whitelisted_codes(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory); child = root / "literature"; child.mkdir()
+            path = child / "backend_outcome.json"
+            data = {"error": {"code": "PROVIDER_UNAVAILABLE", "message": "SECRET_SENTINEL"},
+                    "diagnostics": {"httpRequests": [{"httpStatus": None, "transportError": "CONNECT_TIMEOUT"}]}}
+            path.write_text(json.dumps(data), encoding="utf-8")
+            details = pipeline.search_failure_details(root)
+            self.assertEqual(details, {"providerError": "PROVIDER_UNAVAILABLE", "transportError": "CONNECT_TIMEOUT"})
+            self.assertNotIn("SECRET_SENTINEL", json.dumps(details))
+            data["error"]["code"] = "SECRET_SENTINEL"; path.write_text(json.dumps(data), encoding="utf-8")
+            self.assertEqual(pipeline.search_failure_details(root), {})
+
     def setup_files(self, directory):
         source, reader, cache = assembly_fixture.AssemblyTests().files(directory)
         root = Path(directory) / "pipeline"; root.mkdir()
@@ -213,6 +247,21 @@ class PdfWorkerTests(unittest.TestCase):
 
 
 class EvidenceExportTests(unittest.TestCase):
+    def test_pipeline_report_distinguishes_saved_plan_from_historical_assembly(self):
+        from assemble_aip_evidence import assemble, render
+        with TemporaryDirectory() as directory:
+            source, reader, cache = assembly_fixture.AssemblyTests().files(directory)
+            record = assemble(source, reader, cache_dir=cache)
+            self.assertIn("没有重新执行科研任务", render(record))
+            record["pipeline"] = {"scope": "LOCAL_AIP_SINGLE_ENTRY_SEARCH_READER",
+                                  "singleEntryCompleted": True, "plannerExecutedByPipeline": False}
+            report = render(record)
+            self.assertIn("复用已保存的计划", report)
+            self.assertNotIn("没有重新执行科研任务", report)
+            self.assertIn("不是正式平台端到端验收", report)
+            record["pipeline"]["plannerExecutedByPipeline"] = True
+            self.assertIn("包含真实模型规划", render(record))
+
     def test_allowlist_excludes_credentials_paths_raw_text_and_identities(self):
         with TemporaryDirectory() as directory:
             source, reader, cache = assembly_fixture.AssemblyTests().files(directory)

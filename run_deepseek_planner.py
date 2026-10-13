@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 import time
+from uuid import uuid4
 
 
 async def create_plan(query, attempts):
@@ -28,7 +29,7 @@ async def create_plan(query, attempts):
 
 def save_plan(plan, metadata, output_root=None):
     root = output_root if output_root is not None else Path(__file__).resolve().parent / "outputs"
-    output = root / datetime.now().strftime("live-planner-%Y%m%d-%H%M%S-%f")
+    output = root / (datetime.now().strftime("live-planner-%Y%m%d-%H%M%S-%f") + "-" + uuid4().hex[:12])
     output.mkdir(parents=True, exist_ok=False)
     for name, data in (("plan.json", plan), ("run_info.json", metadata)):
         (output / name).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

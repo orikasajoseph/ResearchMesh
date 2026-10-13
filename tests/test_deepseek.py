@@ -294,6 +294,16 @@ class EntryPointTests(unittest.TestCase):
     def test_unknown_error_is_not_exposed(self):
         self.assertNotIn(SECRET, safe_failure(RuntimeError(SECRET)))
 
+    def test_saved_outputs_are_distinct_even_when_clock_is_identical(self):
+        import run_deepseek_planner as entry
+        with tempfile.TemporaryDirectory() as directory, patch.object(entry, "datetime") as clock:
+            clock.now.return_value.strftime.return_value = "live-planner-fixed-clock"
+            first = entry.save_plan(example(), {}, Path(directory))
+            second = entry.save_plan(example(), {}, Path(directory))
+            self.assertNotEqual(first, second)
+            self.assertTrue((first / "plan.json").is_file())
+            self.assertTrue((second / "plan.json").is_file())
+
 
 if __name__ == "__main__":
     unittest.main()

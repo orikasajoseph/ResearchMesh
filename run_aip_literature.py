@@ -51,7 +51,7 @@ async def invoke_business(payload, url, aic, *, transport=None, timeout_seconds=
     if (parsed.scheme != "http" or parsed.host != "127.0.0.1" or parsed.path != "/rpc"
             or parsed.username or parsed.password or parsed.query or parsed.fragment):
         raise AdapterError("LOOPBACK_RPC_REQUIRED")
-    if expected_task_type not in {"literature_search", "paper_read"} or payload["taskType"] != expected_task_type:
+    if expected_task_type not in {"literature_search", "paper_read", "repository_analyze"} or payload["taskType"] != expected_task_type:
         raise AdapterError("UNEXPECTED_TASK_TYPE")
     messages = []
     class TracedClient(AipRpcClient):
@@ -84,11 +84,11 @@ async def invoke_literature(payload, url, aic, **kwargs):
 
 @contextmanager
 def live_partner(wrapper_root, output, *, factory="aip_literature_partner:create_live_app",
-                 mode="local-literature-live", extra_env=None):
+                 mode="local-literature-live", extra_env=None, aic_prefix="local-literature"):
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
-    aic = "local-literature-" + str(uuid4())
+    aic = aic_prefix + "-" + str(uuid4())
     env = dict(os.environ, RESEARCHMESH_LOCAL_PARTNER_AIC=aic,
                RESEARCHMESH_AIP_WRAPPER_ROOT=str(wrapper_root), RESEARCHMESH_AIP_RECORD_DIR=str(output),
                PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")

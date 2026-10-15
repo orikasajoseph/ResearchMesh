@@ -6,6 +6,7 @@ outputs/
 .env.*
 !.env.example
 .venv/
+.venv-repository/
 venv/
 .vscode/
 .pytest_cache/

@@ -6,12 +6,12 @@ def require_record_directory(path, project_root, stage):
     """Accept legacy runs or a single-entry stage, never outputs/cache or escapes.
 
     Resolve symlinks/junctions before comparing paths. The single-entry layout is
-    outputs/aip-research-<unique-run>/<literature|reader>; other nested layouts
+    outputs/aip-research-<unique-run>/<literature|reader|repository>; other nested layouts
     are not silently enabled. The caller must have created the directory first.
     """
     output = Path(path).resolve()
     base = (Path(project_root).resolve() / "outputs").resolve()
-    if stage not in ("literature", "reader") or not output.is_dir():
+    if stage not in ("literature", "reader", "repository") or not output.is_dir():
         raise ValueError("INVALID_AIP_RECORD_DIRECTORY")
     try:
         parts = output.relative_to(base).parts

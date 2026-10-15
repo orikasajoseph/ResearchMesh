@@ -30,14 +30,16 @@ class LocalBackendFailure(RuntimeError):
                    "INVALID_REQUEST", "PROVIDER_UNAVAILABLE", "UNKNOWN_PROVIDER_ERROR",
                    "NO_VALID_PAPER_RECORDS", "WRAPPER_TIMEOUT", "WRAPPER_CALL_FAILED",
                    "READER_TIMEOUT", "READER_CALL_FAILED", "INVALID_READER_RESULT", "READER_EMPTY_RESULT",
-                   "READER_WORKER_FAILED", "READER_PREVIOUS_EXECUTION_UNCERTAIN"}
+                   "READER_WORKER_FAILED", "READER_PREVIOUS_EXECUTION_UNCERTAIN",
+                   "REPOSITORY_WORKER_FAILED", "REPOSITORY_PREVIOUS_EXECUTION_UNCERTAIN",
+                   "REPOSITORY_CLONE_FAILED", "STATIC_ANALYSIS_FAILED", "REPOSITORY_EMPTY_RESULT"}
         self.code = code if code in allowed else "BACKEND_FAILED"
         super().__init__(self.code)
 
 
 def validate_local_task(payload):
     task = BusinessTask.model_validate(payload).model_dump()
-    if task["taskType"] not in ("literature_search", "paper_read"):
+    if task["taskType"] not in ("literature_search", "paper_read", "repository_analyze"):
         raise ValueError("UNSUPPORTED_TASK")
     if task["outputSchema"] != OUTPUT_SCHEMAS[task["taskType"]]:
         raise ValueError("OUTPUT_SCHEMA_MISMATCH")
@@ -47,6 +49,9 @@ def validate_local_task(payload):
     if task["taskType"] == "paper_read":
         if task["constraints"].get("maxPapers") != 1 or len(task["input"]["papers"]) != 1:
             raise ValueError("SINGLE_PAPER_ONLY")
+    if task["taskType"] == "repository_analyze":
+        if task["constraints"].get("maxRepositories", 1) != 1 or len(task["input"]["repositoryUrls"]) != 1:
+            raise ValueError("SINGLE_REPOSITORY_ONLY")
     return task
 
 
@@ -63,7 +68,8 @@ def create_local_business_app(*, execute, partner_aic, backend_timeout_seconds=1
             or not isinstance(backend_timeout_seconds, (float, int))
             or not math.isfinite(backend_timeout_seconds) or backend_timeout_seconds <= 0
             or type(background_execution) is not bool
-            or mode not in {"local-business-fixture", "local-literature-live", "local-reader-live"}):
+            or mode not in {"local-business-fixture", "local-literature-live", "local-reader-live",
+                            "local-repository-live", "local-repository-fixture"}):
         raise ValueError("INVALID_LOCAL_CONFIGURATION")
     owners, requests, jobs = {}, {}, {}
 
@@ -106,6 +112,10 @@ def create_local_business_app(*, execute, partner_aic, backend_timeout_seconds=1
             return rejected(command, "ONLY_LITERATURE_LIVE_SUPPORTED")
         if mode == "local-reader-live" and payload["taskType"] != "paper_read":
             return rejected(command, "ONLY_READER_LIVE_SUPPORTED")
+        if mode.startswith("local-repository-") and payload["taskType"] != "repository_analyze":
+            return rejected(command, "ONLY_REPOSITORY_SUPPORTED")
+        if mode == "local-business-fixture" and payload["taskType"] == "repository_analyze":
+            return rejected(command, "EXPLICIT_REPOSITORY_MODE_REQUIRED")
         if existing is not None:
             if not owns(command, existing) or requests.get(command.taskId) != payload:
                 return rejected(command, "TASK_OWNERSHIP_OR_PAYLOAD_MISMATCH")
@@ -135,6 +145,11 @@ def create_local_business_app(*, execute, partner_aic, backend_timeout_seconds=1
                         or paper_ref(result["items"][0]["data"]["source"]) !=
                         paper_ref(payload["input"]["papers"][0])):
                     raise ValueError("READER_RESULT_SOURCE_MISMATCH")
+            elif payload["taskType"] == "repository_analyze":
+                from repository_adapter import _repo_identity
+                if (len(result["items"]) != 1 or _repo_identity(result["items"][0]["data"]["url"]) !=
+                        _repo_identity(payload["input"]["repositoryUrls"][0])):
+                    raise ValueError("REPOSITORY_RESULT_SOURCE_MISMATCH")
             elif len(result["items"]) > payload["constraints"].get("maxResults", 100):
                 raise ValueError("SEARCH_RESULT_LIMIT_EXCEEDED")
         except asyncio.TimeoutError:
@@ -188,7 +203,9 @@ def create_local_business_app(*, execute, partner_aic, backend_timeout_seconds=1
     async def health():
         return {"status": "ok", "aic": partner_aic, "mode": mode,
                 "schemaVersion": "0.2", "skills": ["literature.search"] if mode == "local-literature-live"
-                else ["paper.analyze"] if mode == "local-reader-live" else ["literature.search", "paper.analyze"],
+                else ["paper.analyze"] if mode == "local-reader-live"
+                else ["repository.analyze"] if mode.startswith("local-repository-")
+                else ["literature.search", "paper.analyze"],
                 "executionEvidence": "see task records, not health", "identityVerified": False,
                 "backgroundExecution": background_execution}
     return app

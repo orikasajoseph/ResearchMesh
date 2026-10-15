@@ -7,15 +7,50 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 from aip.group_literature_partner import serve, tls_context
+from acps_sdk.amp import HeartbeatEmitter
 
 ROOT = Path(__file__).resolve().parent
 CREDENTIAL_DIR = Path(r"D:\research\aic\credentials\literature")
 
+AMP_LOG_DIR = ROOT / "logs"
+HEARTBEAT_PATH = AMP_LOG_DIR / "amp_heartbeat_literature_live.jsonl"
+
+async def run_live(*, partner_aic: str, leader_aic: str) -> None:
+    AMP_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+    heartbeat = HeartbeatEmitter(
+        HEARTBEAT_PATH,
+        aic=partner_aic,
+    )
+
+    interval = float(
+        os.getenv("AMP_HEARTBEAT_INTERVAL_SECONDS", "15")
+    )
+
+    hb_task = asyncio.create_task(
+        heartbeat.run_periodic(interval),
+        name="literature-heartbeat",
+    )
+
+    print("HEARTBEAT_STARTED")
+    print("HEARTBEAT_PATH:", HEARTBEAT_PATH)
+
+    try:
+        await serve(
+            partner_aic=partner_aic,
+            leader_aic=leader_aic,
+            credential_dir=CREDENTIAL_DIR,
+        )
+    finally:
+        hb_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await hb_task
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -41,7 +76,12 @@ def main() -> int:
         print("SEMANTIC_SCHOLAR_API_KEY missing; refusing to start a research Partner")
         return 2
     try:
-        asyncio.run(serve(partner_aic=partner, leader_aic=leader, credential_dir=CREDENTIAL_DIR))
+        asyncio.run(
+            run_live(
+            partner_aic=partner,
+            leader_aic=leader,
+            )
+        )
     except KeyboardInterrupt:
         print("STOPPED_BY_USER")
     except Exception as exc:

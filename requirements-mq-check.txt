@@ -1,0 +1,6 @@
+# Optional connect-only tool dependencies. Prefer a separate tool environment.
+# SDK stays at the project's existing official source pin; no Leader upgrade.
+-r requirements-aip.txt
+aio-pika==10.1.1
+aiormq==7.2.2
+cryptography==46.0.7

@@ -1,5 +1,10 @@
 # ResearchMesh 智研协作
 
+> 2026-10-16 平台接入更新：Leader 已取得身份与 clientAuth 证书，独立梧桐 MQ 连接检查通过。
+> 新增可配置的 `run_mq_check.py`，默认离线、加 `--execute` 才连接；不建群、不发任务、不调用模型。
+> 安装、运行、安全边界及与吴的下一轮对齐见 [MQ 检查工具说明](docs/platform_mq_check.md)。
+> 下文带较早日期的状态与测试数量保留为历史说明，不代表本轮已完成平台 ADP/群组科研链。
+
 > 2026-10-04 开发分支已实现业务接口 v0.2：`requiredSkill`、`repository_analyze`、明确仓库地址后才静态分析。待全组确认后合并，尚非全组冻结版本。请先读 [v0.2 接口](docs/InterfaceContract_v0.2.md) 和 [本次交接](docs/v02_handoff.md)。旧 v0.1 文档、历史验收只作参考。
 
 ## 组员首次运行

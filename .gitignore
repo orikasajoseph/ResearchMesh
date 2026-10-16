@@ -27,3 +27,15 @@ dist/
 *.pfx
 *.crt
 *.cer
+
+# Platform enrollment credentials and isolated tool environments stay local.
+.venv-*/
+.acps-cli/
+keyfiles/
+credentials/
+private/
+eab.json
+*-eab.json
+eab-*.json
+registry-user.json
+registry-admin.json

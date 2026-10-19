@@ -97,7 +97,7 @@ def evidence_url(url, commit, path, start=None, end=None):
     return url.rstrip('/').removesuffix('.git') + '/blob/' + commit + '/' + quote(path, safe='/') + anchor
 
 
-def normalize_repository_result(payload, raw, wrapper, *, fixture=False):
+def normalize_repository_result(payload, raw, wrapper, *, fixture=False, context_payload=None):
     """Native result is copied. Fixture cannot be a real research PASS."""
     if type(fixture) is not bool:
         raise RepositoryAdapterError('INVALID_REPOSITORY_FIXTURE_MODE')
@@ -141,7 +141,7 @@ def normalize_repository_result(payload, raw, wrapper, *, fixture=False):
         if fixture:
             result['warnings'].append('SIMULATED_RESEARCH: actual Wrapper with fake static/clone providers; no real analysis')
         result['warnings'] = list(dict.fromkeys(result['warnings']))
-        validate_result(result, payload)
+        validate_result(result, context_payload if context_payload is not None else payload)
         return result
     except RepositoryAdapterError:
         raise

@@ -15,7 +15,9 @@ from repository_paper_context import prepare_repository_task
 ROOT = Path(__file__).resolve().parent
 
 
-def make_repository_executor(worker_call, expected_payload):
+def make_repository_executor(worker_call, expected_payload, *, analysis_mode='static'):
+    if analysis_mode not in {'static', 'enhanced'}:
+        raise ValueError('INVALID_REPOSITORY_ANALYSIS_MODE')
     prepare_repository_task(expected_payload)
     started, cached = False, None
     async def execute(payload):
@@ -28,7 +30,9 @@ def make_repository_executor(worker_call, expected_payload):
             raise LocalBackendFailure('REPOSITORY_PREVIOUS_EXECUTION_UNCERTAIN')
         started = True
         journal = await worker_call()
-        if journal.get('task') != expected_payload or journal.get('scope') != 'ISOLATED_CODEWIKI_STATIC_NO_LLM':
+        scope = ('ISOLATED_CODEWIKI_STATIC_NO_LLM' if analysis_mode == 'static'
+                 else 'ISOLATED_CODEWIKI_WITH_EXPLICIT_LLM_ENHANCEMENT')
+        if journal.get('task') != expected_payload or journal.get('scope') != scope:
             raise LocalBackendFailure('REPOSITORY_WORKER_FAILED')
         if journal.get('phase') != 'completed' or journal.get('error') is not None:
             raise LocalBackendFailure((journal.get('error') or {}).get('code', 'REPOSITORY_WORKER_FAILED'))
@@ -46,16 +50,33 @@ def static_worker_env():
     return env
 
 
+def repository_worker_env(analysis_mode):
+    """Keep static env credential-free; enhanced env gets only named LLM settings."""
+    if analysis_mode not in {'static', 'enhanced'}:
+        raise ValueError('INVALID_REPOSITORY_ANALYSIS_MODE')
+    env = static_worker_env()
+    if analysis_mode == 'enhanced':
+        for key in ('DEEPSEEK_API_KEY', 'DEEPSEEK_BASE_URL', 'DEEPSEEK_MODEL'):
+            if key in os.environ:
+                env[key] = os.environ[key]
+    return env
+
+
 def create_live_app():
+    analysis_mode = os.environ.get('RESEARCHMESH_REPOSITORY_ANALYSIS_MODE', 'static')
+    environment = repository_worker_env(analysis_mode)
     output = require_record_directory(os.environ['RESEARCHMESH_AIP_RECORD_DIR'], ROOT, 'repository')
     payload = json.loads((output / 'repository_input.json').read_text(encoding='utf-8'))
     python = Path(os.environ['RESEARCHMESH_REPOSITORY_PYTHON']).resolve()
     wrapper = Path(os.environ['RESEARCHMESH_AIP_WRAPPER_ROOT']).resolve()
     async def worker():
-        command = [str(python), '-X', 'utf8', str(ROOT / 'repository_aip_worker.py'),
+        script = 'repository_aip_worker.py' if analysis_mode == 'static' else 'repository_enhanced_worker.py'
+        command = [str(python), '-X', 'utf8', str(ROOT / script),
                    '--wrapper-root', str(wrapper), '--record-dir', str(output), '--execute']
+        if analysis_mode == 'enhanced' and os.environ.get('RESEARCHMESH_REPOSITORY_ENV_FILE'):
+            command += ['--env-file', os.environ['RESEARCHMESH_REPOSITORY_ENV_FILE']]
         with (output / 'repository_worker.log').open('w', encoding='utf-8') as log:
-            process = subprocess.Popen(command, cwd=ROOT, env=static_worker_env(), stdout=log, stderr=subprocess.STDOUT,
+            process = subprocess.Popen(command, cwd=ROOT, env=environment, stdout=log, stderr=subprocess.STDOUT,
                                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
             try:
                 while process.poll() is None:
@@ -66,6 +87,7 @@ def create_live_app():
         if not path.is_file():
             raise LocalBackendFailure('REPOSITORY_WORKER_FAILED')
         return json.loads(path.read_text(encoding='utf-8'))
-    return create_local_business_app(execute=make_repository_executor(worker, payload),
+    return create_local_business_app(execute=make_repository_executor(worker, payload, analysis_mode=analysis_mode),
                     partner_aic=os.environ['RESEARCHMESH_LOCAL_PARTNER_AIC'],
-                    background_execution=True, backend_timeout_seconds=180, mode='local-repository-live')
+                    background_execution=True, backend_timeout_seconds=180 if analysis_mode == 'static' else 300,
+                    mode='local-repository-live')

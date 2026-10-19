@@ -1,7 +1,8 @@
 """Explicit repository -> existing Leader/Resolver -> official local AIP -> CodeWiki.
 
-Default is offline preflight. --execute permits one Git clone and static analysis,
-never an LLM request, repository search, or execution of target commands.
+Default is offline preflight. --execute alone permits static analysis only.
+--analysis-mode enhanced --execute explicitly permits bounded LLM requests.
+Neither mode searches for repositories or executes target commands.
 """
 import argparse
 import asyncio
@@ -21,7 +22,7 @@ from acps_sdk.aip import AipRpcClient
 from aip_executor import AipAgentExecutor
 from aip_lifecycle import AipTaskRunner, sdk_sender
 from aip_orchestrator import AipOrchestrator
-from aip_repository_partner import static_worker_env
+from aip_repository_partner import static_worker_env, repository_worker_env
 from common.models import BUSINESS_TASK_FIELDS
 from input_binding import bind_task_input
 from planner_contract import validate_plan
@@ -168,6 +169,87 @@ def render_report(outcome, acceptance):
     return '\n'.join(lines) + '\n'
 
 
+def assess_enhanced(outcome, backend, payload):
+    from repository_enhancement_contract import validate_enhancement_evidence
+    records = outcome.get('executionRecords', [])
+    protocol = bool(len(records) == 1 and records[0].get('succeeded') is True
+                    and records[0].get('aipState') == 'completed')
+    result = (outcome.get('results') or [None])[0]
+    matched = bool(protocol and backend and backend.get('phase') == 'completed'
+                   and backend.get('error') is None and backend.get('task') == payload
+                   and result == backend.get('result'))
+    diagnostic = (backend or {}).get('diagnostics', {})
+    data = result['items'][0]['data'] if matched and result.get('items') else {}
+    static_ready = bool(matched and backend.get('scope') == 'ISOLATED_CODEWIKI_WITH_EXPLICIT_LLM_ENHANCEMENT'
+                        and data.get('isMock') is False and data.get('evidence')
+                        and data.get('diagnostics', {}).get('provider') == 'codewiki-static'
+                        and data.get('diagnostics', {}).get('counts', {}).get('componentCount', 0) > 0
+                        and diagnostic.get('llmEnabled') is True
+                        and type(diagnostic.get('modelCalls')) is int and 0 <= diagnostic['modelCalls'] <= 2
+                        and diagnostic.get('pythonNetworkAttemptsBlocked') == 0
+                        and diagnostic.get('targetCodeExecuted') is False
+                        and diagnostic.get('targetDependenciesInstalled') is False)
+    evidence_valid = False
+    if static_ready:
+        try:
+            validate_enhancement_evidence(data, payload)
+            evidence_valid = True
+        except (ValueError, TypeError, KeyError):
+            pass
+    status = diagnostic.get('enrichmentStatus', 'not_started')
+    enhancement = bool(static_ready and evidence_valid and status == 'completed'
+                       and data.get('enrichment', {}).get('status') == status
+                       and diagnostic.get('modelCalls', 0) >= 1
+                       and diagnostic.get('successfulModelResponses', 0) >= 1
+                       and (data.get('overview') or data.get('reproductionBarriers') or data.get('paperCodeRelations'))
+                       and (not payload['input'].get('paperNotes') or data.get('paperCodeRelations'))
+                       and 'LLM_ENRICHMENT_UNAVAILABLE' not in result['warnings'])
+    return {'passed': enhancement, 'protocolCompleted': protocol, 'businessReady': bool(static_ready and evidence_valid),
+            'staticBusinessReady': static_ready, 'enhancementSucceeded': enhancement, 'enrichmentStatus': status,
+            'scope': 'LOCAL_AIP_REPOSITORY_EXPLICIT_ENHANCEMENT', 'backendResultMatchesAipProduct': matched,
+            'modelCalled': diagnostic.get('modelCalls', 0) > 0, 'modelCalls': diagnostic.get('modelCalls', 0),
+            'modelUsage': diagnostic.get('modelUsage', []), 'usageMayExcludeFailedRequests': True,
+            'plannerCalled': False, 'platformDiscoveryUsed': False, 'tlsIdentityVerified': False,
+            'targetCodeExecuted': False, 'targetDependenciesInstalled': False, 'reproductionVerified': False,
+            'paperContextAnalyzed': bool(enhancement and payload['input'].get('paperNotes')),
+            'paperContextCompared': False, 'semanticReproductionAnalysis': False,
+            'returnedRepositoryCount': 1 if static_ready else 0}
+
+
+def render_enhanced_report(outcome, acceptance):
+    report = render_report(outcome, dict(acceptance, passed=acceptance['businessReady']))
+    report = report.replace('指定仓库静态分析报告', '指定仓库分析报告（显式模型增强）')
+    report = report.replace('DeepSeek 增强关闭；', '已请求 DeepSeek 增强；')
+    report = report.replace('模型概述与复现难度推断未生成（本轮关闭 LLM）。',
+                            '模型分析是证据约束下的推断，不代表执行或复现验证。')
+    lines = [report, '## 可选增强状态', '', '增强状态：' + acceptance['enrichmentStatus'],
+             '增强完整验收：' + str(acceptance['enhancementSucceeded']),
+             '模型请求尝试数：' + str(acceptance['modelCalls']),
+             '失败或超时请求也可能计费；token 仅统计收到的成功响应，未计算费用。', '']
+    for result in outcome.get('results', []):
+        for item in result['items']:
+            data = item['data']
+            lines += ['### 模型概述', '', (data.get('overview') or {}).get('text') or '未生成有效概述。', '',
+                      '### 复现障碍推断（未实际复现）', '']
+            for barrier in data.get('reproductionBarriers', []):
+                lines += ['- ' + barrier['issue'] + '；代码证据：' + ', '.join(barrier['evidenceIds'])]
+            if not data.get('reproductionBarriers'):
+                lines += ['未生成有证据支持的障碍；不能据此认定容易复现。']
+            lines += ['', '### 论文与代码关联（待人工核验）', '']
+            for relation in data.get('paperCodeRelations', []):
+                lines += ['- ' + relation['claim'],
+                          '  论文证据：' + ', '.join(relation['paperEvidenceIds']) +
+                          '；代码证据：' + ', '.join(relation['codeEvidenceIds'])]
+            if not data.get('paperCodeRelations'):
+                lines += ['未生成有效的双侧证据关联；没有论文输入时不生成关联。']
+            lines += ['', '### 沿用的论文证据', '']
+            for e in data.get('paperEvidence', []):
+                lines += ['- [' + e['evidenceId'] + ' · ' + e['locator'] + '](' + e['url'] + ')：' + e['supports']]
+    if not acceptance['enhancementSucceeded']:
+        lines += ['', '> 增强未完成。已保留可用静态结果；不要将本报告当作增强分析成功证明。']
+    return '\n'.join(lines) + '\n'
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     choice = parser.add_mutually_exclusive_group()
@@ -175,13 +257,22 @@ def main(argv=None):
     choice.add_argument('--plan', type=Path, help='已保存的单独 Repository 任务计划；不会重新调用模型')
     parser.add_argument('--wrapper-root', type=Path, default=ROOT / 'agents/repository')
     parser.add_argument('--repository-python', type=Path, default=ROOT / '.venv-repository/Scripts/python.exe')
-    parser.add_argument('--execute', action='store_true', help='允许 Git clone 与静态分析；始终不调用 LLM')
+    parser.add_argument('--analysis-mode', choices=('static', 'enhanced'), default='static', help='默认 static 零模型；enhanced + --execute 才允许模型计费')
+    parser.add_argument('--env-file', type=Path, help='仅 enhanced 执行时读取其中的 DeepSeek 配置；不复制、不打印密钥')
+    parser.add_argument('--execute', action='store_true', help='允许执行所选模式；enhanced 模式可能计费')
     parser.add_argument('--record-dir', type=Path, help='新的 outputs 内目录；不覆盖已有记录')
     args = parser.parse_args(argv)
     output = None
     try:
+        if args.analysis_mode == 'static' and args.env_file:
+            raise ValueError('ENV_FILE_REQUIRES_ENHANCED_MODE')
+        if args.env_file and not args.env_file.is_file():
+            raise ValueError('ENHANCED_ENV_FILE_MISSING')
         source = json.loads(args.plan.read_text(encoding='utf-8-sig')) if args.plan else build_plan(
             args.repository or input('请输入 GitHub 仓库链接：').strip())
+        if args.analysis_mode == 'enhanced' and not args.plan:
+            source['userQuery'] = '静态分析指定仓库并使用证据约束的模型增强；不执行目标代码。'
+            source['tasks'][0]['goal'] = source['userQuery']
         plan = selected_plan(source)
         bound_task = bind_task_input(plan['tasks'][0], {})
         payload = {k: deepcopy(bound_task[k]) for k in BUSINESS_TASK_FIELDS}
@@ -194,40 +285,51 @@ def main(argv=None):
         output.mkdir(parents=True, exist_ok=False)
         require_record_directory(output, ROOT, 'repository')
         save_json(output / 'plan.json', plan); save_json(output / 'repository_input.json', payload)
-        command = [str(python), '-X', 'utf8', str(ROOT / 'repository_aip_worker.py'),
+        script = 'repository_aip_worker.py' if args.analysis_mode == 'static' else 'repository_enhanced_worker.py'
+        command = [str(python), '-X', 'utf8', str(ROOT / script),
                    '--record-dir', str(output), '--wrapper-root', str(wrapper)]
         with (output / 'preflight.log').open('w', encoding='utf-8') as log:
-            checked = subprocess.run(command, cwd=ROOT, env=static_worker_env(), stdout=log, stderr=subprocess.STDOUT, timeout=60)
+            checked = subprocess.run(command, cwd=ROOT, env=repository_worker_env(args.analysis_mode), stdout=log, stderr=subprocess.STDOUT, timeout=60)
         if checked.returncode:
             raise ValueError('REPOSITORY_PREFLIGHT_FAILED')
         save_json(output / 'environment.json', {'python': str(python), 'wrapperRoot': str(wrapper),
-            'executeRequested': args.execute, 'llmEnabled': False, 'sdkVersion': '2.2.0',
+            'executeRequested': args.execute, 'analysisMode': args.analysis_mode,
+            'llmEnabled': args.analysis_mode == 'enhanced', 'sdkVersion': '2.2.0',
             'wrapperHashes': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (wrapper / 'researchmesh_repository').glob('*.py')}})
         if not args.execute:
             print('预检通过；未 clone、未发送 AIP 任务、未调用模型。加 --execute 才执行。')
             print('记录：', output); return 0
-        print('【真实本地 AIP + 指定仓库静态分析】不调用 DeepSeek，不运行目标代码。', flush=True)
+        print('【真实本地 AIP + 指定仓库静态分析】不调用 DeepSeek，不运行目标代码。' if args.analysis_mode == 'static'
+              else '【真实本地 AIP + 显式模型增强】最多 2 次 DeepSeek 请求，会计费；不运行目标代码。', flush=True)
+        extra_env = {'RESEARCHMESH_REPOSITORY_PYTHON': str(python),
+                     'RESEARCHMESH_REPOSITORY_ANALYSIS_MODE': args.analysis_mode,
+                     'RESEARCHMESH_REPOSITORY_ENV_FILE': str(args.env_file.resolve()) if args.env_file else ''}
         with live_partner(wrapper, output, factory='aip_repository_partner:create_live_app', mode='local-repository-live',
-                          extra_env={'RESEARCHMESH_REPOSITORY_PYTHON': str(python)}, aic_prefix='local-repository') as (url, aic):
-            outcome = asyncio.run(invoke_repository(plan, url, aic))
+                          extra_env=extra_env, aic_prefix='local-repository') as (url, aic):
+            outcome = asyncio.run(invoke_repository(plan, url, aic, timeout_seconds=195 if args.analysis_mode == 'static' else 315))
         save_json(output / 'outcome.json', outcome)
         path = output / 'backend_outcome.json'
         backend = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else None
-        acceptance = assess(outcome, backend, payload); acceptance['partnerStopped'] = True
+        acceptance = (assess if args.analysis_mode == 'static' else assess_enhanced)(outcome, backend, payload)
+        acceptance['partnerStopped'] = True
         save_json(output / 'acceptance.json', acceptance)
-        (output / 'report.md').write_text(render_report(outcome, acceptance), encoding='utf-8')
+        renderer = render_report if args.analysis_mode == 'static' else render_enhanced_report
+        (output / 'report.md').write_text(renderer(outcome, acceptance), encoding='utf-8')
         print('protocolCompleted：', acceptance['protocolCompleted']); print('businessReady：', acceptance['businessReady'])
         if not acceptance['passed']:
             print('未完成：', (backend or {}).get('error') or [r.get('error') for r in outcome['executionRecords']])
-        print('报告：', output / 'report.md'); print('临时 Partner 已停止；DeepSeek 调用 0 次。')
+        print('报告：', output / 'report.md')
+        print('临时 Partner 已停止；DeepSeek 调用 0 次。' if args.analysis_mode == 'static' else
+              '增强状态：' + acceptance['enrichmentStatus'] + '；模型请求尝试数：' + str(acceptance['modelCalls']))
         return 0 if acceptance['passed'] else 1
     except (Exception, KeyboardInterrupt) as error:
         code = getattr(error, 'code', None) or type(error).__name__
         # Fixed messages only; never raw provider/clone logs on console.
-        if type(error) is ValueError and str(error) in {'SDK_220_REQUIRED', 'REPOSITORY_RUNTIME_OR_WRAPPER_MISSING', 'REPOSITORY_PREFLIGHT_FAILED'}:
+        if type(error) is ValueError and str(error) in {'SDK_220_REQUIRED', 'REPOSITORY_RUNTIME_OR_WRAPPER_MISSING', 'REPOSITORY_PREFLIGHT_FAILED', 'ENV_FILE_REQUIRES_ENHANCED_MODE', 'ENHANCED_ENV_FILE_MISSING'}:
             code = str(error)
         if output:
-            save_json(output / 'failure.json', {'code': code, 'llmEnabled': False})
+            save_json(output / 'failure.json', {'code': code, 'llmEnabled': args.analysis_mode == 'enhanced',
+                                               'modelExecutionUncertain': bool(args.execute and args.analysis_mode == 'enhanced')})
         print('未完成：', code, '；记录：', output or '未创建（输入检查未通过）')
         return 130 if isinstance(error, KeyboardInterrupt) else 1
 

@@ -1,5 +1,7 @@
 # ResearchMesh 智研协作
 
+> 2026-10-19 Repository 双模式已整合：默认静态零模型；仅 `--analysis-mode enhanced --execute` 才允许收费增强。复用旧 LoRA Reader 的真实增强验收已通过（模型 1 次），不代表正式梧桐联调完成。见 [运行说明](docs/repository_dual_mode.md)、[真实增强验收](docs/repository_dual_mode_live_20261019.md) 和 [桌面项目整合说明](docs/repository_dual_mode_integration_20261019.md)。
+
 > 2026-10-16 平台接入更新：Leader 已取得身份与 clientAuth 证书，独立梧桐 MQ 连接检查通过。
 > 新增可配置的 `run_mq_check.py`，默认离线、加 `--execute` 才连接；不建群、不发任务、不调用模型。
 > 安装、运行、安全边界及与吴的下一轮对齐见 [MQ 检查工具说明](docs/platform_mq_check.md)。

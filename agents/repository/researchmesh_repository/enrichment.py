@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from .schemas import EnrichmentPayload, Evidence, Overview, ReproductionBarrier
+from .schemas import (Evidence, Overview, PaperCodeRelation, RepositoryPaperNote,
+                      ReproductionBarrier)
 
 
 class StructuredLLM(Protocol):
@@ -20,6 +22,7 @@ class EnrichmentResult:
     reproduction_barriers: list[ReproductionBarrier]
     warnings: list[str]
     latency_ms: float
+    paper_code_relations: list[PaperCodeRelation] = field(default_factory=list)
 
 
 class RepositoryEnricher:
@@ -34,16 +37,21 @@ class RepositoryEnricher:
         entrypoints: list[dict[str, Any]],
         run_commands: list[dict[str, Any]],
         dependency_summary: dict[str, int],
+        paper_notes: list[RepositoryPaperNote] | None = None,
     ) -> EnrichmentResult:
         started = time.perf_counter()
         selected = self._select_evidence(evidence)
         known_ids = {item.evidenceId for item in selected}
+        notes = paper_notes or []
+        paper_ids = {item.evidenceId for note in notes for item in note.evidence}
         bundle = {
             "evidence": [item.model_dump() for item in selected],
             "entrypoints": entrypoints,
             "runCommands": run_commands,
             "dependencySummary": dependency_summary,
         }
+        if notes:
+            bundle["paperNotes"] = [note.model_dump(mode="json") for note in notes]
         schema = {
             "type": "object",
             "properties": {
@@ -80,11 +88,22 @@ class RepositoryEnricher:
             },
             "required": ["overview", "reproductionBarriers"],
         }
+        if notes:
+            schema["properties"]["paperCodeRelations"] = {
+                "type": "array", "items": {"type": "object", "properties": {
+                    "claim": {"type": "string"},
+                    "paperEvidenceIds": {"type": "array", "items": {"type": "string"}},
+                    "codeEvidenceIds": {"type": "array", "items": {"type": "string"}},
+                }, "required": ["claim", "paperEvidenceIds", "codeEvidenceIds"]}}
+            schema["required"].append("paperCodeRelations")
         prompt = (
             "Summarize only facts supported by the supplied evidence. Produce an overview and "
             "concrete reproduction barriers. Every claim must cite one or more supplied evidenceIds. "
             "Do not invent IDs, commands, requirements, or barriers. If no barrier is evidenced, "
-            "return an empty reproductionBarriers array. Evidence bundle:\n"
+            "return an empty reproductionBarriers array. "
+            + ("For paperCodeRelations, cite both real paperEvidenceIds and codeEvidenceIds; "
+               "do not claim code execution or successful reproduction. " if notes else "")
+            + "Evidence bundle:\n"
             + json.dumps(bundle, ensure_ascii=False)
         )
         try:
@@ -104,11 +123,14 @@ class RepositoryEnricher:
         barriers = _validated_barriers(
             raw.get("reproductionBarriers"), known_ids, warnings
         )
+        relations = _validated_relations(raw.get("paperCodeRelations"), paper_ids,
+                                         known_ids, warnings) if notes else []
         return EnrichmentResult(
             overview=overview,
             reproduction_barriers=barriers,
             warnings=warnings,
             latency_ms=round((time.perf_counter() - started) * 1000, 3),
+            paper_code_relations=relations,
         )
 
     def _select_evidence(self, evidence: list[Evidence]) -> list[Evidence]:
@@ -178,3 +200,26 @@ def _validated_barriers(
             ReproductionBarrier(issue=item["issue"].strip(), evidenceIds=ids)
         )
     return barriers
+
+
+def _validated_relations(value: Any, paper_ids: set[str], code_ids: set[str],
+                         warnings: list[str]) -> list[PaperCodeRelation]:
+    if not isinstance(value, list):
+        warnings.append("UNSUPPORTED_PAPER_CODE_CLAIM")
+        return []
+    relations = []
+    for item in value:
+        if not isinstance(item, dict) or not isinstance(item.get("claim"), str):
+            warnings.append("UNSUPPORTED_PAPER_CODE_CLAIM")
+            continue
+        paper = _valid_ids(item.get("paperEvidenceIds"), paper_ids)
+        code = _valid_ids(item.get("codeEvidenceIds"), code_ids)
+        claim = item["claim"].strip()
+        if (not claim or paper is None or code is None
+                or re.search(r"\b(?:executed|ran|reproduced|replicated)\b|已(?:执行|运行|复现)|成功复现",
+                             claim, re.IGNORECASE)):
+            warnings.append("UNSUPPORTED_PAPER_CODE_CLAIM")
+            continue
+        relations.append(PaperCodeRelation(claim=claim,
+                                           paperEvidenceIds=paper, codeEvidenceIds=code))
+    return relations

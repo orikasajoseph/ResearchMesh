@@ -9,8 +9,36 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 
+class RepositoryPaperEvidence(StrictModel):
+    evidenceId: str = Field(min_length=1)
+    sourceId: str = Field(min_length=1)
+    url: str = Field(min_length=1)
+    locator: str = Field(min_length=1)
+    supports: str = Field(min_length=1)
+    text: str | None = None
+
+
+class RepositoryPaperSource(StrictModel):
+    paperId: str = Field(min_length=1)
+    title: str | None = None
+    doi: str | None = None
+    url: str | None = None
+    pdfUrl: str | None = None
+    repositoryUrls: list[str] = Field(default_factory=list)
+
+
+class RepositoryPaperNote(StrictModel):
+    source: RepositoryPaperSource
+    method: str = Field(min_length=1)
+    findings: str = Field(min_length=1)
+    limitations: str = Field(min_length=1)
+    analysisLevel: Literal["abstract", "fulltext"]
+    evidence: list[RepositoryPaperEvidence] = Field(min_length=1)
+
+
 class RepositoryTaskInput(StrictModel):
     repositoryUrls: list[str] = Field(default_factory=list)
+    paperNotes: list[RepositoryPaperNote] = Field(default_factory=list)
 
 
 class RepositoryTaskConstraints(StrictModel):
@@ -87,6 +115,12 @@ class Overview(StrictModel):
     evidenceIds: list[str]
 
 
+class PaperCodeRelation(StrictModel):
+    claim: str = Field(min_length=1)
+    paperEvidenceIds: list[str] = Field(min_length=1)
+    codeEvidenceIds: list[str] = Field(min_length=1)
+
+
 class RepositoryIdentity(StrictModel):
     url: str
     commitHash: str
@@ -123,6 +157,8 @@ class RepositoryRecord(StrictModel):
     reproductionBarriers: list[ReproductionBarrier]
     overview: Overview | None = None
     evidence: list[Evidence]
+    paperEvidence: list[RepositoryPaperEvidence] = Field(default_factory=list)
+    paperCodeRelations: list[PaperCodeRelation] = Field(default_factory=list)
     diagnostics: Diagnostics
 
 

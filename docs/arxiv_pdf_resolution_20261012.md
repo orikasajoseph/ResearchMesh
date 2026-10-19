@@ -40,7 +40,7 @@ run_research.py --with-reader 在绑定检索结果后、调用 Reader 前加入
 下一步由用户在项目目录执行真实阅读（可能多次模型请求和计费，开发过程没有自动执行）：
 
 ```powershell
-& "C:\Users\orika\Documents\Codex\rmr-1011-70db\Scripts\python.exe" -X utf8 run_research.py --resume "outputs/research-live-20261012-163942-267946" --with-reader --reader-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-upstream-validation-20261011\agents\paper_reader"
+& "<READER_PYTHON>" -X utf8 run_research.py --resume "outputs/research-live-20261012-163942-267946" --with-reader --reader-root "agents/paper_reader"
 ```
 
 这仍是本地业务链路，尚非 ADP/AIP/梧桐验收；笔记的证据关联精度也需另行处理。

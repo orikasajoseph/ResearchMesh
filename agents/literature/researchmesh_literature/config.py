@@ -30,6 +30,17 @@ class LiteratureAgentConfig:
     backoff_max_seconds: float = 8.0
     cache_ttl_seconds: float = 3600.0
     cache_max_entries: int = 256
+    resolve_resources: bool = False
+    resource_max_papers: int = 3
+    resource_max_requests: int = 12
+    resource_timeout_seconds: float = 5.0
+    resource_trust_env: bool = True
+    search_provider: str = "semantic-scholar"
+    openalex_fallback: bool = False
+    openalex_api_key: str | None = None
+    openalex_timeout_seconds: float = 8.0
+    openalex_max_results: int = 5
+    openalex_trust_env: bool = True
 
     def __post_init__(self) -> None:
         if self.timeout_seconds <= 0:
@@ -42,6 +53,16 @@ class LiteratureAgentConfig:
             raise ValueError("backoff values cannot be negative")
         if self.cache_ttl_seconds < 0 or self.cache_max_entries < 1:
             raise ValueError("cache settings are invalid")
+        if self.resource_max_papers < 1 or self.resource_max_requests < 1 or self.resource_timeout_seconds <= 0:
+            raise ValueError("resource limits are invalid")
+        if not isinstance(self.resource_trust_env, bool):
+            raise ValueError("Resource Resolver proxy inheritance setting is invalid")
+        if self.search_provider not in {"semantic-scholar", "openalex"}:
+            raise ValueError("search_provider is invalid")
+        if self.openalex_timeout_seconds <= 0 or not 1 <= self.openalex_max_results <= 25:
+            raise ValueError("OpenAlex limits are invalid")
+        if not isinstance(self.openalex_trust_env, bool):
+            raise ValueError("OpenAlex proxy inheritance setting is invalid")
 
     @classmethod
     def from_env(cls) -> "LiteratureAgentConfig":
@@ -88,4 +109,22 @@ class LiteratureAgentConfig:
                 "RESEARCHMESH_SS_CACHE_MAX_ENTRIES",
                 256,
             ),
+            search_provider=os.getenv("LITERATURE_SEARCH_PROVIDER", "semantic-scholar"),
+            openalex_fallback=os.getenv("LITERATURE_OPENALEX_FALLBACK", "1").lower() in {"1", "true", "yes"},
+            openalex_api_key=os.getenv("OPENALEX_API_KEY") or None,
+            openalex_timeout_seconds=float(os.getenv("LITERATURE_OPENALEX_TIMEOUT", "8")),
+            openalex_max_results=int(os.getenv("LITERATURE_OPENALEX_MAX_RESULTS", "5")),
+            openalex_trust_env=_parse_openalex_trust_env(),
+            resource_trust_env=_parse_trust_env("LITERATURE_RESOURCE_TRUST_ENV"),
         )
+
+
+def _parse_openalex_trust_env() -> bool:
+    return _parse_trust_env("LITERATURE_OPENALEX_TRUST_ENV")
+
+
+def _parse_trust_env(name: str) -> bool:
+    value = os.getenv(name, "1").strip().lower()
+    if value not in {"1", "true", "yes", "0", "false", "no"}:
+        raise ValueError(f"{name} must be a boolean")
+    return value in {"1", "true", "yes"}

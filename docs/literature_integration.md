@@ -49,7 +49,7 @@ PaperRef 继续保留 DOI/url/pdfUrl；本次产生 reader_inputs.json 不代表
 在 VS Code 项目终端执行，路径要指向包含 researchmesh_literature 子目录的交付根目录：
 
 ```powershell
-$deliveryRoot = 'C:\Users\orika\Desktop\智创赛\张\ResearchMesh_LiteratureAgent_AIP_Handoff\literature_agent_aip'
+$deliveryRoot = 'agents/literature'
 .\.venv\Scripts\python.exe -X utf8 run_literature.py --mode replay --plan examples/literature_alphaevolve_v02.json --fixture-input "$deliveryRoot\examples\literature_success_input.json" --fixture-output "$deliveryRoot\examples\literature_success_output.json"
 ```
 

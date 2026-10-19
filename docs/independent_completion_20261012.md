@@ -33,7 +33,7 @@ Git状态更新：以上是独立开发阶段记录。本文件现纳入赵分�
 明确允许重新检索、下载和收费阅读时，用以下命令。**本轮未执行它**，Reader可能多次请求DeepSeek：
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 run_aip_research.py --reader-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-upstream-validation-20261011\agents\paper_reader" --reader-python "C:\Users\orika\Documents\Codex\rmr-1011-70db\Scripts\python.exe" --execute
+.\.venv\Scripts\python.exe -X utf8 run_aip_research.py --reader-root "agents/paper_reader" --reader-python "<READER_PYTHON>" --execute
 ```
 
 然后在终端只输入自然语言，例如：

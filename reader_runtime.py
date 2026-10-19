@@ -19,7 +19,7 @@ def prepare_live_reader(root, *, env_file, runtime_home=None, pdf_fetcher=None):
             raise ReaderAdapterError("MISSING_READER_CONFIGURATION")
     if any(importlib.util.find_spec(name) is None for name in ("paperqa", "sentence_transformers", "torch")):
         raise ReaderAdapterError("READER_RUNTIME_DEPENDENCIES_MISSING")
-    cache = Path(runtime_home if runtime_home is not None else Path(sys.prefix) / "runtime-cache").resolve()
+    cache = Path(runtime_home if runtime_home is not None else Path(sys.prefix) / "runtime-cache")
     if not (cache / "huggingface").is_dir():
         raise ReaderAdapterError("READER_EMBEDDING_CACHE_MISSING")
     # 在导入依赖前关闭自动下载及遥测。此入口要求已准备好的离线 embedding。

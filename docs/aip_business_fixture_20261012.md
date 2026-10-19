@@ -14,7 +14,7 @@ Partner 以吴交付的 SDK handlers / executor 注入模式实现独立 v0.2 �
 
 ## 一条命令
 
-在 C:/Users/orika/Desktop/智创赛/ResearchMesh 的 VS Code PowerShell 终端执行：
+在 <PROJECT_ROOT> 的 VS Code PowerShell 终端执行：
 
 ```powershell
 .\.venv\Scripts\python.exe -X utf8 run_aip_business.py

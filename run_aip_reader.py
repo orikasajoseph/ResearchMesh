@@ -18,7 +18,6 @@ from run_aip_literature import live_partner, invoke_business
 from run_aip_business import save_json
 
 ROOT = Path(__file__).resolve().parent
-DEFAULT_READER_PYTHON = Path("C:/Users/orika/Documents/Codex/rmr-1011-70db/Scripts/python.exe")
 
 
 def assess_reader_run(outcome, journal, payload):
@@ -70,7 +69,9 @@ def main(argv=None):
     parser.add_argument("--source", type=Path, required=True, help="已通过的 aip-literature 输出目录")
     parser.add_argument("--pdf-proof", type=Path, required=True, help="此前核验的 pdf_resolution.json")
     parser.add_argument("--reader-root", type=Path, required=True)
-    parser.add_argument("--reader-python", type=Path, default=DEFAULT_READER_PYTHON)
+    parser.add_argument("--reader-python", type=Path, required=True)
+    parser.add_argument("--reader-env-file", type=Path, default=ROOT / ".env")
+    parser.add_argument("--reader-runtime-home", type=Path)
     parser.add_argument("--subtask", default="S2")
     parser.add_argument("--resume", type=Path, help="仅复用完成且校验通过的 reader_journal.json 所在输出目录")
     parser.add_argument("--execute", action="store_true", help="明确允许一次阅读流程，可能多次模型请求及计费")
@@ -91,7 +92,9 @@ def main(argv=None):
         journal_source = (args.resume.resolve() / "reader_journal.json") if args.resume else None
         command = [str(args.reader_python.resolve()), "-X", "utf8", str(ROOT / "reader_aip_worker.py"),
                    "--input", str(input_path), "--reader-root", str(args.reader_root.resolve()),
-                   "--record-dir", str(output)]
+                   "--record-dir", str(output), "--env-file", str(args.reader_env_file.resolve())]
+        if args.reader_runtime_home:
+            command += ["--runtime-home", str(args.reader_runtime_home.resolve())]
         if journal_source:
             command += ["--resume-journal", str(journal_source)]
         with (output / "reader_preflight.log").open("w", encoding="utf-8") as log:
@@ -104,6 +107,7 @@ def main(argv=None):
         save_json(output / "environment.json", {
             "sdkVersion": "2.2.0", "wireSchemaVersion": "0.2", "readerPython": str(args.reader_python.resolve()),
             "readerRoot": str(args.reader_root.resolve()), "executeRequested": args.execute,
+            "readerRuntimeHome": str(args.reader_runtime_home.resolve()) if args.reader_runtime_home else None,
             "inputSources": {"aipSearch": str(args.source.resolve()), "pdfProof": str(args.pdf_proof.resolve())},
             "readerHashes": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(package.glob("*.py"))}})
         if not args.execute:
@@ -117,7 +121,10 @@ def main(argv=None):
             print("【本地 AIP + 单篇全文阅读】会消耗 DeepSeek 额度；可能多次模型请求，不自动重试。", flush=True)
         print("复用检索/PDF；隔离 Reader 后台执行，Leader 查询状态。记录：", output, flush=True)
         env = {"RESEARCHMESH_READER_PYTHON": str(args.reader_python.resolve()),
-               "RESEARCHMESH_READER_ROOT": str(args.reader_root.resolve())}
+               "RESEARCHMESH_READER_ROOT": str(args.reader_root.resolve()),
+               "RESEARCHMESH_READER_ENV_FILE": str(args.reader_env_file.resolve())}
+        if args.reader_runtime_home:
+            env["RESEARCHMESH_READER_RUNTIME_HOME"] = str(args.reader_runtime_home.resolve())
         if journal_source:
             env["RESEARCHMESH_READER_RESUME_JOURNAL"] = str(journal_source)
         with live_partner(args.reader_root.resolve(), output, factory="aip_reader_partner:create_live_app",

@@ -59,6 +59,21 @@ class SemanticHTTPTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("authorization", event["rateLimitHeaders"])
         self.assertNotIn("set-cookie", event["rateLimitHeaders"])
 
+    async def test_single_request_budget_blocks_second_send_even_after_429(self):
+        sent = []
+        def handler(request):
+            sent.append(request)
+            return httpx.Response(429, json={"message": "limited"})
+        requester = ObservedRequester(2, "safe-test-key", transport=httpx.MockTransport(handler),
+                                      gate=ProcessRateGate(.001), max_requests=1)
+        url = "https://api.semanticscholar.org/graph/v1/paper/search"
+        with self.assertRaises(ConnectionRefusedError):
+            await requester.get_data_async(url, "query=QLoRA&limit=1", {"x-api-key": "safe-test-key"})
+        with self.assertRaisesRegex(RuntimeError, "REQUEST_BUDGET_EXHAUSTED"):
+            await requester.get_data_async(url, "query=QLoRA&limit=1", {"x-api-key": "safe-test-key"})
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(len(requester.events), 1)
+
     async def test_configured_key_is_not_same_as_actual_attachment(self):
         requester = ObservedRequester(2, "safe-test-key", transport=httpx.MockTransport(
             lambda r: httpx.Response(200, json={})), gate=ProcessRateGate(.001))

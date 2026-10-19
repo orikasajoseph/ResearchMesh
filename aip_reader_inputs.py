@@ -8,11 +8,11 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import re
+import tempfile
 
-from arxiv_pdf import arxiv_id, MAX_PDF
+from arxiv_pdf import arxiv_id, ArxivPdfResolver, MAX_PDF
 from input_binding import bind_task_input, paper_ref
 from reader_adapter import ReaderAdapterError, to_reader_request
-from run_aip_literature import select_search_task, assess_live_run
 from result_contract import validate_result
 
 
@@ -21,6 +21,7 @@ def read_json(path):
 
 
 def prepare_reader_input(source, proof_file, *, cache_dir, subtask_id="S2"):
+    from run_aip_literature import select_search_task, assess_live_run
     try:
         source = Path(source).resolve()
         plan, saved_payload = read_json(source / "plan.json"), read_json(source / "payload.json")
@@ -92,3 +93,67 @@ def prepare_reader_input(source, proof_file, *, cache_dir, subtask_id="S2"):
         raise
     except (ValueError, KeyError, TypeError, OSError, StopIteration):
         raise ReaderAdapterError("AIP_READER_INPUT_INVALID") from None
+
+
+async def prepare_bound_reader_input(payload, output, *, cache_dir):
+    """Verify the PDF from an S1-bound AIP task before starting the existing Reader worker."""
+    task = to_reader_request(payload)
+    papers = task["input"]["papers"]
+    if len(papers) != 1:
+        raise ReaderAdapterError("SINGLE_READER_REQUIRED")
+    paper = papers[0]
+    identity = arxiv_id(paper["pdfUrl"], "pdf")
+    if not identity or not paper["title"]:
+        raise ReaderAdapterError("PDF_SOURCE_UNVERIFIED")
+    source_url = "https://arxiv.org/abs/" + identity
+    unresolved = deepcopy(task)
+    unresolved["input"]["papers"][0]["pdfUrl"] = None
+    source = {"items": [{"kind": "paper", "data": {**paper, "pdfUrl": None,
+                "sourceUrls": [source_url]}}]}
+    cache_dir = Path(cache_dir).resolve()
+    # The proof is keyed by the exact S1 paper identity and URL. The existing
+    # resolver rechecks its PDF hash, first-page title, and arXiv source before reuse.
+    cache_key = sha256(json.dumps({"paper": paper, "source": source_url},
+                                  sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    proof_path = cache_dir / ("bound-" + cache_key + ".json")
+    previous = None
+    if proof_path.is_file():
+        try:
+            previous = json.loads(proof_path.read_text(encoding="utf-8"))
+            if not isinstance(previous, list):
+                previous = None
+        except (OSError, ValueError):
+            previous = None
+    resolver = ArxivPdfResolver(cache_dir)
+    resolved, proofs = await resolver.resolve(unresolved, source, previous=previous)
+    output = Path(output)
+    (output / "pdf_resolution.json").write_text(json.dumps(proofs, ensure_ascii=False, indent=2), encoding="utf-8")
+    if len(proofs) != 1 or proofs[0].get("state") != "verified":
+        reason = proofs[0].get("reason", "") if proofs else ""
+        code = "PDF_DOWNLOAD_FAILED" if reason.startswith(("ARXIV_HTTP_", "ARXIV_NETWORK_", "PDF_CACHE_")) else "PDF_SOURCE_UNVERIFIED"
+        raise ReaderAdapterError(code)
+    if resolved["input"]["papers"][0]["pdfUrl"] != paper["pdfUrl"]:
+        raise ReaderAdapterError("PDF_SOURCE_UNVERIFIED")
+    proof = proofs[0]
+    cache_path = Path(cache_dir).resolve() / (proof["sha256"] + ".pdf")
+    if cache_path != Path(proof["cachePath"]).resolve() or not cache_path.is_file():
+        raise ReaderAdapterError("VERIFIED_PDF_CACHE_UNAVAILABLE")
+    if proof.get("networkAttempted"):
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=cache_dir, suffix=".json.tmp", mode="w",
+                                         encoding="utf-8", delete=False) as stream:
+            temporary = Path(stream.name)
+            json.dump(proofs, stream, ensure_ascii=False)
+        try:
+            temporary.replace(proof_path)
+        finally:
+            temporary.unlink(missing_ok=True)
+    document = {"payload": task, "pdf": {"path": str(cache_path),
+                "sha256": proof["sha256"], "bytes": proof["bytes"],
+                "sourceUrl": proof["sourceUrl"], "pdfUrl": proof["pdfUrl"],
+                "pageTitle": proof["pageTitle"], "pages": proof["pages"]},
+                "searchSource": "current-aip-bound-task", "searchReused": False,
+                "pdfDownloadedThisRun": bool(proof["networkAttempted"])}
+    with (output / "reader_input.json").open("x", encoding="utf-8") as stream:
+        json.dump(document, stream, ensure_ascii=False, indent=2)
+    return document

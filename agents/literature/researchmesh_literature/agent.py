@@ -43,6 +43,7 @@ class LiteratureAgent:
                 status="success",
                 papers=result.papers,
                 total=result.total,
+                provider=result.provider,
                 metrics=metrics,
             )
         except ProviderRateLimitError as exc:

@@ -197,10 +197,16 @@ def execute_pipeline(output, state, args, *, runner=run_command, planner=None):
     state["pdfProofPath"] = str(proof)
     persist(output, state)
     reader = output / "reader"
-    stage(output, state, "reader", py + [str(ROOT / "run_aip_reader.py"), "--source", str(search),
+    reader_command = py + [str(ROOT / "run_aip_reader.py"), "--source", str(search),
         "--pdf-proof", str(proof), "--subtask", reader_id, "--reader-root", str(args.reader_root.resolve()),
-        "--reader-python", str(args.reader_python.resolve()), "--record-dir", str(reader), "--execute"],
-        timeout=780, runner=runner)
+        "--reader-python", str(args.reader_python.resolve()), "--record-dir", str(reader), "--execute"]
+    reader_env_file = getattr(args, "reader_env_file", None)
+    reader_runtime_home = getattr(args, "reader_runtime_home", None)
+    if reader_env_file:
+        reader_command += ["--reader-env-file", str(reader_env_file.resolve())]
+    if reader_runtime_home:
+        reader_command += ["--reader-runtime-home", str(reader_runtime_home.resolve())]
+    stage(output, state, "reader", reader_command, timeout=780, runner=runner)
     record = assemble(search, reader, cache_dir=ROOT / "outputs/pdf-cache")
     # Keep assembly's historical provenance; add a separate pipeline-level claim.
     record["pipeline"] = {"scope": "LOCAL_AIP_SINGLE_ENTRY_SEARCH_READER", "singleEntryCompleted": True,
@@ -226,6 +232,8 @@ def main(argv=None):
     modes.add_argument("--resume", type=Path)
     parser.add_argument("--reader-root", type=Path)
     parser.add_argument("--reader-python", type=Path)
+    parser.add_argument("--reader-env-file", type=Path)
+    parser.add_argument("--reader-runtime-home", type=Path)
     parser.add_argument("--wrapper-root", type=Path, default=ROOT / "agents/literature")
     parser.add_argument("--pdf-proof", type=Path)
     parser.add_argument("--llm-adapter", choices=["existing-async", "team"], default="existing-async")

@@ -196,6 +196,18 @@ class LiteratureAipTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.saved[0]["error"]["code"], "RATE_LIMITED")
         self.assertFalse(assess_live_run(outcome, self.saved[0])["passed"])
 
+    async def test_single_request_partner_disables_outer_retry(self):
+        seen = []
+        async def limited(*args, **kwargs):
+            seen.append(kwargs["retry"])
+            return {"result": None, "error": {"code": "RATE_LIMITED", "retryable": True},
+                    "diagnostics": {"httpRequests": [{"httpStatus": 429}]}}
+        execute = make_literature_executor(WRAPPER, prepared=self.prepared, retry=False)
+        with patch("aip_literature_partner.execute_live_task", side_effect=limited):
+            with self.assertRaises(Exception):
+                await execute(select_search_task(fixture_plan()))
+        self.assertEqual(seen, [False])
+
     async def test_adapter_failure_saved_without_raw_exception(self):
         async def invalid(*args, **kwargs):
             raise AdapterError("WRAPPER_CALL_FAILED")

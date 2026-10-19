@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "0.2",
+  "subtaskId": "repo-1",
+  "taskType": "repository_analyze",
+  "goal": "Analyze the supplied repository without executing its code",
+  "input": {
+    "repositoryUrls": [
+      "https://github.com/pypa/sampleproject.git"
+    ]
+  },
+  "constraints": {
+    "maxRepositories": 1,
+    "executeCode": false
+  },
+  "outputSchema": "code_records.v1"
+}

@@ -24,7 +24,7 @@ JSON 模式、提示词、输出 Schema 与 Pydantic 校验共同控制输出；
 在 ResearchMesh 根目录的 PowerShell 终端执行：
 
 ```powershell
-& "D:\Anaconda\python.exe" -X utf8 test_deepseek_connection.py
+& ".\.venv\Scripts\python.exe" -X utf8 test_deepseek_connection.py
 ```
 
 验收标准：命令退出码为 0，明确显示收到非空、正常结束的真实回复。
@@ -34,7 +34,7 @@ JSON 模式、提示词、输出 Schema 与 Pydantic 校验共同控制输出；
 ## 第三步 验证一个新问题的真实规划
 
 ```powershell
-& "D:\Anaconda\python.exe" -X utf8 run_deepseek_planner.py --query "调研 AlphaEvolve 的研究进展并分析复现难度" --max-attempts 1
+& ".\.venv\Scripts\python.exe" -X utf8 run_deepseek_planner.py --query "调研 AlphaEvolve 的研究进展并分析复现难度" --max-attempts 1
 ```
 
 第一次建议只允许一次调用以控制额度。省略 --max-attempts 时，JSON 或结构错误最多修正一次。
@@ -53,8 +53,8 @@ run_info 的用量仅对应最后一次回复，不是多次重试的总费用�
 ## 第四步 回归现有模拟程序
 
 ```powershell
-& "D:\Anaconda\python.exe" -X utf8 -m unittest discover -s tests -v
-& "D:\Anaconda\python.exe" -X utf8 run_demo.py
+& ".\.venv\Scripts\python.exe" -X utf8 -m unittest discover -s tests -v
+& ".\.venv\Scripts\python.exe" -X utf8 run_demo.py
 ```
 
 自动测试使用假 Key 和 HTTP MockTransport，不读取本机真实 Key、不联网到 DeepSeek。

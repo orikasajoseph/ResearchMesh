@@ -17,7 +17,7 @@
 在 ResearchMesh 根目录的 PowerShell 运行。以下本机路径已有免费预检记录：
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 run_aip_reader.py --source "outputs/aip-literature-20261012-190244-092760" --pdf-proof "outputs/research-live-20261012-164848-827095/pdf_resolution.json" --reader-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-upstream-validation-20261011\agents\paper_reader"
+.\.venv\Scripts\python.exe -X utf8 run_aip_reader.py --source "outputs/aip-literature-20261012-190244-092760" --pdf-proof "outputs/research-live-20261012-164848-827095/pdf_resolution.json" --reader-root "agents/paper_reader"
 ```
 
 不加 --execute 只做本机校验，不创建模型 Provider、不运行 AIP Reader 任务。核验缓存会读取本机 PDF，但不下载文件。

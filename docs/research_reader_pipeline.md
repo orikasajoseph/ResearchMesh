@@ -14,7 +14,7 @@
 ## 离线验收（无费用）
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 verify_research_reader.py --reader-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-review-20261011\agents\paper_reader"
+.\.venv\Scripts\python.exe -X utf8 verify_research_reader.py --reader-root "agents/paper_reader"
 .\.venv\Scripts\python.exe -X utf8 -m unittest discover -s tests -v
 ```
 
@@ -27,8 +27,8 @@
 本机已验收环境的示例命令：
 
 ```powershell
-cd "C:\Users\orika\Desktop\智创赛\ResearchMesh"
-& "C:\Users\orika\Documents\Codex\rmr-1011-70db\Scripts\python.exe" -X utf8 run_research.py --query "检索与主题相关的论文并阅读全文一篇，不分析代码仓库" --with-reader --reader-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-review-20261011\agents\paper_reader" --reader-timeout 600
+cd "<PROJECT_ROOT>"
+& "<READER_PYTHON>" -X utf8 run_research.py --query "检索与主题相关的论文并阅读全文一篇，不分析代码仓库" --with-reader --reader-root "agents/paper_reader" --reader-timeout 600
 ```
 
 Planner 最多两次生成请求；Reader 一篇可能产生多次模型请求。600 秒是每篇超时，不是调用次数或费用上限。Leader 不对 Reader 自动重试；底层库行为按其配置。超时或取消无法保证提供商撤回已接受的请求，显式续跑失败项可能再次计费。本次工程验收没有运行此付费命令。

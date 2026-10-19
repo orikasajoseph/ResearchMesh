@@ -11,13 +11,13 @@
 仅预检（默认，不创建 Provider、不读取 Key、不调用模型）：
 
 ```powershell
-& "C:\Users\orika\Documents\Codex\rmr-1011-70db\Scripts\python.exe" -X utf8 run_reader.py --wrapper-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-upstream-validation-20261011\agents\paper_reader"
+& "<READER_PYTHON>" -X utf8 run_reader.py --wrapper-root "agents/paper_reader"
 ```
 
 真实阅读（会向配置的 DeepSeek API 发送论文摘录/问题并消耗额度）：
 
 ```powershell
-& "C:\Users\orika\Documents\Codex\rmr-1011-70db\Scripts\python.exe" -X utf8 run_reader.py --wrapper-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-upstream-validation-20261011\agents\paper_reader" --execute
+& "<READER_PYTHON>" -X utf8 run_reader.py --wrapper-root "agents/paper_reader" --execute
 ```
 
 默认文件为 examples/reader_test.pdf，默认超时 600 秒。一次 PaperQA 阅读流程可能产生多次摘要/回答模型请求；模型请求数量未统计时明确为 null，不把一次 run 当成一次 API 调用。Leader 不自动重试，底层 SDK 的内部行为不在该保证范围内。取消/超时不代表零计费。

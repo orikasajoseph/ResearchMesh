@@ -44,7 +44,7 @@
 
 ## 你现在怎么运行（VS Code）
 
-项目目录仍为 `C:\Users\orika\Desktop\智创赛\ResearchMesh`。无需激活 conda，终端直接执行：
+项目目录仍为 `<PROJECT_ROOT>`。无需激活 conda，终端直接执行：
 
 ```powershell
 .\.venv\Scripts\python.exe -X utf8 run_demo.py

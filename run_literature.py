@@ -59,10 +59,28 @@ def prepare_live_wrapper(wrapper_root):
     values = dotenv_values(ROOT / ".env", encoding="utf-8-sig", interpolate=False)
     key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY",
                          values.get("SEMANTIC_SCHOLAR_API_KEY") or "").strip()
-    if not key:
+    search_provider = os.getenv("LITERATURE_SEARCH_PROVIDER", "semantic-scholar").strip().lower()
+    if search_provider not in {"semantic-scholar", "openalex"}:
+        raise AdapterError("INVALID_LITERATURE_SEARCH_PROVIDER")
+    if not key and search_provider == "semantic-scholar":
         raise AdapterError("MISSING_SEMANTIC_SCHOLAR_API_KEY")
     wrapper = load_wrapper(wrapper_root)
-    config = wrapper.LiteratureAgentConfig(api_key=key, timeout_seconds=20, max_retries=0)
+    resolve_resources = os.getenv("LITERATURE_RESOLVE_RESOURCES", "1").strip().lower() in {"1", "true", "yes"}
+    trust_env_setting = os.getenv("LITERATURE_OPENALEX_TRUST_ENV",
+                                   values.get("LITERATURE_OPENALEX_TRUST_ENV") or "1").strip().lower()
+    if trust_env_setting not in {"1", "true", "yes", "0", "false", "no"}:
+        raise AdapterError("INVALID_LITERATURE_OPENALEX_TRUST_ENV")
+    resource_trust_env_setting = os.getenv("LITERATURE_RESOURCE_TRUST_ENV",
+                                            values.get("LITERATURE_RESOURCE_TRUST_ENV") or "1").strip().lower()
+    if resource_trust_env_setting not in {"1", "true", "yes", "0", "false", "no"}:
+        raise AdapterError("INVALID_LITERATURE_RESOURCE_TRUST_ENV")
+    config = wrapper.LiteratureAgentConfig(api_key=key, timeout_seconds=20, max_retries=0,
+                                           resolve_resources=resolve_resources,
+                                           search_provider=search_provider,
+                                           openalex_fallback=os.getenv("LITERATURE_OPENALEX_FALLBACK", "1").lower() in {"1", "true", "yes"},
+                                           openalex_api_key=os.getenv("OPENALEX_API_KEY", values.get("OPENALEX_API_KEY") or "") or None,
+                                           openalex_trust_env=trust_env_setting in {"1", "true", "yes"},
+                                           resource_trust_env=resource_trust_env_setting in {"1", "true", "yes"})
     return wrapper, config
 
 
@@ -78,15 +96,29 @@ async def execute_live_task(payload, wrapper_root, *, prepared=None, progress=pr
     agent = wrapper.LiteratureAgent(provider)
 
     async def attempt():
-        result = await call_wrapper(payload, request_id, agent, wrapper.LiteratureSearchRequest)
+        # Search and resource lookup share this deadline. Keep it below the live
+        # Partner's 120s budget so a slow resource lookup returns diagnostics.
+        resource_budget = (getattr(config, "resource_max_requests", 12)
+                           * getattr(config, "resource_timeout_seconds", 5)) if getattr(config, "resolve_resources", False) else 0
+        search_budget = getattr(config, "timeout_seconds", 20)
+        fallback_budget = getattr(config, "openalex_timeout_seconds", 8) if getattr(config, "openalex_fallback", False) else 0
+        wrapper_budget = min(110, max(45, search_budget + fallback_budget + resource_budget + 5))
+        result = await call_wrapper(payload, request_id, agent, wrapper.LiteratureSearchRequest,
+                                    timeout_seconds=wrapper_budget)
         if callable(getattr(provider, "http_diagnostics", None)):
             diagnostics = provider.http_diagnostics()
+            if isinstance(diagnostics, dict):
+                result["diagnostics"].update(diagnostics)
+        if callable(getattr(provider, "resource_diagnostics", None)):
+            diagnostics = provider.resource_diagnostics()
             if isinstance(diagnostics, dict):
                 result["diagnostics"].update(diagnostics)
         return result
 
     # 同一个 Agent / Provider / requestId，保留限速器；SDK 和 Provider 配置均无内层重试。
-    return await recover_rate_limit(attempt, progress=progress, delays=() if not retry else (2, 4, 8))
+    fallback_enabled = bool(getattr(config, "openalex_fallback", False)) or getattr(config, "search_provider", None) == "openalex"
+    return await recover_rate_limit(attempt, progress=progress,
+                                    delays=() if not retry or fallback_enabled else (2, 4, 8))
 
 
 async def execute(args):

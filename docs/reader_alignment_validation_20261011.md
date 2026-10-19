@@ -39,7 +39,7 @@
 在主项目 VS Code PowerShell 终端运行：
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 verify_reader_batch.py --wrapper-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-upstream-validation-20261011\agents\paper_reader"
+.\.venv\Scripts\python.exe -X utf8 verify_reader_batch.py --wrapper-root "agents/paper_reader"
 ```
 
 期望 `passed=true`，9 个 checks 均为 true。场景为全部成功 3/3、部分成功 2/3、全部失败 0/3。这些是合成数据，不是论文科研结论。
@@ -47,7 +47,7 @@
 完整离线串联验收：
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 verify_research_reader.py --reader-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-upstream-validation-20261011\agents\paper_reader"
+.\.venv\Scripts\python.exe -X utf8 verify_research_reader.py --reader-root "agents/paper_reader"
 ```
 
 ## 尚未证明的事项

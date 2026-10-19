@@ -73,6 +73,13 @@ async def run(args):
         output = require_record_directory(args.record_dir, ROOT, "reader")
     except ValueError:
         raise ReaderAdapterError("INVALID_READER_RECORD_DIRECTORY") from None
+    if getattr(args, "bound_task", None):
+        from aip_reader_inputs import prepare_bound_reader_input
+        bound = Path(args.bound_task).resolve()
+        if bound != (output / "bound_task.json").resolve():
+            raise ReaderAdapterError("INVALID_BOUND_TASK_PATH")
+        task = json.loads(bound.read_text(encoding="utf-8"))
+        await prepare_bound_reader_input(task, output, cache_dir=ROOT / "outputs/pdf-cache")
     data = json.loads(Path(args.input).read_text(encoding="utf-8"))
     task, content = inspect_input(data)
     wrapper = load_reader(args.reader_root)
@@ -80,14 +87,15 @@ async def run(args):
     resume = json.loads(Path(args.resume_journal).read_text(encoding="utf-8")) if args.resume_journal else None
     reused = reuse_completed(resume, task, data["pdf"]) if resume else None
     if not reused:
-        values = dict(dotenv_values(ROOT / ".env", encoding="utf-8-sig", interpolate=False))
+        values = dict(dotenv_values(args.env_file, encoding="utf-8-sig", interpolate=False))
         for key in ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL"):
             values[key] = os.environ.get(key, values.get(key))
             if not isinstance(values[key], str) or not values[key].strip():
                 raise ReaderAdapterError("MISSING_READER_CONFIGURATION")
         if any(importlib.util.find_spec(name) is None for name in ("paperqa", "torch", "sentence_transformers")):
             raise ReaderAdapterError("READER_RUNTIME_DEPENDENCIES_MISSING")
-        if not (Path(sys.prefix) / "runtime-cache/huggingface").is_dir():
+        cache = Path(args.runtime_home).resolve() if args.runtime_home else Path(sys.prefix) / "runtime-cache"
+        if not (cache / "huggingface").is_dir():
             raise ReaderAdapterError("READER_EMBEDDING_CACHE_MISSING")
         config = wrapper.PaperReaderConfig(api_key=values["DEEPSEEK_API_KEY"],
                                           api_base=values["DEEPSEEK_BASE_URL"], model=values["DEEPSEEK_MODEL"])
@@ -122,7 +130,8 @@ async def run(args):
                 if url != task["input"]["papers"][0]["pdfUrl"]:
                     raise ReaderAdapterError("LOCAL_PDF_SOURCE_MISMATCH")
                 return content
-            prepared = prepare_live_reader(args.reader_root, env_file=ROOT / ".env", pdf_fetcher=fetch)
+            prepared = prepare_live_reader(args.reader_root, env_file=args.env_file,
+                                           runtime_home=args.runtime_home, pdf_fetcher=fetch)
             def started():
                 journal.update(phase="running", modelExecutionAttemptedThisRun=True,
                                modelExecutionAttemptedEver=True)
@@ -146,7 +155,10 @@ async def run(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True)
+    parser.add_argument("--bound-task", help="Current AIP task; prepare a verified PDF in this Reader runtime")
     parser.add_argument("--reader-root", required=True)
+    parser.add_argument("--env-file", type=Path, default=ROOT / ".env")
+    parser.add_argument("--runtime-home", type=Path)
     parser.add_argument("--record-dir", required=True)
     parser.add_argument("--resume-journal")
     parser.add_argument("--execute", action="store_true")

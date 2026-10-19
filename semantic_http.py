@@ -4,6 +4,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
+import os
 import re
 import socket
 import ssl
@@ -141,7 +142,7 @@ GLOBAL_RATE_GATE = ProcessRateGate()
 class ObservedRequester(ApiRequester):
     """SDK requester 扩展点：所有该 client 的端点统一经过 gate，不含内层重试。"""
     def __init__(self, timeout, api_key, *, source="literature-agent", subtask_id=None,
-                 transport=None, gate=None):
+                 transport=None, gate=None, max_requests=None):
         super().__init__(timeout, retry=False)
         self._key = api_key
         self.source = source if source in {"literature-agent", "run_research", "run_literature", "cold-start-diagnostic"} else "literature-agent"
@@ -149,8 +150,11 @@ class ObservedRequester(ApiRequester):
         self.transport = transport
         self.gate = gate if gate is not None else GLOBAL_RATE_GATE
         self.events = []
+        self.max_requests = max_requests
 
     async def get_data_async(self, url, parameters, headers, payload=None):
+        if self.max_requests is not None and len(self.events) >= self.max_requests:
+            raise RuntimeError("SEMANTIC_SCHOLAR_REQUEST_BUDGET_EXHAUSTED")
         # 只允许既定的官方主机，防止把 Key 或敏感 URL 带到错误地址。
         parts = urlsplit(url)
         if parts.scheme != "https" or parts.hostname != "api.semanticscholar.org" or parts.username or parts.query or parts.fragment:
@@ -219,7 +223,8 @@ def create_monitored_client(config, *, source="literature-agent", subtask_id=Non
     client = AsyncSemanticScholar(api_key=config.api_key, timeout=config.timeout_seconds, retry=False)
     # 替换实例扩展点而非 SDK 文件；SDK 的搜索参数、分页和 Paper 解析保持原样。
     client._requester = ObservedRequester(config.timeout_seconds, config.api_key,
-                                         source=source, subtask_id=subtask_id, transport=transport, gate=gate)
+                                         source=source, subtask_id=subtask_id, transport=transport, gate=gate,
+                                         max_requests=1 if os.environ.get("RESEARCHMESH_S1_SINGLE_REQUEST") == "1" else None)
     return client
 
 

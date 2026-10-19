@@ -25,7 +25,7 @@
 用张的实际 Wrapper 与 FakeProvider 验收（必须指定含 researchmesh_paper_reader 包的目录）：
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 verify_reader_single.py --wrapper-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-review-20261011\agents\paper_reader"
+.\.venv\Scripts\python.exe -X utf8 verify_reader_single.py --wrapper-root "agents/paper_reader"
 ```
 
 路径只是本机当前独立副本，其他电脑需替换。每次新建 outputs/reader-single-offline-时间戳/acceptance.json，保存范围、输入结果、检查项及 Wrapper 源码哈希，不覆盖历史记录。

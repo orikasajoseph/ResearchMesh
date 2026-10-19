@@ -23,7 +23,7 @@ repair.json 记录来源、原文件 SHA-256 和唯一变化。不覆盖原目�
 在项目根目录续跑（需要用户显式执行，本轮修复不会自动发请求）：
 
 ```powershell
-& "C:\Users\orika\Documents\Codex\rmr-1011-70db\Scripts\python.exe" -X utf8 run_research.py --resume "outputs/planner-repair-20261012-161743-937838" --with-reader --reader-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-upstream-validation-20261011\agents\paper_reader"
+& "<READER_PYTHON>" -X utf8 run_research.py --resume "outputs/planner-repair-20261012-161743-937838" --with-reader --reader-root "agents/paper_reader"
 ```
 
 这只修复约束不匹配；不能保证检索无 429、第一篇有 PDF、下载成功或笔记的证据关联精度，也不代表 AIP/梧桐互联通过。

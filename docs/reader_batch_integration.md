@@ -19,7 +19,7 @@
 在项目根目录验收：
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 verify_reader_batch.py --wrapper-root "C:\Users\orika\Documents\Codex\2026-09-22\new-chat\reader-review-20261011\agents\paper_reader"
+.\.venv\Scripts\python.exe -X utf8 verify_reader_batch.py --wrapper-root "agents/paper_reader"
 ```
 
 预期 passed=true、九项 checks 为 true。每次新建 outputs/reader-batch-offline-时间戳/，包含 acceptance.json（逐篇记录、请求、Provider 调用及源码哈希）与 report.md。其他电脑替换 Wrapper 路径；不要删除该独立副本。

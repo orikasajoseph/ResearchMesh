@@ -51,7 +51,7 @@ async def invoke_business(payload, url, aic, *, transport=None, timeout_seconds=
     if (parsed.scheme != "http" or parsed.host != "127.0.0.1" or parsed.path != "/rpc"
             or parsed.username or parsed.password or parsed.query or parsed.fragment):
         raise AdapterError("LOOPBACK_RPC_REQUIRED")
-    if expected_task_type not in {"literature_search", "paper_read"} or payload["taskType"] != expected_task_type:
+    if expected_task_type not in {"literature_search", "paper_read", "repository_analyze"} or payload["taskType"] != expected_task_type:
         raise AdapterError("UNEXPECTED_TASK_TYPE")
     messages = []
     class TracedClient(AipRpcClient):
@@ -84,18 +84,19 @@ async def invoke_literature(payload, url, aic, **kwargs):
 
 @contextmanager
 def live_partner(wrapper_root, output, *, factory="aip_literature_partner:create_live_app",
-                 mode="local-literature-live", extra_env=None):
+                 mode="local-literature-live", extra_env=None, python_executable=None,
+                 aic_prefix="local-literature-"):
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
-    aic = "local-literature-" + str(uuid4())
+    aic = aic_prefix + str(uuid4())
     env = dict(os.environ, RESEARCHMESH_LOCAL_PARTNER_AIC=aic,
                RESEARCHMESH_AIP_WRAPPER_ROOT=str(wrapper_root), RESEARCHMESH_AIP_RECORD_DIR=str(output),
                PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")
     if extra_env:
         env.update(extra_env)
     with (output / "partner.log").open("w", encoding="utf-8") as log:
-        process = subprocess.Popen([sys.executable, "-B", "-m", "uvicorn", factory,
+        process = subprocess.Popen([str(python_executable or sys.executable), "-B", "-m", "uvicorn", factory,
                                     "--factory", "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
                                    cwd=str(ROOT), env=env, stdout=log, stderr=subprocess.STDOUT,
                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
@@ -132,15 +133,18 @@ def assess_live_run(outcome, backend):
     http_events = diagnostics.get("httpRequests", [])
     observed = bool(diagnostics.get("httpObservationAvailable") is True and http_events)
     successful_http = observed and http_events[-1].get("httpStatus") == 200
+    openalex_http = diagnostics.get("providerUsed") == "openalex" and diagnostics.get("openalexHttpStatus") == 200
+    verified_http = bool(successful_http or openalex_http)
     non_mock = bool(execution and execution.get("simulatedResult") is False)
     papers = len(execution["result"]["items"]) if protocol else 0
     return {"protocolCompleted": protocol, "backendResultMatchesAipProduct": matched,
-            "httpObservationAvailable": observed, "semanticHttp200Observed": bool(successful_http),
-            "returnedPaperCount": papers, "businessReady": bool(matched and successful_http and non_mock and papers),
-            "researchSucceeded": bool(matched and successful_http and non_mock and papers),
+            "httpObservationAvailable": observed or openalex_http, "semanticHttp200Observed": bool(successful_http),
+            "openalexHttp200Observed": bool(openalex_http),
+            "returnedPaperCount": papers, "businessReady": bool(matched and verified_http and non_mock and papers),
+            "researchSucceeded": bool(matched and verified_http and non_mock and papers),
             "emptyResult": bool(matched and papers == 0),
-            "passed": bool(matched and successful_http and non_mock),
-            "scope": "LOCAL_AIP_LIVE_LITERATURE_ONLY", "realSourceRequested": True if observed else None,
+            "passed": bool(matched and verified_http and non_mock),
+            "scope": "LOCAL_AIP_LIVE_LITERATURE_ONLY", "realSourceRequested": True if observed or openalex_http else None,
             "llmCalled": False, "paperReadingExecuted": False, "pdfDownloaded": False,
             "repositoryAnalysisExecuted": False, "platformDiscoveryUsed": False,
             "tlsIdentityVerified": False, "fixtureReplay": False}
@@ -162,13 +166,14 @@ def main(argv=None):
         payload = select_search_task(plan, args.subtask)
         if importlib.metadata.version("acps-sdk") != "2.2.0":
             raise AdapterError("SDK_220_REQUIRED")
-        prepare_live_wrapper(wrapper_root)  # local-only presence/import check, no provider creation
+        _, literature_config = prepare_live_wrapper(wrapper_root)  # local-only presence/import check
         save_json(output / "plan.json", plan)
         save_json(output / "payload.json", payload)
         save_json(output / "environment.json", {
             "python": sys.version, "sdkVersion": "2.2.0", "wireSchemaVersion": "0.2",
             "planSource": str(plan_path), "wrapperRoot": str(wrapper_root),
-            "apiKeyConfigured": True, "executeRequested": args.execute,
+            "apiKeyConfigured": bool(getattr(literature_config, "api_key", None)), "executeRequested": args.execute,
+            "searchProvider": getattr(literature_config, "search_provider", "semantic-scholar"),
             "notExecutedSubtasks": [t["subtaskId"] for t in plan["tasks"] if t["subtaskId"] != args.subtask],
             "wrapperFiles": {str(p.relative_to(wrapper_root)): hashlib.sha256(p.read_bytes()).hexdigest()
                              for p in sorted((wrapper_root / "researchmesh_literature").glob("*.py"))}})

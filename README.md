@@ -1,5 +1,7 @@
 # ResearchMesh 智研协作
 
+> **三 Agent 协作预览快照（2026-10-19）**：本分支保存 Literature、Paper Reader、Repository 已通过真实本机官方 AIP 联调的完整代码、业务 Partner、离线测试与验收入口。S1→S2→S3 自动绑定、三阶段 `completed` 和 Leader 校验均已通过，详见[脱敏验收摘要](docs/delivery/qlora_local_aip_acceptance_20261019.md)。这是供团队查看、测试与整合的预览分支；尚未纳入赵在 `origin/zhao/planner-integration@4a39ba2` 的后续两个提交，也未通过吴负责的正式梧桐 ACS/ADP/AMQP 联调。**请勿直接整体合并进 `main`。** 文档中的 `<PROJECT_ROOT>`、`<READER_PYTHON>` 等是部署时需替换的路径占位符。
+
 > 2026-10-04 开发分支已实现业务接口 v0.2：`requiredSkill`、`repository_analyze`、明确仓库地址后才静态分析。待全组确认后合并，尚非全组冻结版本。请先读 [v0.2 接口](docs/InterfaceContract_v0.2.md) 和 [本次交接](docs/v02_handoff.md)。旧 v0.1 文档、历史验收只作参考。
 
 ## 组员首次运行
@@ -134,7 +136,7 @@ python -m venv .venv
 虚拟环境中，把下文的 `python` 换成 `.\.venv\Scripts\python.exe` 即可。依赖版本为本机实际验证版本；未宣称测试过其他版本。
 
 ```powershell
-cd "C:\Users\orika\Desktop\智创赛\ResearchMesh"
+cd "<PROJECT_ROOT>"
 python -X utf8 run_demo.py
 ```
 
@@ -172,15 +174,15 @@ python -X utf8 -m unittest discover -s tests -v
 详见 [DeepSeek 接入与验收步骤](docs/deepseek_setup.md)。保持 `run_demo.py` 和 `/plan` 的原有模拟行为，不自动将所有调用切换到付费模型。
 
 ```powershell
-& "D:\Anaconda\python.exe" -m pip install -r requirements-llm.txt
+& ".\.venv\Scripts\python.exe" -m pip install -r requirements-llm.txt
 ```
 
 只在本机 `.env` 中填写 `DEEPSEEK_API_KEY`，其他配置已提供默认值。`.env.example` 是无 Key 的共享模板。
 不要把真实 Key 放进 Python 代码、聊天、截图或项目压缩包。
 
 ```powershell
-& "D:\Anaconda\python.exe" -X utf8 test_deepseek_connection.py
-& "D:\Anaconda\python.exe" -X utf8 run_deepseek_planner.py --query "调研 AlphaEvolve 的研究进展并分析复现难度" --max-attempts 1
+& ".\.venv\Scripts\python.exe" -X utf8 test_deepseek_connection.py
+& ".\.venv\Scripts\python.exe" -X utf8 run_deepseek_planner.py --query "调研 AlphaEvolve 的研究进展并分析复现难度" --max-attempts 1
 ```
 
 第一条有 Key 时最多一次短请求；第二条生成计划并通过现有 Pydantic 校验，保存到 `outputs/live-planner-时间戳/`。

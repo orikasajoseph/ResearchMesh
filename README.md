@@ -1,8 +1,8 @@
 # ResearchMesh 智研协作
 
-> 2026-10-20 后续集成：OpenAlex Provider、Resource Resolver配置、动态Reader接缝已选择性迁入，保留旧链路兼容；备用检索/资源解析默认关闭，显式配置才新增联网。平台稳定业务入口为 `business_execution.execute_business_task`，默认拒绝执行，不新增协议字段。隔离Worker与持久Reader复用方式见 [给吴的业务入口说明](docs/delivery/platform_business_entry_v1.md)。本轮仍未推送、未进行新增能力的真实联网/收费或正式平台验收。
+> 2026-10-20 后续集成：OpenAlex Provider、Resource Resolver配置、动态Reader接缝已选择性迁入，保留旧链路兼容；备用检索/资源解析默认关闭，显式配置才新增联网。平台稳定业务入口为 `business_execution.execute_business_task`，默认拒绝执行，不新增协议字段。隔离Worker与持久Reader复用方式见 [给吴的业务入口说明](docs/delivery/platform_business_entry_v1.md)。新增能力尚未进行真实联网/收费或正式平台验收。
 
-> 2026-10-20 团队快照对齐：公开可拉取的赵基线仍是 `zhao/planner-integration@d4bb9d8`；本地统一入口和对齐改动尚未推送。13项业务同路径中8个Repository业务模块与张预览一致，Reader业务包已选择性迁入。后续Provider/动态接缝已补齐，当前684项免费回归通过；状态与历史阶段区分见 [逐文件集成记录](docs/delivery/zhao_integration_alignment_20261020.md)。
+> 2026-10-20 团队快照对齐：本轮集成起点是 `zhao/planner-integration@d4bb9d8`，业务增量提交为 `e3586d5`。13项业务同路径中8个Repository业务模块与张预览一致，Reader业务包已选择性迁入。后续Provider/动态接缝已补齐，当前684项免费回归通过；状态与历史阶段区分见 [逐文件集成记录](docs/delivery/zhao_integration_alignment_20261020.md)。
 
 > 2026-10-20 已补齐新问题的本机三智能体统一入口：`run_aip_research.py` 支持规划→检索→阅读1篇→仓库1个→报告，兼容原两阶段。LoRA 场景已完成一次真实 Planner→检索→阅读→仓库静态分析→报告验收；这不代表新增 OpenAlex/动态平台接缝或正式梧桐链路已经验收。默认仓库静态模式，额外增强必须显式开启。运行方式与边界见 [统一入口说明](docs/three_agent_single_entry.md)。
 

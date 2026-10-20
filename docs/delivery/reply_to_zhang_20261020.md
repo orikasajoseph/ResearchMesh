@@ -4,7 +4,7 @@
 
 1. 集成基线
 
-当前可拉取基线是 `zhao/planner-integration@d4bb9d8485f1e52873074e2a255d02027a246218`，不再是 `4a39ba2`。后续 `d4bb9d8` 已选择性纳入Repository增强。正式PR先以这个已推送提交为共同基线；我本地新问题统一入口与本轮对齐改动尚未提交/推送，同步后再给新的确切commit，不能当作你现在已拉到。
+本轮集成起点是 `zhao/planner-integration@d4bb9d8485f1e52873074e2a255d02027a246218`，不再是 `4a39ba2`。后续 `d4bb9d8` 已选择性纳入Repository增强；本轮统一业务入口增量已形成独立本地提交 `e3586d5`。对外发送本回复前仍须用远端分支核实该提交已可拉取，不能把本地commit直接写成队友已经拿到。
 
 2. Repository整合方式
 
@@ -29,6 +29,6 @@
 
 通用入口显式选择增强用 `--repository-analysis-mode enhanced --execute`；平台工厂的analysis_mode与业务入口的repository_analysis_mode也须一致配置为enhanced，不能由goal文字暗中触发计费。
 
-本地现为684项免费测试、5个模拟场景和本机HTTP检查通过；包含尚未推送的改动，不等于远端d4bb9d8已经具备684项。此前另已完成一次LoRA新问题→真实Planner→检索→阅读→仓库静态分析→报告，记录aip-research-20261020-135700-393904。这条真实静态链、你的QLoRA真实定向链、本轮新增能力离线验收、正式梧桐验收分别记录。本轮没有重复收费测试；OpenAlex实际联网和新平台入口线上接线仍待验收。补丁尚未推送，推送后再给确切新commit。
+当前工作区为684项免费测试、5个模拟场景和本机HTTP检查通过；其中不含Group工具的业务提交隔离副本另有652项通过。此前另已完成一次LoRA新问题→真实Planner→检索→阅读→仓库静态分析→报告，记录aip-research-20261020-135700-393904。这条真实静态链、你的QLoRA真实定向链、本轮新增能力离线验收、正式梧桐验收分别记录。本轮没有重复收费测试；OpenAlex实际联网和新平台入口线上接线仍待验收。发送给队友时以远端可拉取commit为准。
 
 另请平台接缝注意：Wrapper原生repository_record要经过现有repository_adapter转换为Leader标准repository；requiredSkill/dependsOn不传Partner，PaperRef仍为六字段，evidence.supports仍是具体结论字符串，避免各自新造一套。

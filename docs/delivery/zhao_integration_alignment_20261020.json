@@ -2,7 +2,7 @@
   "scope": "SELECTIVE_INTEGRATION_ALIGNMENT_NOT_A_MERGE_OR_LIVE_ACCEPTANCE",
   "verifiedDate": "2026-10-20",
   "repository": "orikasajoseph/ResearchMesh",
-  "publishedBaseline": {
+  "integrationBase": {
     "branch": "zhao/planner-integration",
     "commit": "d4bb9d8485f1e52873074e2a255d02027a246218"
   },
@@ -12,8 +12,12 @@
   },
   "historicalBaseline": "4a39ba29ab5ebbf16aac4a3443c929dc805518d0",
   "commonAncestor": "3ba828e0755f91e789a829c42f7d5df5f4045034",
-  "coordinationStatus": "PROPOSED_LOCAL_DECISION_TEAM_CONFIRMATION_PENDING",
-  "workingTreeChangesPublished": false,
+  "coordinationStatus": "LOCAL_COMMITS_READY_REMOTE_PUBLICATION_MUST_BE_VERIFIED",
+  "localCommits": {
+    "businessIntegration": "e3586d5",
+    "groupInvitationTool": "5ea2400"
+  },
+  "remotePublicationRule": "verify the remote branch before claiming teammates can pull these commits",
   "overlapExcludesRootReadme": true,
   "overlap": [
     {

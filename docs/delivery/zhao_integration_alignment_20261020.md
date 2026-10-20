@@ -4,13 +4,13 @@
 
 ## 1. 集成基线与版本事实
 
-- GitHub 可拉取基线：`zhao/planner-integration@d4bb9d8485f1e52873074e2a255d02027a246218`。
+- 本轮选择性集成起点：`zhao/planner-integration@d4bb9d8485f1e52873074e2a255d02027a246218`。
 - 张的验收快照：`zhang/three-agents-integration-preview@22863c04a8afab8457df3c1a82e46da2f6217e0c`。
 - 共同祖先：`3ba828e0755f91e789a829c42f7d5df5f4045034`。
 - 张的交接文档记录的是当时 `4a39ba2` 的比较；最新赵分支已追加 `d4bb9d8`。不能据旧比较认定现在仍缺少 Repository 增强。
 - 赵分支相对预览独有 `2f2fb0c`、`4a39ba2`、`d4bb9d8`，都是赵的既有提交，不算张新增工作。
 - 当前两提交中的 `planner.py`、`planner_contract.py`、`input_binding.py`、`aip_orchestrator.py`、`common/models.py` 内容一致，不另开 Planner 实现或协议。
-- 本地“新问题统一三阶段入口”及本文件仍未提交/推送。队友仅拉取 `d4bb9d8` 不会得到这些改动；正式 PR 前需再同步一个明确的集成提交，不把工作区代码叫作已上传版本。
+- “新问题统一三阶段入口”及稳定业务执行接口已形成独立本地提交 `e3586d5`；Group invitation工具另为 `5ea2400`。是否已经对外发布必须用远端分支核实，不能仅凭本地commit声称队友已经拿到。
 
 张的 `run_aip_three_agent.py` 是 QLoRA 固定计划的真实 Agent/AIP 定向验收入口，具有参考价值，不等于任意新问题真实模型规划的生产入口。赵本地的 `run_aip_research.py` 才负责新问题→真实 Planner→三阶段；当前只完成免费离线整合回归，尚未获得本轮收费新问题整链测试授权。
 
@@ -98,4 +98,4 @@ Repository Wrapper 原生产物 item kind 是 `repository_record`；赵的 `repo
 - 本轮完整免费验收：684项、0 skip，五个模拟场景、本地HTTP通过；记录 `outputs/acceptance-20261020-141840-108212/`。收费API、真实论文HTTP/PDF/clone及正式平台调用均未重新执行。
 - 真实CodeWiki本地临时仓库smoke为10/10通过，模型仍是假Provider：`outputs/repository-dual-smoke-20261020-142111-86ad07c5/`。Reader现有Python/缓存免费预检通过：`outputs/aip-reader-20261020-142116-701074/`。源文件只读扫描仍仅警告历史文档taskId中的`sk-`子串（已核实误报），不包含本轮新凭据。
 - 旧LoRA真实新问题三阶段静态链记录 `outputs/aip-research-20261020-135700-393904/` 保留。本轮复核不把该旧记录变造为OpenAlex/新平台入口的真实验收。
-- 入口签名、工厂示例、配置、安全和费用边界详见 `platform_business_entry_v1.md`。尚未commit/push；发布基线仍d4bb9d8，需同步明确新commit后张、吴才能拉取这些补丁。
+- 入口签名、工厂示例、配置、安全和费用边界详见 `platform_business_entry_v1.md`。业务增量本地提交为 `e3586d5`；正式交接前仍需确认远端分支已包含该提交，再让张、吴按确切commit复核。

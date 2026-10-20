@@ -32,7 +32,7 @@ class LiteratureGroupHandler:
     def __init__(
         self, client: Any, *, leader_aic: str,
         executor: Executor = execute_literature,
-        backend_timeout_seconds: float = 90.0,
+        backend_timeout_seconds: float = 120.0,
     ) -> None:
         if not leader_aic.strip() or backend_timeout_seconds <= 0:
             raise ValueError("LEADER_AIC_AND_TIMEOUT_REQUIRED")

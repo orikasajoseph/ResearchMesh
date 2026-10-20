@@ -7,6 +7,7 @@ its default backend. Offline tests supply a fake invocation.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -115,6 +116,61 @@ async def execute_literature(
     *,
     invoke: Callable[[dict[str, Any]], Awaitable[Any]] | None = None,
 ) -> ResearchResult:
+    """Execute Literature while preserving the existing Group compatibility seam."""
+
+    request_payload = build_literature_request(task)
+
+    # Offline/unit-test injection path stays unchanged.
+    if invoke is not None:
+        response = await invoke(request_payload)
+        return map_literature_response(task, response)
+
+    # Formal Group path: reuse Zhang's verified Literature business pipeline.
+    from run_literature import execute_live_task
+
+    wrapper_root = (
+        Path(__file__).resolve().parents[1]
+        / "agents"
+        / "literature"
+    )
+
+    payload_v02 = task.model_dump(mode="json")
+    payload_v02["schemaVersion"] = "0.2"
+
+    outcome = await execute_live_task(
+        payload_v02,
+        wrapper_root,
+        request_source="literature-agent",
+        retry=True,
+    )
+
+    if not isinstance(outcome, dict):
+        raise BackendFailure("LITERATURE_INVALID_OUTCOME")
+
+    error = outcome.get("error")
+    if error is not None:
+        code = error.get("code") if isinstance(error, dict) else None
+        allowed = {
+            "RATE_LIMITED",
+            "PROVIDER_UNAVAILABLE",
+            "INVALID_REQUEST",
+            "NO_VALID_PAPER_RECORDS",
+            "WRAPPER_TIMEOUT",
+            "WRAPPER_CALL_FAILED",
+        }
+        safe_code = code if code in allowed else "BACKEND_FAILED"
+        raise BackendFailure(f"LITERATURE_{safe_code}")
+
+    result = outcome.get("result")
+    if not isinstance(result, dict):
+        raise BackendFailure("LITERATURE_INVALID_RESULT")
+
+    # Keep the existing Group handler contract unchanged for now.
+    result_v01 = dict(result)
+    result_v01["schemaVersion"] = "0.1"
+
+    return ResearchResult.model_validate(result_v01)
+
     """The async executor injected into create_local_app(execute=...).
 
     Tests inject a fake invoke(payload). Production-local invocation uses

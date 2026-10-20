@@ -71,5 +71,38 @@ python -m unittest agents.literature.tests.test_researchmesh_literature
 python agents/literature/scripts/live_test_literature.py
 ```
 
+## Optional paper resource verification
+
+The local Literature live entry enables bounded resource verification by default;
+set `LITERATURE_RESOLVE_RESOURCES=0` to use the original search-only behavior.
+OpenAlex can bypass inherited system proxies with
+`LITERATURE_OPENALEX_TRUST_ENV=0` (PowerShell: `$env:LITERATURE_OPENALEX_TRUST_ENV='0'`).
+The default is `1`, preserving existing proxy behavior. TLS verification remains
+enabled, and this setting does not affect Semantic Scholar or resource lookups.
+It does not bypass OpenAlex HTTP 429 or exhausted API quota.
+Resource verification has its own proxy setting:
+`LITERATURE_RESOURCE_TRUST_ENV=0` uses a direct connection for arXiv and GitHub
+without changing OpenAlex or Semantic Scholar. Its default is `1`. TLS
+verification and the request budget remain enabled. Each actual resource
+request records a safe purpose, host, path category, status or error class,
+network phase, duration, proxy observation, and remaining budget in
+`resourceResolution.requestEvents`; no credentials or query strings are stored.
+Direct `LiteratureAgentConfig` use leaves this feature disabled unless
+`resolve_resources=True` is passed.
+
+The resolver checks the Semantic Scholar `openAccessPdf` URL first, then a
+title-matched arXiv page and PDF, then a DOI- and title-matched OpenAlex OA
+location. It accepts a GitHub repository only when an accessible README cites
+the same arXiv ID or DOI and paper title. Explicit paper-page and abstract
+links take priority over bounded GitHub repository search. A matching repository
+name alone is never accepted.
+
+At most three search results are enriched, with 12 additional HTTP requests
+across the search and a five-second timeout per request. No retries are made
+after a resource-service rate limit. Results use the existing `pdfUrl` and
+`repositoryUrls` fields; sources, verification status, and failure reasons are
+kept in `resourceResolution` backend diagnostics. Missing resources remain
+missing. The `paper_records.v1` response shape is unchanged.
+
 第二条是显式 live smoke test。没有 Key 时只提示
 `SEMANTIC_SCHOLAR_API_KEY is not configured` 并正常退出，不回退到匿名 API。

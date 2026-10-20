@@ -63,6 +63,6 @@ class PaperRecordsResponse(ResearchMeshModel):
     status: Literal["success", "failure"]
     papers: list[PaperRecord] = Field(default_factory=list)
     total: int = Field(default=0, ge=0)
-    provider: Literal["semantic-scholar"] = "semantic-scholar"
+    provider: Literal["semantic-scholar", "openalex"] = "semantic-scholar"
     metrics: RequestMetrics
     error: AgentError | None = None

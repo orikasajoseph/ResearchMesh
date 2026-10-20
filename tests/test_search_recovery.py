@@ -19,7 +19,63 @@ def success():
             "diagnostics": {"requestId": "same-request", "metrics": {"attempts": 1, "durationMs": 1}}}
 
 
+def network_error(reason="CONNECT_TIMEOUT", retryable=True):
+    return {"result": None, "error": {"code": "PROVIDER_UNAVAILABLE", "retryable": True},
+            "diagnostics": {"httpRequests": [{"httpStatus": None, "transportError": reason,
+                                               "transportRetryable": retryable}], "metrics": {"attempts": 1}}}
+
+
 class RecoveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_stale_transport_observation_does_not_trigger_another_retry(self):
+        data = network_error(); data["diagnostics"]["httpRequests"][0]["requestSequence"] = 1
+        call, sleep = AsyncMock(return_value=data), AsyncMock()
+        await recover_rate_limit(call, sleep=sleep, jitter=lambda: 0)
+        self.assertEqual(call.await_count, 2)
+        sleep.assert_awaited_once_with(1)
+    async def test_transient_connection_error_then_success_retries_only_search(self):
+        call, sleep, progress = AsyncMock(side_effect=[network_error(), success()]), AsyncMock(), Mock()
+        result = await recover_rate_limit(call, sleep=sleep, progress=progress, jitter=lambda: 0)
+        self.assertIsNone(result["error"])
+        self.assertEqual(call.await_count, 2)
+        sleep.assert_awaited_once_with(1)
+        self.assertEqual(result["diagnostics"]["transientNetworkRecovery"]["retries"], 1)
+        self.assertEqual(result["diagnostics"]["rateLimitRecovery"]["retryEvents"][0]["reason"], "transient_network")
+        self.assertIn("只重试检索", progress.call_args.args[0])
+
+    async def test_persistent_network_error_stops_after_three_calls(self):
+        call, sleep = AsyncMock(return_value=network_error()), AsyncMock()
+        result = await recover_rate_limit(call, sleep=sleep, jitter=lambda: 0)
+        self.assertEqual(call.await_count, 3)
+        self.assertEqual([c.args[0] for c in sleep.await_args_list], [1, 2])
+        self.assertTrue(result["diagnostics"]["transientNetworkRecovery"]["exhausted"])
+
+    async def test_certificate_proxy_unknown_and_missing_observation_fail_closed(self):
+        for data in (network_error("TLS_CERTIFICATE_ERROR", False), network_error("PROXY_ERROR", False),
+                     network_error("OTHER_TRANSPORT_ERROR", False), network_error("NETWORK_OR_TIMEOUT", True),
+                     network_error("CONNECT_ERROR", False)):
+            call, sleep = AsyncMock(return_value=data), AsyncMock()
+            await recover_rate_limit(call, sleep=sleep)
+            call.assert_awaited_once(); sleep.assert_not_awaited()
+
+    async def test_http_response_not_reclassified_as_network_failure(self):
+        for status in (401, 403, 500):
+            data = network_error(); data["diagnostics"]["httpRequests"][0]["httpStatus"] = status
+            call, sleep = AsyncMock(return_value=data), AsyncMock()
+            await recover_rate_limit(call, sleep=sleep)
+            call.assert_awaited_once(); sleep.assert_not_awaited()
+
+    async def test_mixed_errors_share_total_budget(self):
+        call = AsyncMock(side_effect=[network_error(), limited(), network_error(), limited()])
+        result = await recover_rate_limit(call, sleep=AsyncMock(), jitter=lambda: 0)
+        self.assertEqual(call.await_count, 4)
+        self.assertEqual(result["diagnostics"]["transientNetworkRecovery"]["retries"], 2)
+        self.assertTrue(result["diagnostics"]["rateLimitRecovery"]["exhausted"])
+
+    async def test_network_retry_disabled_when_delays_empty(self):
+        call, sleep = AsyncMock(return_value=network_error()), AsyncMock()
+        await recover_rate_limit(call, delays=(), sleep=sleep)
+        call.assert_awaited_once(); sleep.assert_not_awaited()
+
     async def test_success_no_wait_or_retry(self):
         call, sleep = AsyncMock(return_value=success()), AsyncMock()
         out = await recover_rate_limit(call, sleep=sleep)

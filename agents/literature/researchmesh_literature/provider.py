@@ -18,6 +18,8 @@ from semanticscholar.SemanticScholarException import (
 
 from .config import LiteratureAgentConfig
 from .schemas import LiteratureSearchRequest, PaperAuthor, PaperRecord
+from .resource_resolver import ResourceResolver
+from .openalex import OpenAlexError, search_openalex
 from semantic_http import create_monitored_client, client_diagnostics
 
 
@@ -45,6 +47,7 @@ class ProviderSearchResult:
     total: int
     attempts: int
     cache_hit: bool
+    provider: str = "semantic-scholar"
 
 
 class _AsyncRateLimiter:
@@ -76,26 +79,38 @@ class SemanticScholarProvider:
         retry_observer: Callable[[dict[str, object]], None] | None = None,
         request_source: str = "literature-agent",
         subtask_id: str | None = None,
+        openalex_client: httpx.AsyncClient | None = None,
     ) -> None:
         self.config = config or LiteratureAgentConfig.from_env()
         self.client = client if client is not None else create_monitored_client(
             self.config, source=request_source, subtask_id=subtask_id)
         self._sleep = sleep
         self._retry_observer = retry_observer
+        self._openalex_client = openalex_client
         self._limiter = _AsyncRateLimiter(self.config.rate_limit_per_second)
-        self._cache: dict[str, tuple[float, list[PaperRecord], int]] = {}
+        self._cache: dict[str, tuple[float, list[PaperRecord], int, dict, str, dict]] = {}
         self._cache_lock = asyncio.Lock()
+        self._resource_diagnostics: dict = {"enabled": self.config.resolve_resources,
+                                            "httpRequests": 0, "papers": []}
+        self._search_diagnostics: dict = {}
 
     def http_diagnostics(self):
         """仅返回安全诊断，绝不加入 paper_records 业务输出。"""
         return client_diagnostics(self.client, self.config.api_key)
 
+    def resource_diagnostics(self):
+        return {"resourceResolution": self._resource_diagnostics, **self._search_diagnostics}
+
     async def search(self, request: LiteratureSearchRequest) -> ProviderSearchResult:
-        cache_key = json.dumps(request.model_dump(), sort_keys=True)
+        cache_key = json.dumps({"provider": self.config.search_provider,
+                                "request": request.model_dump()}, sort_keys=True)
         cached = await self._get_cached(cache_key)
         if cached is not None:
-            papers, total = cached
-            return ProviderSearchResult(papers, total, 0, True)
+            papers, total, self._resource_diagnostics, provider, self._search_diagnostics = cached
+            return ProviderSearchResult(papers, total, 0, True, provider)
+
+        if self.config.search_provider == "openalex":
+            return await self._search_openalex(request, cache_key, "DEVELOPMENT_PROVIDER_SELECTION", 0)
 
         for attempt in range(1, self.config.max_retries + 2):
             try:
@@ -113,9 +128,32 @@ class SemanticScholarProvider:
                     min_citation_count=filters.minCitationCount,
                     limit=request.limit,
                 )
-                papers = [self._to_record(item.raw_data) for item in results.items]
+                raw_papers = [item.raw_data for item in results.items]
+                papers = [self._to_record(item) for item in raw_papers]
+                self._resource_diagnostics = {"enabled": self.config.resolve_resources,
+                                              "httpRequests": 0, "papers": []}
+                if self.config.resolve_resources:
+                    async with ResourceResolver(max_requests=self.config.resource_max_requests,
+                                                timeout_seconds=self.config.resource_timeout_seconds,
+                                                trust_env=self.config.resource_trust_env) as resolver:
+                        for index in range(min(len(papers), self.config.resource_max_papers)):
+                            try:
+                                papers[index], report = await resolver.resolve(papers[index], raw_papers[index])
+                            except Exception:
+                                report = {"paperId": papers[index].paperId,
+                                          "pdf": {"status": "missing", "reason": "RESOLVER_ERROR"},
+                                          "repository": {"status": "missing", "reason": "RESOLVER_ERROR"}}
+                            self._resource_diagnostics["papers"].append(report)
+                        self._resource_diagnostics["httpRequests"] = resolver.request_count
+                        self._resource_diagnostics["rateLimited"] = resolver.rate_limited
+                        self._resource_diagnostics["requestEvents"] = resolver.request_events
+                    if len(papers) > self.config.resource_max_papers:
+                        self._resource_diagnostics["skippedPaperCount"] = len(papers) - self.config.resource_max_papers
                 total = getattr(results, "total", len(papers))
-                await self._set_cached(cache_key, papers, total)
+                self._search_diagnostics = {"providerUsed": "semantic-scholar", "semanticScholarRequests": attempt,
+                                            "openalexRequests": 0}
+                await self._set_cached(cache_key, papers, total, self._resource_diagnostics,
+                                       "semantic-scholar", self._search_diagnostics)
                 return ProviderSearchResult(papers, total, attempt, False)
             except (ConnectionRefusedError, RetryError) as exc:
                 original = self._unwrap_retry_error(exc)
@@ -123,6 +161,8 @@ class SemanticScholarProvider:
                     raise ProviderUnavailableError(
                         str(original), attempts=attempt
                     ) from exc
+                if self.config.openalex_fallback:
+                    return await self._search_openalex(request, cache_key, "SEMANTIC_SCHOLAR_429", attempt)
                 if attempt > self.config.max_retries:
                     raise ProviderRateLimitError(
                         str(original), attempts=attempt
@@ -131,6 +171,11 @@ class SemanticScholarProvider:
             except BadQueryParametersException as exc:
                 raise ProviderRequestError(str(exc), attempts=attempt) from exc
             except ServerErrorException as exc:
+                transient_status = 504 if isinstance(exc, GatewayTimeoutException) else (
+                    503 if isinstance(exc, InternalServerErrorException) and str(exc) == "HTTP 503" else None)
+                if self.config.openalex_fallback and transient_status:
+                    return await self._search_openalex(request, cache_key,
+                                                       f"SEMANTIC_SCHOLAR_{transient_status}", attempt)
                 if attempt > self.config.max_retries:
                     raise ProviderUnavailableError(
                         str(exc), attempts=attempt
@@ -159,6 +204,64 @@ class SemanticScholarProvider:
                 ) from exc
 
         raise ProviderUnavailableError("Semantic Scholar request failed")
+
+    async def _search_openalex(self, request: LiteratureSearchRequest, cache_key: str,
+                               reason: str, semantic_attempts: int) -> ProviderSearchResult:
+        filters = request.filters
+        if filters.publicationTypes or filters.venues or filters.fieldsOfStudy or filters.publicationDateOrYear:
+            raise ProviderRequestError("OPENALEX_FALLBACK_UNSUPPORTED_FILTER", attempts=semantic_attempts)
+        try:
+            papers, raw_papers, total, diagnostics = await search_openalex(
+                request.query, min(request.limit, self.config.openalex_max_results),
+                timeout=self.config.openalex_timeout_seconds,
+                api_key=self.config.openalex_api_key, client=self._openalex_client,
+                trust_env=self.config.openalex_trust_env)
+        except OpenAlexError as exc:
+            self._search_diagnostics = {"providerUsed": "none", "fallbackReason": reason,
+                                        "semanticScholarRequests": semantic_attempts, **exc.diagnostics,
+                                        "fallbackError": str(exc)}
+            raise ProviderUnavailableError("SEMANTIC_SCHOLAR_AND_OPENALEX_UNAVAILABLE" if semantic_attempts
+                                           else str(exc), attempts=semantic_attempts + 1) from exc
+        if filters.year:
+            try:
+                lower, separator, upper = filters.year.partition(":")
+                start = int(lower) if lower else None
+                end = (int(upper) if upper else None) if separator else start
+            except ValueError as exc:
+                raise ProviderRequestError("INVALID_YEAR_FILTER", attempts=semantic_attempts + 1) from exc
+            selected = [(paper, raw) for paper, raw in zip(papers, raw_papers)
+                        if paper.year is not None and (start is None or paper.year >= start)
+                        and (end is None or paper.year <= end)]
+            papers, raw_papers = [paper for paper, _ in selected], [raw for _, raw in selected]
+        selected = [(paper, raw) for paper, raw in zip(papers, raw_papers)
+                    if (not filters.openAccessOnly or paper.pdfUrl)
+                    and (filters.minCitationCount is None or (paper.citationCount or 0) >= filters.minCitationCount)]
+        papers, raw_papers = [paper for paper, _ in selected], [raw for _, raw in selected]
+        total = len(papers)
+        self._search_diagnostics = {**diagnostics, "fallbackReason": reason,
+                                    "semanticScholarRequests": semantic_attempts}
+        self._resource_diagnostics = {"enabled": self.config.resolve_resources,
+                                      "httpRequests": 0, "papers": []}
+        if self.config.resolve_resources:
+            async with ResourceResolver(max_requests=self.config.resource_max_requests,
+                                        timeout_seconds=self.config.resource_timeout_seconds,
+                                        trust_env=self.config.resource_trust_env) as resolver:
+                for index in range(min(len(papers), self.config.resource_max_papers)):
+                    try:
+                        papers[index], report = await resolver.resolve(papers[index], raw_papers[index])
+                    except Exception:
+                        report = {"paperId": papers[index].paperId,
+                                  "pdf": {"status": "missing", "reason": "RESOLVER_ERROR"},
+                                  "repository": {"status": "missing", "reason": "RESOLVER_ERROR"}}
+                    self._resource_diagnostics["papers"].append(report)
+                self._resource_diagnostics["httpRequests"] = resolver.request_count
+                self._resource_diagnostics["rateLimited"] = resolver.rate_limited
+                self._resource_diagnostics["requestEvents"] = resolver.request_events
+            if len(papers) > self.config.resource_max_papers:
+                self._resource_diagnostics["skippedPaperCount"] = len(papers) - self.config.resource_max_papers
+        await self._set_cached(cache_key, papers, total, self._resource_diagnostics,
+                               "openalex", self._search_diagnostics)
+        return ProviderSearchResult(papers, total, semantic_attempts + 1, False, "openalex")
 
     async def _backoff(
         self,
@@ -189,19 +292,21 @@ class SemanticScholarProvider:
 
     async def _get_cached(
         self, key: str
-    ) -> tuple[list[PaperRecord], int] | None:
+    ) -> tuple[list[PaperRecord], int, dict, str, dict] | None:
         async with self._cache_lock:
             cached = self._cache.get(key)
             if cached is None:
                 return None
-            expires_at, papers, total = cached
+            expires_at, papers, total, resource_diagnostics, provider, search_diagnostics = cached
             if expires_at <= time.monotonic():
                 del self._cache[key]
                 return None
-            return [paper.model_copy(deep=True) for paper in papers], total
+            return ([paper.model_copy(deep=True) for paper in papers], total,
+                    resource_diagnostics.copy(), provider, search_diagnostics.copy())
 
     async def _set_cached(
-        self, key: str, papers: list[PaperRecord], total: int
+        self, key: str, papers: list[PaperRecord], total: int, resource_diagnostics: dict,
+        provider: str, search_diagnostics: dict,
     ) -> None:
         if self.config.cache_ttl_seconds == 0:
             return
@@ -211,7 +316,7 @@ class SemanticScholarProvider:
             self._cache[key] = (
                 time.monotonic() + self.config.cache_ttl_seconds,
                 [paper.model_copy(deep=True) for paper in papers],
-                total,
+                total, resource_diagnostics.copy(), provider, search_diagnostics.copy(),
             )
 
     @staticmethod

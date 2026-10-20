@@ -1,7 +1,7 @@
-"""One local AIP search/read entry. No external work without --execute.
+"""One local AIP search/read/repository entry. No external work without --execute.
 
-Supports exactly one independent search followed by one single-paper Reader.
-No ADP, platform identity, repository execution or automatic paid stage retry.
+Supports one search, one single-paper Reader and optional dependent Repository.
+No ADP, platform identity, target-code execution or automatic paid stage retry.
 """
 import argparse
 import asyncio
@@ -28,11 +28,21 @@ ROOT = Path(__file__).resolve().parent
 
 def failure_code(error):
     """Expose our own stage codes, never a raw provider exception or credential."""
-    codes = {"STAGE_FAILED_" + name for name in ("LITERATURE", "PDF", "READER")}
-    codes.update("STAGE_NOT_SAFE_TO_REPLAY_" + name for name in ("LITERATURE", "PDF", "READER"))
+    names = ("LITERATURE", "PDF", "READER", "RESOURCES", "REPOSITORY")
+    codes = {"STAGE_FAILED_" + name for name in names}
+    codes.update("STAGE_NOT_SAFE_TO_REPLAY_" + name for name in names)
     codes.update({"PLAN_NEEDS_CLARIFICATION", "ONLY_SEARCH_THEN_SINGLE_READER_SUPPORTED",
                   "SINGLE_DEPENDENT_READER_REQUIRED", "MISSING_SAVED_PLAN", "PLANNER_NOT_SAFE_TO_REPLAY",
-                  "PLAN_CHECKPOINT_CHANGED", "INVALID_PIPELINE_CHECKPOINT", "EMPTY_QUERY"})
+                  "PLAN_CHECKPOINT_CHANGED", "INVALID_PIPELINE_CHECKPOINT", "EMPTY_QUERY",
+                  "THREE_AGENT_CHECKPOINT_CHANGED", "THREE_AGENT_CONFIG_CHANGED",
+                  "SEARCH_READ_REPOSITORY_CHAIN_REQUIRED", "SINGLE_PAPER_REPOSITORY_DEPENDENCY_REQUIRED",
+                  "INVALID_REPOSITORY_RESOURCE_PROOF", "VERIFIED_REPOSITORY_URL_UNAVAILABLE",
+                  "REPOSITORY_BOUND_INPUT_MISMATCH", "REPOSITORY_AIP_RECEIPT_REQUIRED",
+                  "REPOSITORY_BUSINESS_CHECK_FAILED", "DISTINCT_AIP_TASK_IDS_REQUIRED",
+                  "REPOSITORY_RUNTIME_OR_WRAPPER_MISSING", "PLANNER_QUERY_MISMATCH", "SEARCH_BUSINESS_CHECK_FAILED",
+                  "AIP_SEARCH_CHECKPOINT_INVALID", "VERIFIED_PDF_CACHE_UNAVAILABLE", "AIP_READER_INPUT_INVALID",
+                  "INVALID_READER_CHECKPOINT", "INVALID_READER_AIP_CHECKPOINT", "SEARCH_READER_CHECKPOINT_MISMATCH",
+                  "READER_AIP_PRODUCT_MISMATCH", "READER_AIP_PRODUCT_REQUIRED", "SINGLE_FULLTEXT_PAPER_CONTEXT_REQUIRED"})
     return str(error) if isinstance(error, ValueError) and str(error) in codes else type(error).__name__
 
 
@@ -104,6 +114,11 @@ def pair(plan):
     return search["subtaskId"], reader["subtaskId"]
 
 
+def supported_plan(plan):
+    from three_agent_pipeline import triple
+    return triple(plan) if len(plan.get("tasks", [])) == 3 else pair(plan)
+
+
 def persist(output, state):
     temporary = output / "pipeline.json.tmp"
     save_json(temporary, state)
@@ -172,6 +187,24 @@ def execute_pipeline(output, state, args, *, runner=run_command, planner=None):
     if state.get("planSha256") and state["planSha256"] != digest:
         raise ValueError("PLAN_CHECKPOINT_CHANGED")
     state["planSha256"] = digest
+    if state.get("query") and plan["userQuery"] != state["query"]:
+        raise ValueError("PLANNER_QUERY_MISMATCH")
+    if plan.get("needsClarification"):
+        validate_plan(plan)
+        state.update(state="needs_clarification")
+        persist(output, state)
+        record = {"needsClarification": True, "clarificationQuestion": plan["clarificationQuestion"], "plan": plan}
+        save_json(output / "research_run.json", record)
+        (output / "report.md").write_text("# 需要补充信息\n\n" + plan["clarificationQuestion"] +
+                                         "\n\n未执行检索、阅读或仓库分析。\n", encoding="utf-8")
+        return record
+    if len(plan["tasks"]) == 3:
+        from three_agent_pipeline import execute_three, triple
+        triple(plan)
+        if (not args.repository_python.is_file()
+                or not (args.repository_root / "researchmesh_repository/__init__.py").is_file()):
+            raise ValueError("REPOSITORY_RUNTIME_OR_WRAPPER_MISSING")
+        return execute_three(output, state, args, plan, root=ROOT, stage=stage, persist=persist, runner=runner)
     search_id, reader_id = pair(plan)  # reject extra tasks before search/model reading
     persist(output, state)
     py = [sys.executable, "-X", "utf8"]
@@ -224,9 +257,13 @@ def main(argv=None):
     modes.add_argument("--plan", type=Path)
     modes.add_argument("--query")
     modes.add_argument("--resume", type=Path)
-    parser.add_argument("--reader-root", type=Path)
-    parser.add_argument("--reader-python", type=Path)
+    parser.add_argument("--reader-root", type=Path, default=os.getenv("RM_READER_ROOT") or ROOT / "agents/paper_reader")
+    parser.add_argument("--reader-python", type=Path, default=os.getenv("RM_READER_PYTHON"))
     parser.add_argument("--wrapper-root", type=Path, default=ROOT / "agents/literature")
+    parser.add_argument("--repository-root", type=Path, default=ROOT / "agents/repository")
+    parser.add_argument("--repository-python", type=Path, default=ROOT / ".venv-repository/Scripts/python.exe")
+    parser.add_argument("--repository-analysis-mode", choices=("static", "enhanced"), default="static",
+                        help="默认静态仓库分析；enhanced 显式启用额外模型请求")
     parser.add_argument("--pdf-proof", type=Path)
     parser.add_argument("--llm-adapter", choices=["existing-async", "team"], default="existing-async")
     parser.add_argument("--execute", action="store_true")
@@ -234,12 +271,12 @@ def main(argv=None):
     if not args.execute:
         if args.plan:
             try:
-                pair(read_json(args.plan))
+                supported_plan(read_json(args.plan))
             except (ValueError, OSError):
-                print("计划不适用于当前单篇链路；未调用 API。")
+                print("计划不适用于单篇检索→阅读（→仓库）链路；未调用 API。")
                 return 1
         print("未执行：不调用模型、论文 API、PDF、AIP 或平台。--plan 可离线检查范围。")
-        print("仅支持检索→阅读1篇；--execute 会计费，Reader可能多次请求模型。")
+        print("支持检索→阅读1篇→仓库1个；也兼容原两阶段。--execute 会计费，Reader可能多次请求模型。")
         return 0
     if not args.reader_root or not args.reader_python or not args.reader_python.is_file():
         print("先指定 --reader-root 和 --reader-python；未调用 API。")
@@ -253,11 +290,11 @@ def main(argv=None):
                 raise ValueError("INVALID_PIPELINE_CHECKPOINT")
         else:
             # Ask once in the terminal, never ask the user to type JSON.
-            query = None if args.plan else (args.query or input("请输入研究问题（检索后阅读1篇）：").strip())
+            query = None if args.plan else (args.query or input("请输入研究问题（检索→阅读1篇，可加仓库分析）：").strip())
             if not args.plan and not query:
                 raise ValueError("EMPTY_QUERY")
             if args.plan:
-                pair(read_json(args.plan))
+                supported_plan(read_json(args.plan))
             output = ROOT / "outputs" / datetime.now().strftime("aip-research-%Y%m%d-%H%M%S-%f")
             output.mkdir(parents=True, exist_ok=False)
             state = {"scope": "LOCAL_AIP_SINGLE_ENTRY_V1", "state": "running", "query": query,
@@ -265,13 +302,19 @@ def main(argv=None):
             if args.plan:
                 save_json(output / "plan.json", read_json(args.plan))
             persist(output, state)
-        print("【单入口本地 AIP 检索→阅读】会计费；不使用 ADP/梧桐，不自动重试失败阶段。", flush=True)
+        print("【单入口本地 AIP 科研链】规划/阅读会计费；仓库模式：" + args.repository_analysis_mode +
+              "；不使用 ADP/梧桐，不自动重试失败阶段。", flush=True)
         print("记录：", output, flush=True)
         with checkpoint_lock(output):
             # Reload after acquiring the lock, not before waiting on another run.
             state = read_json(output / "pipeline.json")
-            execute_pipeline(output, state, args)
-        print("本地链完成，请查看 report.md；科研结论仍需人工核验。")
+            record = execute_pipeline(output, state, args)
+        if record.get("needsClarification"):
+            print("请补充：", record["clarificationQuestion"])
+        else:
+            print("本地链完成，请查看 report.md；科研结论仍需人工核验。")
+            if state.get("state") == "completed_with_warnings":
+                print("注意：仓库静态结果有效，但模型增强未完整通过；详情见报告。")
         print("报告：", output / "report.md")
         return 0
     except (Exception, KeyboardInterrupt) as error:
@@ -284,6 +327,8 @@ def main(argv=None):
         print("流程停止：", code, "；查看阶段日志。已完成结果保留，不自动重跑付费步骤。")
         if details:
             print("检索原因：", details["providerError"], details.get("transportError") or details.get("httpStatus", ""))
+        if output and (output / "report.md").is_file():
+            print("已保留的阶段报告：", output / "report.md")
         return 1
 
 

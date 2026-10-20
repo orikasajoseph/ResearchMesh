@@ -1,0 +1,203 @@
+{
+  "scope": "SELECTIVE_INTEGRATION_ALIGNMENT_NOT_A_MERGE_OR_LIVE_ACCEPTANCE",
+  "verifiedDate": "2026-10-20",
+  "repository": "orikasajoseph/ResearchMesh",
+  "publishedBaseline": {
+    "branch": "zhao/planner-integration",
+    "commit": "d4bb9d8485f1e52873074e2a255d02027a246218"
+  },
+  "preview": {
+    "branch": "zhang/three-agents-integration-preview",
+    "commit": "22863c04a8afab8457df3c1a82e46da2f6217e0c"
+  },
+  "historicalBaseline": "4a39ba29ab5ebbf16aac4a3443c929dc805518d0",
+  "commonAncestor": "3ba828e0755f91e789a829c42f7d5df5f4045034",
+  "coordinationStatus": "PROPOSED_LOCAL_DECISION_TEAM_CONFIRMATION_PENDING",
+  "workingTreeChangesPublished": false,
+  "overlapExcludesRootReadme": true,
+  "overlap": [
+    {
+      "path": "agents/repository/README.md",
+      "previewBlob": "a6235f65025ea2cdb95904fd8cdd3953d6fb8701",
+      "zhaoCommittedBlob": "5364c2f29ab40a8d1c65e5ce8eadceb4409c3feb",
+      "identical": false,
+      "action": "retain_zhao_and_reconcile_seam",
+      "proposedCoordinator": "赵",
+      "reviewer": "张"
+    },
+    {
+      "path": "agents/repository/researchmesh_repository/__init__.py",
+      "previewBlob": "28e9bca2578d5ca8105b7fc3e7b17507262bf893",
+      "zhaoCommittedBlob": "28e9bca2578d5ca8105b7fc3e7b17507262bf893",
+      "identical": true,
+      "action": "keep_identical_verified_source",
+      "proposedCoordinator": "张",
+      "reviewer": "赵"
+    },
+    {
+      "path": "agents/repository/researchmesh_repository/agent.py",
+      "previewBlob": "4b3ce470a3fa6df3aea4c93918762d481c4d5b32",
+      "zhaoCommittedBlob": "4b3ce470a3fa6df3aea4c93918762d481c4d5b32",
+      "identical": true,
+      "action": "keep_identical_verified_source",
+      "proposedCoordinator": "张",
+      "reviewer": "赵"
+    },
+    {
+      "path": "agents/repository/researchmesh_repository/codewiki_provider.py",
+      "previewBlob": "b78cb6d0c82aeb82777eefa22e5dcdc6b4c309d6",
+      "zhaoCommittedBlob": "b78cb6d0c82aeb82777eefa22e5dcdc6b4c309d6",
+      "identical": true,
+      "action": "keep_identical_verified_source",
+      "proposedCoordinator": "张",
+      "reviewer": "赵"
+    },
+    {
+      "path": "agents/repository/researchmesh_repository/config.py",
+      "previewBlob": "912999a7c53bd7bd9509cb467c384fa9e3216d63",
+      "zhaoCommittedBlob": "912999a7c53bd7bd9509cb467c384fa9e3216d63",
+      "identical": true,
+      "action": "keep_identical_verified_source",
+      "proposedCoordinator": "张",
+      "reviewer": "赵"
+    },
+    {
+      "path": "agents/repository/researchmesh_repository/enrichment.py",
+      "previewBlob": "9c73c4f2883d0db6a1c625580ce7a0afacaefddd",
+      "zhaoCommittedBlob": "9c73c4f2883d0db6a1c625580ce7a0afacaefddd",
+      "identical": true,
+      "action": "keep_identical_verified_source",
+      "proposedCoordinator": "张",
+      "reviewer": "赵"
+    },
+    {
+      "path": "agents/repository/researchmesh_repository/evidence.py",
+      "previewBlob": "7112acef8ff638abf3442951d15d4ab91d60b787",
+      "zhaoCommittedBlob": "7112acef8ff638abf3442951d15d4ab91d60b787",
+      "identical": true,
+      "action": "keep_identical_verified_source",
+      "proposedCoordinator": "张",
+      "reviewer": "赵"
+    },
+    {
+      "path": "agents/repository/researchmesh_repository/fetcher.py",
+      "previewBlob": "3f252dccf91e7b7974b96d08fe7e2aa57919b7cd",
+      "zhaoCommittedBlob": "3f252dccf91e7b7974b96d08fe7e2aa57919b7cd",
+      "identical": true,
+      "action": "keep_identical_verified_source",
+      "proposedCoordinator": "张",
+      "reviewer": "赵"
+    },
+    {
+      "path": "agents/repository/researchmesh_repository/schemas.py",
+      "previewBlob": "a2c1f82b980db868f7afca175a99e1360b83e54d",
+      "zhaoCommittedBlob": "a2c1f82b980db868f7afca175a99e1360b83e54d",
+      "identical": true,
+      "action": "keep_identical_verified_source",
+      "proposedCoordinator": "张",
+      "reviewer": "赵"
+    },
+    {
+      "path": "aip_business_partner.py",
+      "previewBlob": "6580f95a4791ee6303f8a8c28118e923d077954b",
+      "zhaoCommittedBlob": "95951700ac7970da363d96202880206b274c645b",
+      "identical": false,
+      "action": "retain_zhao_and_reconcile_seam",
+      "proposedCoordinator": "赵",
+      "reviewer": "张"
+    },
+    {
+      "path": "aip_repository_partner.py",
+      "previewBlob": "efd39697a55ce0904d2a4aae3a85a9f1e8a426be",
+      "zhaoCommittedBlob": "dcbc7bd86d84e205291f76b54a4855db49df7901",
+      "identical": false,
+      "action": "retain_zhao_and_reconcile_seam",
+      "proposedCoordinator": "赵",
+      "reviewer": "张"
+    },
+    {
+      "path": "run_aip_literature.py",
+      "previewBlob": "1f6046b7921a683c6c96da377745b44d99507a85",
+      "zhaoCommittedBlob": "21a1d61cd53981970eb3b46287c5a362392c39fb",
+      "identical": false,
+      "action": "retain_zhao_and_reconcile_seam",
+      "proposedCoordinator": "赵",
+      "reviewer": "张"
+    },
+    {
+      "path": "run_aip_repository.py",
+      "previewBlob": "5028cb7cf6ed763cf49ebe1a68b0fd4689b51843",
+      "zhaoCommittedBlob": "2e52e39e54949ec80bc3fec439b782adf0b206c0",
+      "identical": false,
+      "action": "retain_zhao_and_reconcile_seam",
+      "proposedCoordinator": "赵",
+      "reviewer": "张"
+    }
+  ],
+  "selectedReaderBusinessFiles": [
+    {
+      "path": "agents/paper_reader/researchmesh_paper_reader/__init__.py",
+      "previewBlob": "ee4b304137a3e1500d6971d9ab512fa5ff6941d2"
+    },
+    {
+      "path": "agents/paper_reader/researchmesh_paper_reader/agent.py",
+      "previewBlob": "91b43b595708b6244a726cc1f86960d502414a40"
+    },
+    {
+      "path": "agents/paper_reader/researchmesh_paper_reader/config.py",
+      "previewBlob": "3aaecd7dbaa0c93479c520800cc1987363f8b4ac"
+    },
+    {
+      "path": "agents/paper_reader/researchmesh_paper_reader/provider.py",
+      "previewBlob": "9cbde2f1f9b0aba9497fb47898bfd0f77230eecd"
+    },
+    {
+      "path": "agents/paper_reader/researchmesh_paper_reader/schemas.py",
+      "previewBlob": "1630c11071a268f9f6bfe39afbf65c0323fe6350"
+    }
+  ],
+  "canonicalLocalEntrypoints": {
+    "pipeline": "run_aip_research.py",
+    "repositoryStage": "run_aip_repository.py",
+    "repositoryPartner": "aip_repository_partner.py",
+    "wrapper": "agents/repository/researchmesh_repository",
+    "staticWorker": "repository_aip_worker.py",
+    "enhancedWorker": "repository_enhanced_worker.py"
+  },
+  "contract": {
+    "schemaVersion": "0.2",
+    "requiredSkillField": "requiredSkill",
+    "paperRefFields": [
+      "paperId",
+      "title",
+      "doi",
+      "url",
+      "pdfUrl",
+      "repositoryUrls"
+    ],
+    "partnerTaskFields": [
+      "schemaVersion",
+      "subtaskId",
+      "taskType",
+      "goal",
+      "input",
+      "constraints",
+      "outputSchema"
+    ],
+    "wrapperRepositoryKind": "repository_record",
+    "leaderRepositoryKind": "repository"
+  },
+  "integrationPolicy": {
+    "wholePreviewMerge": false,
+    "plannerFork": false,
+    "implicitPaidEnhancement": false,
+    "staticIsMock": false,
+    "platformVerified": false,
+    "literatureFallbackProviderImported": true,
+    "dynamicReaderPartnerImported": true,
+    "fallbackEnabledByDefault": false,
+    "resourceResolutionEnabledByDefault": false,
+    "stableBusinessEntry": "business_execution.execute_business_task",
+    "newPlatformCapabilitiesLiveVerified": false
+  }
+}

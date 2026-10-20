@@ -65,7 +65,7 @@ class _Response(_Contract):
     status: Literal["success", "failure"]
     papers: list[_Paper] = Field(default_factory=list)
     total: StrictInt = Field(default=0, ge=0)
-    provider: Literal["semantic-scholar"] = "semantic-scholar"
+    provider: Literal["semantic-scholar", "openalex"] = "semantic-scholar"
     metrics: _Metrics
     error: _Error | None = None
 

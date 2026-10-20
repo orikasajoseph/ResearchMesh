@@ -36,7 +36,7 @@ def check_reader_wire(outcome, payload):
             raise ReaderAdapterError("INVALID_READER_AIP_CHECKPOINT")
 
 
-def assemble(search_dir, reader_dir, *, cache_dir):
+def assemble(search_dir, reader_dir, *, cache_dir, planned_repository=False):
     search_dir, reader_dir = Path(search_dir).resolve(), Path(reader_dir).resolve()
     saved_input = read_json(reader_dir / "reader_input.json")
     if Path(saved_input["searchSource"]).resolve() != search_dir:
@@ -55,7 +55,14 @@ def assemble(search_dir, reader_dir, *, cache_dir):
     check_reader_wire(reader, task)
     normalized = normalize_reader_result(task, reader["execution"]["result"])
     plan = read_json(search_dir / "plan.json")
-    if [t["subtaskId"] for t in plan["tasks"]] != [prepared["searchSubtaskId"], task["subtaskId"]]:
+    prefix = [prepared["searchSubtaskId"], task["subtaskId"]]
+    ids = [t["subtaskId"] for t in plan["tasks"]]
+    allowed = ids == prefix
+    if planned_repository:
+        allowed = (len(ids) == 3 and ids[:2] == prefix
+                   and plan["tasks"][2]["taskType"] == "repository_analyze"
+                   and task["subtaskId"] in plan["tasks"][2]["dependsOn"])
+    if not allowed:
         raise ReaderAdapterError("ONLY_COMPLETE_TWO_TASK_PLAN_SUPPORTED")
     if search["execution"]["taskId"] == reader["execution"]["taskId"]:
         raise ReaderAdapterError("DISTINCT_AIP_TASK_IDS_REQUIRED")
@@ -96,7 +103,7 @@ def assemble(search_dir, reader_dir, *, cache_dir):
                               "blockers": ["REPOSITORY_AGENT_NOT_VALIDATED"] + ([] if urls else ["REPOSITORY_URL_REQUIRED"])},
         "acceptance": {"passed": True, "bothOriginalAipTasksCompleted": True,
             "searchBusinessReady": assess_live_run(search, backend)["businessReady"], "readerBusinessReady": True,
-            "searchResultBoundToReader": True, "allTasksInSavedPlanAccountedFor": True,
+            "searchResultBoundToReader": True, "allTasksInSavedPlanAccountedFor": not planned_repository,
             "newModelCalls": 0, "newPaperApiCalls": 0, "newPdfDownloads": 0, "newAipTaskCalls": 0,
             "platformDiscoveryUsed": False, "tlsIdentityVerified": False, "repositoryAnalysisExecuted": False,
             "singleFreshEndToEndRun": False, "scientificClaimsHumanVerified": False,

@@ -3,6 +3,7 @@
 Imported safely without reading keys; uvicorn --factory calls create_live_app
 only from the user's explicit run_aip_literature.py --execute workflow.
 """
+import asyncio
 from copy import deepcopy
 import json
 import os
@@ -27,6 +28,14 @@ def make_literature_executor(wrapper_root, *, prepared=None, on_outcome=None):
                                               request_source="aip-literature-partner", retry=True)
         except AdapterError as error:
             outcome = {"result": None, "error": {"code": error.code}, "diagnostics": {}}
+        except asyncio.CancelledError:
+            if on_outcome is not None:
+                on_outcome({"result": None, "error": {"code": "LITERATURE_BACKEND_CANCELED"},
+                            "diagnostics": {"executionUncertain": True}})
+            raise
+        except Exception as error:
+            outcome = {"result": None, "error": {"code": "LITERATURE_RUNTIME_ERROR"},
+                       "diagnostics": {"exceptionType": type(error).__name__}}
         if on_outcome is not None:
             on_outcome(deepcopy(outcome))
         if outcome["error"] is not None:

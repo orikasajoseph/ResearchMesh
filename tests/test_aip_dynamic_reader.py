@@ -1,0 +1,194 @@
+"""Reader input is prepared only after S1 has bound a real PaperRef."""
+from copy import deepcopy
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+import json
+import unittest
+from unittest.mock import AsyncMock, patch
+import httpx
+
+from aip_reader_inputs import prepare_bound_reader_input
+from aip_reader_partner import make_reader_executor, create_live_app
+import reader_aip_worker
+
+
+PDF = "https://arxiv.org/pdf/2305.14314"
+TITLE = "QLoRA: Efficient Finetuning of Quantized LLMs"
+
+
+def task():
+    return {"schemaVersion": "0.2", "subtaskId": "S2", "taskType": "paper_read",
+            "goal": "Read QLoRA", "input": {"papers": [{"paperId": "W1", "title": TITLE,
+            "doi": "10.52202/075280-0441", "url": "https://openalex.org/W1",
+            "pdfUrl": PDF, "repositoryUrls": ["https://github.com/artidoro/qlora"]}]},
+            "constraints": {"maxPapers": 1}, "outputSchema": "paper_notes.v1"}
+
+
+class DynamicReaderTests(unittest.IsolatedAsyncioTestCase):
+    async def test_current_task_crosses_business_entry_and_official_aip_without_fixed_input(self):
+        from aip_business_partner import create_local_business_app
+        from business_execution import execute_business_task
+        from run_aip_literature import invoke_business
+        from tests.test_aip_reader import journal, note_result
+        from reader_adapter import normalize_reader_result
+        prepared = []
+        async def prepare(current): prepared.append(current)
+        async def worker():
+            value = journal(task())
+            value["outcome"] = normalize_reader_result(task(), note_result(task()))
+            return value
+        backend = make_reader_executor(worker, prepare_task=prepare)
+        async def execute(current):
+            return await execute_business_task(current, skill="paper.analyze", backend=backend, allow_execution=True)
+        app = create_local_business_app(execute=execute, partner_aic="dynamic-test-reader",
+                                       background_execution=True, mode="local-reader-live")
+        with patch.object(httpx.AsyncHTTPTransport, "handle_async_request", side_effect=AssertionError("external HTTP")):
+            result = await invoke_business(task(), "http://127.0.0.1/rpc", "dynamic-test-reader",
+                            transport=httpx.ASGITransport(app=app), expected_task_type="paper_read", poll_seconds=.001)
+        self.assertIsNone(result["error"])
+        self.assertEqual(result["execution"]["state"], "completed")
+        self.assertEqual(prepared, [task()])
+        self.assertEqual(result["execution"]["result"]["items"][0]["data"]["source"], task()["input"]["papers"][0])
+
+    async def test_dynamic_preflight_never_downloads_pdf_or_creates_provider(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            bound = root / "bound_task.json"; bound.write_text(json.dumps(task()), encoding="utf-8")
+            args = SimpleNamespace(record_dir=root, bound_task=bound, input=root / "reader_input.json",
+                                   execute=False, reader_root=root)
+            with patch("reader_aip_worker.require_record_directory", return_value=root), \
+                 patch("reader_aip_worker.check_runtime"), \
+                 patch("reader_aip_worker.prepare_live_reader", side_effect=AssertionError("Provider created")), \
+                 patch("aip_reader_inputs.prepare_bound_reader_input", side_effect=AssertionError("PDF network")):
+                self.assertEqual(await reader_aip_worker.run(args), 0)
+            self.assertFalse((root / "reader_input.json").exists())
+            preflight = json.loads((root / "reader_preflight.json").read_text(encoding="utf-8"))
+            self.assertFalse(preflight["pdfHashAndTitleVerified"])
+            self.assertFalse(preflight["pdfDownloadAttempted"])
+
+    async def test_partner_starts_without_fixed_reader_input(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            env = {"RESEARCHMESH_AIP_RECORD_DIR": str(root),
+                   "RESEARCHMESH_READER_DYNAMIC_INPUT": "1",
+                   "RESEARCHMESH_READER_PYTHON": "C:/reader/python.exe",
+                   "RESEARCHMESH_READER_ROOT": "C:/reader",
+                   "RESEARCHMESH_LOCAL_PARTNER_AIC": "reader-dynamic-offline"}
+            with patch("aip_reader_partner.require_record_directory", return_value=root), \
+                 patch.dict("aip_reader_partner.os.environ", env):
+                app = create_live_app()
+            self.assertFalse((root / "reader_input.json").exists())
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://local") as client:
+                self.assertEqual((await client.get("/health")).status_code, 200)
+
+    async def test_worker_prepares_bound_task_before_reading_input(self):
+        from reader_adapter import ReaderAdapterError
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            bound = root / "bound_task.json"
+            bound.write_text(json.dumps(task()), encoding="utf-8")
+            input_path = root / "reader_input.json"
+            async def prepare(value, output, *, cache_dir):
+                self.assertEqual(value, task())
+                input_path.write_text(json.dumps({"payload": value}), encoding="utf-8")
+            args = SimpleNamespace(record_dir=root, bound_task=bound, input=input_path, execute=True)
+            with patch("reader_aip_worker.require_record_directory", return_value=root), \
+                 patch("aip_reader_inputs.prepare_bound_reader_input", side_effect=prepare), \
+                 patch("reader_aip_worker.inspect_input", side_effect=ReaderAdapterError("TEST_AFTER_PREPARATION")):
+                with self.assertRaisesRegex(ReaderAdapterError, "TEST_AFTER_PREPARATION"):
+                    await reader_aip_worker.run(args)
+            self.assertTrue(input_path.exists())
+
+    async def test_bound_pdf_is_verified_and_input_is_written(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache = root / "cache"
+            cache.mkdir()
+            digest = "a" * 64
+            (cache / (digest + ".pdf")).write_bytes(b"%PDF-1.7 offline")
+            proof = {"state": "verified", "paperId": "W1", "sha256": digest,
+                     "pdfUrl": PDF, "sourceUrl": "https://arxiv.org/abs/2305.14314",
+                     "cachePath": str(cache / (digest + ".pdf")), "bytes": 16,
+                     "pageTitle": TITLE, "pages": 26, "networkAttempted": True}
+
+            async def resolve(unresolved, source, *, previous=None):
+                self.assertIsNone(previous)
+                self.assertIsNone(unresolved["input"]["papers"][0]["pdfUrl"])
+                self.assertEqual(source["items"][0]["data"]["sourceUrls"],
+                                 ["https://arxiv.org/abs/2305.14314"])
+                updated = deepcopy(unresolved)
+                updated["input"]["papers"][0]["pdfUrl"] = PDF
+                return updated, [proof]
+
+            with patch("aip_reader_inputs.ArxivPdfResolver",
+                       return_value=SimpleNamespace(resolve=resolve)):
+                result = await prepare_bound_reader_input(task(), root, cache_dir=cache)
+            self.assertEqual(result["payload"], task())
+            self.assertEqual(result["pdf"]["sourceUrl"], proof["sourceUrl"])
+            self.assertEqual(json.loads((root / "reader_input.json").read_text(encoding="utf-8")), result)
+            reused = root / "second"
+            reused.mkdir()
+            async def resolve_cached(unresolved, source, *, previous=None):
+                self.assertEqual(previous, [proof])
+                updated = deepcopy(unresolved)
+                updated["input"]["papers"][0]["pdfUrl"] = PDF
+                return updated, [{**proof, "networkAttempted": False}]
+            with patch("aip_reader_inputs.ArxivPdfResolver",
+                       return_value=SimpleNamespace(resolve=resolve_cached)):
+                second = await prepare_bound_reader_input(task(), reused, cache_dir=cache)
+            self.assertFalse(second["pdfDownloadedThisRun"])
+            self.assertNotEqual(root / "reader_input.json", reused / "reader_input.json")
+
+    async def test_no_pdf_or_mismatched_proof_rejects_before_worker(self):
+        from reader_adapter import ReaderAdapterError
+        with TemporaryDirectory() as directory:
+            invalid = task()
+            invalid["input"]["papers"][0]["pdfUrl"] = None
+            with self.assertRaises(ReaderAdapterError):
+                await prepare_bound_reader_input(invalid, Path(directory), cache_dir=Path(directory))
+            worker = AsyncMock()
+            prepare = AsyncMock(side_effect=ReaderAdapterError("PDF_SOURCE_UNVERIFIED"))
+            execute = make_reader_executor(worker, prepare_task=prepare)
+            with self.assertRaises(ReaderAdapterError):
+                await execute(task())
+            worker.assert_not_awaited()
+
+    async def test_download_failure_and_pdf_identity_mismatch(self):
+        from reader_adapter import ReaderAdapterError
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache = root / "cache"
+            cache.mkdir()
+            async def failed(unresolved, source, *, previous=None):
+                return unresolved, [{"state": "unavailable", "reason": "ARXIV_HTTP_503"}]
+            with patch("aip_reader_inputs.ArxivPdfResolver",
+                       return_value=SimpleNamespace(resolve=failed)):
+                with self.assertRaisesRegex(ReaderAdapterError, "PDF_DOWNLOAD_FAILED"):
+                    await prepare_bound_reader_input(task(), root, cache_dir=cache)
+            wrong = task()
+            wrong["input"]["papers"][0]["pdfUrl"] = "https://arxiv.org/pdf/2304.02643"
+            async def mismatched(unresolved, source, *, previous=None):
+                return unresolved, [{"state": "unavailable", "reason": "SOURCE_TITLE_MISMATCH"}]
+            with patch("aip_reader_inputs.ArxivPdfResolver",
+                       return_value=SimpleNamespace(resolve=mismatched)):
+                with self.assertRaisesRegex(ReaderAdapterError, "PDF_SOURCE_UNVERIFIED"):
+                    await prepare_bound_reader_input(wrong, root, cache_dir=cache)
+
+    async def test_completed_result_is_never_reused_for_another_paper(self):
+        from aip_business_partner import LocalBackendFailure
+        from tests.test_aip_reader import journal, note_result
+        original = journal()
+        first_task = original["task"]
+        second_task = deepcopy(first_task)
+        second_task["input"]["papers"][0]["paperId"] = "different-paper"
+        prepared = []
+        async def prepare(value):
+            prepared.append(value)
+        async def worker():
+            return original
+        execute = make_reader_executor(worker, prepare_task=prepare)
+        self.assertEqual(await execute(first_task), note_result(first_task))
+        with self.assertRaisesRegex(LocalBackendFailure, "READER_PREVIOUS_EXECUTION_UNCERTAIN"):
+            await execute(second_task)
+        self.assertEqual(prepared, [first_task])

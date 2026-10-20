@@ -1,0 +1,4 @@
+pydantic==2.13.4
+python-dotenv==1.2.1
+httpx==0.28.1
+paper-qa[local,pymupdf] @ git+https://github.com/Future-House/paper-qa.git@57e89f7223b0960d5ee5ea048c69e3c47e088572

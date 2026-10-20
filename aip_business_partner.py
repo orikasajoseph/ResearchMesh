@@ -31,6 +31,8 @@ class LocalBackendFailure(RuntimeError):
                    "NO_VALID_PAPER_RECORDS", "WRAPPER_TIMEOUT", "WRAPPER_CALL_FAILED",
                    "READER_TIMEOUT", "READER_CALL_FAILED", "INVALID_READER_RESULT", "READER_EMPTY_RESULT",
                    "READER_WORKER_FAILED", "READER_PREVIOUS_EXECUTION_UNCERTAIN",
+                   "PDF_DOWNLOAD_FAILED", "PDF_SOURCE_UNVERIFIED", "VERIFIED_PDF_CACHE_UNAVAILABLE",
+                   "INVALID_BOUND_TASK_PATH", "REPOSITORY_UNAVAILABLE", "INVALID_REPOSITORY_URL",
                    "REPOSITORY_WORKER_FAILED", "REPOSITORY_PREVIOUS_EXECUTION_UNCERTAIN",
                    "REPOSITORY_CLONE_FAILED", "STATIC_ANALYSIS_FAILED", "REPOSITORY_EMPTY_RESULT"}
         self.code = code if code in allowed else "BACKEND_FAILED"
@@ -52,6 +54,10 @@ def validate_local_task(payload):
     if task["taskType"] == "repository_analyze":
         if task["constraints"].get("maxRepositories", 1) != 1 or len(task["input"]["repositoryUrls"]) != 1:
             raise ValueError("SINGLE_REPOSITORY_ONLY")
+        # Shared validation must not import a concrete Partner (as the preview
+        # did). Reject malformed/fulltext-mismatched context before any Worker.
+        from repository_paper_context import prepare_repository_task
+        prepare_repository_task(task)
     return task
 
 

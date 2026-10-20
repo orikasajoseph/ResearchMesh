@@ -84,7 +84,12 @@ async def invoke_literature(payload, url, aic, **kwargs):
 
 @contextmanager
 def live_partner(wrapper_root, output, *, factory="aip_literature_partner:create_live_app",
-                 mode="local-literature-live", extra_env=None, aic_prefix="local-literature"):
+                 mode="local-literature-live", extra_env=None, aic_prefix="local-literature", python_executable=None):
+    # Preserve Zhang's isolated-runtime extension without changing the default
+    # interpreter or importing another Resolver/CLI into the business service.
+    python = Path(python_executable or sys.executable).resolve()
+    if not python.is_file():
+        raise ValueError("LOCAL_PARTNER_PYTHON_NOT_FOUND")
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -95,7 +100,7 @@ def live_partner(wrapper_root, output, *, factory="aip_literature_partner:create
     if extra_env:
         env.update(extra_env)
     with (output / "partner.log").open("w", encoding="utf-8") as log:
-        process = subprocess.Popen([sys.executable, "-B", "-m", "uvicorn", factory,
+        process = subprocess.Popen([str(python), "-B", "-m", "uvicorn", factory,
                                     "--factory", "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
                                    cwd=str(ROOT), env=env, stdout=log, stderr=subprocess.STDOUT,
                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
@@ -132,15 +137,28 @@ def assess_live_run(outcome, backend):
     http_events = diagnostics.get("httpRequests", [])
     observed = bool(diagnostics.get("httpObservationAvailable") is True and http_events)
     successful_http = observed and http_events[-1].get("httpStatus") == 200
+    # Accept the preview Wrapper's explicit fallback provenance, not just its
+    # provider label. A successful Semantic Scholar request cannot certify OA.
+    providers = {item.get("data", {}).get("provider") for item in execution["result"]["items"]} if protocol else set()
+    openalex_http = bool(diagnostics.get("providerUsed") == "openalex"
+                        and diagnostics.get("provider") == "openalex"
+                        and type(diagnostics.get("openalexRequests")) is int and diagnostics["openalexRequests"] >= 1
+                        and diagnostics.get("openalexHttpStatus") == 200
+                        and (not providers or providers == {"openalex"}))
+    semantic_result = (diagnostics.get("provider", "semantic-scholar") == "semantic-scholar"
+                       and diagnostics.get("providerUsed", "semantic-scholar") == "semantic-scholar"
+                       and providers <= {None, "semantic-scholar"})
+    verified_http = bool((successful_http and semantic_result) or openalex_http)
     non_mock = bool(execution and execution.get("simulatedResult") is False)
     papers = len(execution["result"]["items"]) if protocol else 0
     return {"protocolCompleted": protocol, "backendResultMatchesAipProduct": matched,
-            "httpObservationAvailable": observed, "semanticHttp200Observed": bool(successful_http),
-            "returnedPaperCount": papers, "businessReady": bool(matched and successful_http and non_mock and papers),
-            "researchSucceeded": bool(matched and successful_http and non_mock and papers),
+            "httpObservationAvailable": bool(observed or openalex_http), "semanticHttp200Observed": bool(successful_http),
+            "openalexHttp200Observed": openalex_http,
+            "returnedPaperCount": papers, "businessReady": bool(matched and verified_http and non_mock and papers),
+            "researchSucceeded": bool(matched and verified_http and non_mock and papers),
             "emptyResult": bool(matched and papers == 0),
-            "passed": bool(matched and successful_http and non_mock),
-            "scope": "LOCAL_AIP_LIVE_LITERATURE_ONLY", "realSourceRequested": True if observed else None,
+            "passed": bool(matched and verified_http and non_mock),
+            "scope": "LOCAL_AIP_LIVE_LITERATURE_ONLY", "realSourceRequested": True if observed or openalex_http else None,
             "llmCalled": False, "paperReadingExecuted": False, "pdfDownloaded": False,
             "repositoryAnalysisExecuted": False, "platformDiscoveryUsed": False,
             "tlsIdentityVerified": False, "fixtureReplay": False}

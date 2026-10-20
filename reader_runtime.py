@@ -8,6 +8,7 @@ from dotenv import dotenv_values
 
 from reader_adapter import ReaderAdapterError, load_reader
 from reader_batch_adapter import call_reader_batch
+from reader_adapter import call_reader, to_reader_request
 
 
 def prepare_live_reader(root, *, env_file, runtime_home=None, pdf_fetcher=None):
@@ -49,3 +50,30 @@ async def execute_reader_task(payload, *, prepared, timeout_seconds=600,
     agent, task_model = prepared
     return await call_reader_batch(payload, agent, task_model, timeout_seconds=timeout_seconds,
                                    saved_outcomes=saved_outcomes, on_paper=on_paper, on_start=on_start)
+
+
+def make_persistent_reader_executor(*, prepared, prepare_task, timeout_seconds=600):
+    """Platform option in the Reader runtime: reuse one prepared Agent/embedding.
+
+    prepare_task must verify this task's PDF and make its bytes available through
+    the prepared Provider's injected fetcher. This function never initializes a
+    second Provider. Platform task deduplication remains Wu's responsibility.
+    """
+    import asyncio
+    from aip_business_partner import LocalBackendFailure
+    if not callable(prepare_task) or not isinstance(prepared, tuple) or len(prepared) != 2:
+        raise ValueError("INVALID_PERSISTENT_READER_CONFIGURATION")
+    lock = asyncio.Lock()
+    async def execute(payload):
+        task = to_reader_request(payload)
+        # Serialize preparation and reading to prevent one task's source/cache
+        # or provider diagnostics from being confused with another paper.
+        async with lock:
+            await prepare_task(task)
+            outcome = await call_reader(task, *prepared, timeout_seconds=timeout_seconds)
+            if outcome["error"]:
+                raise LocalBackendFailure(outcome["error"]["code"])
+            if outcome["diagnostics"].get("analysisLevel") != "fulltext":
+                raise LocalBackendFailure("INVALID_READER_RESULT")
+            return outcome["result"]
+    return execute

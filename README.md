@@ -1,6 +1,15 @@
 # ResearchMesh 智研协作
 
+> 2026-10-20 后续集成：OpenAlex Provider、Resource Resolver配置、动态Reader接缝已选择性迁入，保留旧链路兼容；备用检索/资源解析默认关闭，显式配置才新增联网。平台稳定业务入口为 `business_execution.execute_business_task`，默认拒绝执行，不新增协议字段。隔离Worker与持久Reader复用方式见 [给吴的业务入口说明](docs/delivery/platform_business_entry_v1.md)。本轮仍未推送、未进行新增能力的真实联网/收费或正式平台验收。
+
+> 2026-10-20 团队快照对齐：公开可拉取的赵基线仍是 `zhao/planner-integration@d4bb9d8`；本地统一入口和对齐改动尚未推送。13项业务同路径中8个Repository业务模块与张预览一致，Reader业务包已选择性迁入。后续Provider/动态接缝已补齐，当前684项免费回归通过；状态与历史阶段区分见 [逐文件集成记录](docs/delivery/zhao_integration_alignment_20261020.md)。
+
+> 2026-10-20 已补齐新问题的本机三智能体统一入口：`run_aip_research.py` 支持规划→检索→阅读1篇→仓库1个→报告，兼容原两阶段。LoRA 场景已完成一次真实 Planner→检索→阅读→仓库静态分析→报告验收；这不代表新增 OpenAlex/动态平台接缝或正式梧桐链路已经验收。默认仓库静态模式，额外增强必须显式开启。运行方式与边界见 [统一入口说明](docs/three_agent_single_entry.md)。
+
 > 2026-10-19 Repository 双模式已整合：默认静态零模型；仅 `--analysis-mode enhanced --execute` 才允许收费增强。复用旧 LoRA Reader 的真实增强验收已通过（模型 1 次），不代表正式梧桐联调完成。见 [运行说明](docs/repository_dual_mode.md)、[真实增强验收](docs/repository_dual_mode_live_20261019.md) 和 [桌面项目整合说明](docs/repository_dual_mode_integration_20261019.md)。
+
+> invitation-only 入口已在本地补齐：`run_group_invitation.py` 默认离线，真实 ACL 和邀请分别需要显式开启。
+> 见 [建群与邀请说明](docs/group_invitation.md)。当前开发验收不代表已发送真实 invitation，不发送 TaskCommand。
 
 > 2026-10-16 平台接入更新：Leader 已取得身份与 clientAuth 证书，独立梧桐 MQ 连接检查通过。
 > 新增可配置的 `run_mq_check.py`，默认离线、加 `--execute` 才连接；不建群、不发任务、不调用模型。

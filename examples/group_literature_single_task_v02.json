@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "0.2",
+  "subtaskId": "S1",
+  "taskType": "literature_search",
+  "goal": "检索题为 LoRA: Low-Rank Adaptation of Large Language Models 的论文，最多返回1篇，保留可定位出处；不阅读全文，不分析代码仓库。",
+  "input": {"query": "LoRA: Low-Rank Adaptation of Large Language Models"},
+  "constraints": {"maxResults": 1},
+  "outputSchema": "paper_records.v1"
+}

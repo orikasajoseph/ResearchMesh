@@ -48,7 +48,12 @@ class AlignmentTests(unittest.TestCase):
         self.assertEqual(len(aligned), 8)
         for row in aligned:
             self.assertEqual(blob(ROOT / row["path"]), row["previewBlob"], row["path"])
-        self.assertFalse(manifest["workingTreeChangesPublished"])
+        # Publication is a historical record, not a permanent "unpublished"
+        # invariant. The manifest now records explicit integration commits.
+        self.assertEqual(set(manifest["localCommits"]), {"businessIntegration", "groupInvitationTool"})
+        for commit in manifest["localCommits"].values():
+            self.assertRegex(commit, r"^[0-9a-f]{7,40}$")
+        self.assertIn("verify the remote branch", manifest["remotePublicationRule"])
         self.assertFalse(manifest["integrationPolicy"]["wholePreviewMerge"])
 
     def test_bundled_reader_business_sources_are_exact_snapshot_not_reimplemented(self):

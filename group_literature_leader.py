@@ -21,7 +21,7 @@ from acps_sdk.aip.aip_group_runtime import (
 )
 
 from aip_business_partner import validate_local_task
-from business_execution import validate_business_result
+from business_execution import SAFE_BACKEND_CODES, validate_business_result
 from group_invitation import AUTH_SERVICE_URL, JoinConfirmation, delete_resource, validate
 from platform_mq_check import HOST, PORT, VHOST, CheckError, certificate_context, classify_error
 
@@ -38,6 +38,24 @@ def validate_literature_task(task):
 async def settle_group_shutdown():
     # Give the Partner time to consume DISBAND before its temporary queue is removed.
     await asyncio.sleep(2)
+
+
+def partner_failure_diagnostic(message):
+    """Retain only recognized codes, never arbitrary remote text or credentials."""
+    codes = set()
+    items = list(message.status.dataItems or []) + list(message.dataItems or [])
+    for item in items:
+        if isinstance(item, StructuredDataItem) and isinstance(item.data, dict):
+            candidates = [item.data.get("code"), item.data.get("errorCode")]
+            error = item.data.get("error")
+            candidates.append(error.get("code") if isinstance(error, dict) else error)
+        else:
+            candidates = [getattr(item, "text", None)]
+        for value in candidates:
+            if isinstance(value, str) and value in SAFE_BACKEND_CODES:
+                codes.add(value)
+    return {"codes": sorted(codes), "detailsOmitted": True,
+            "requiresPartnerLog": not bool(codes)}
 
 
 class SingleTaskMqClient(GroupLeaderMqClient):
@@ -137,6 +155,8 @@ class LiteratureConversation:
                 event("TASK_STATE_" + state.value.upper().replace("-", "_"))
                 if state in (TaskState.Failed, TaskState.Rejected, TaskState.Canceled, TaskState.AwaitingInput):
                     record["partnerTerminalState"] = state.value
+                    record["partnerFailure"] = partner_failure_diagnostic(message)
+                    event("PARTNER_FAILURE_RECORDED")
                     raise CheckError("PARTNER_" + state.value.upper().replace("-", "_"))
                 if state == TaskState.AwaitingCompletion:
                     result = self.extract(message, task)

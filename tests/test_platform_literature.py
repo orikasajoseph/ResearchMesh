@@ -397,6 +397,35 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ReportTests(unittest.TestCase):
+    def test_failure_diagnostic_keeps_code_but_not_remote_secrets(self):
+        m = message("g", "t", "s", TaskState.Failed)
+        m.status.dataItems = [StructuredDataItem(data={
+            "error": {"code": "RATE_LIMITED", "message": "Bearer secret-token"},
+            "password": "secret-password"})]
+        diagnostic = leader.partner_failure_diagnostic(m)
+        self.assertEqual(diagnostic["codes"], ["RATE_LIMITED"])
+        self.assertNotIn("secret", json.dumps(diagnostic))
+        self.assertFalse(diagnostic["requiresPartnerLog"])
+
+    def test_unknown_remote_error_is_not_copied(self):
+        m = message("g", "t", "s", TaskState.Failed)
+        m.dataItems = [StructuredDataItem(data={"code": "secret-token", "error": ["unsafe"]})]
+        diagnostic = leader.partner_failure_diagnostic(m)
+        self.assertEqual(diagnostic["codes"], [])
+        self.assertTrue(diagnostic["requiresPartnerLog"])
+        self.assertNotIn("secret", json.dumps(diagnostic))
+
+    def test_live_report_distinguishes_automatic_and_joint_acceptance(self):
+        record = {"scope": "PLATFORM_LITERATURE_SINGLE_TASK", "groupId": "g",
+                  "taskId": "t", "sessionId": "s", "protocolCompleted": False,
+                  "businessReady": False, "cleanupSucceeded": True, "passed": False,
+                  "error": {"code": "PARTNER_FAILED"}, "remoteStateUnknown": False,
+                  "result": None, "partnerFailure": {"codes": ["RATE_LIMITED"]}}
+        report = cli.report_text(record)
+        self.assertIn("RATE_LIMITED", report)
+        self.assertIn("验收待人工核对", report)
+        self.assertIn("不代表已收到 Partner 离群确认", report)
+
     def test_example_seven_fields_and_max_one(self):
         task = json.loads((Path(leader.__file__).parent /
                           "examples/group_literature_single_task_v02.json").read_text(encoding="utf-8"))

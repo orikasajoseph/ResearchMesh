@@ -24,6 +24,14 @@ def report_text(record):
              "论文数据来自 Partner 返回值；真实 Provider 调用及后端版本需与吴侧日志对应核验。", ""]
     if record["error"]:
         lines.extend(["错误：" + record["error"]["code"], ""])
+    if live:
+        lines.extend(["验收待人工核对：返回论文是否为指定目标、吴侧真实 Provider 调用日志、"
+                      "DISBAND 接收与离群日志。passed 仅表示本程序检查通过；"
+                      "cleanupSucceeded 不代表已收到 Partner 离群确认。", ""])
+    if record.get("partnerFailure"):
+        diagnostic = record["partnerFailure"]
+        lines.extend(["Partner 业务错误码：" + (", ".join(diagnostic["codes"]) or "未提供可识别的安全错误码"),
+                      "其他远端错误内容未保存；请用 Group/Session/Task ID 对照吴侧日志。", ""])
     if record["remoteStateUnknown"]:
         lines.extend(["远端执行结果不确定：禁止直接重发 Start；请先核对 Partner 任务记录。", ""])
     result = record["result"]

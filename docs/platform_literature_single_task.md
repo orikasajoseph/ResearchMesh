@@ -1,7 +1,7 @@
 # 正式平台 Literature 单任务联调
 
 Leader 入口为 `run_platform_literature.py`，通信逻辑为 `group_literature_leader.py`。
-此前已推送基线为 `zhao/planner-integration@ebb4028`；本文对应新增本地代码，未代表正式任务已验收。
+单任务入口已推送基线为 `zhao/planner-integration@3090f7b`；正式业务任务仍待双方在线验收。
 
 ## 已完成和本轮范围
 
@@ -22,7 +22,8 @@ Partner 由显式 AIC 指定，尚未覆盖 ADP 自动发现。原 `run_group_in
 3. 确认实际运行的 Partner commit，已绑定约定业务入口，接收七字段 Task、返回六字段 Result。
    此处记录的是吴声明的版本，Leader 不会自动验证远程部署版本。
 4. Literature 后端超时约 120 秒，Leader 默认总任务期限 180 秒；准备保留真实 Provider 调用诊断。
-   若 Partner 暂无跨进程持久化去重，本轮保持单次受控验收，不据此宣称重复消息和重启恢复通过。
+   按当前双方约定，先等待吴完成统一业务入口绑定与 SQLite 持久化去重回归，再确认部署 commit。
+   单次任务成功只证明该次执行；重复消息和重启恢复能力需另查吴侧专项测试。
 
 默认任务位于 `examples/group_literature_single_task_v02.json`：
 检索题为 LoRA: Low-Rank Adaptation of Large Language Models 的论文，最多1篇。
@@ -63,6 +64,10 @@ BUSINESS_RESULT_VALIDATED → TASK_COMPLETE_PUBLISHED → TASK_COMPLETED_CONFIRM
 accepted/working 中间状态可能因后台交付顺序而省略；必须有产物校验和 Complete/completed。
 
 最终 `protocolCompleted=true`、`businessReady=true`、`cleanupSucceeded=true`、`passed=true`。
+这些标志仅为 Leader 自动检查结果。双方还需核对论文标题及链接是否对应指定 LoRA、
+吴侧同一任务的真实 Provider 日志，以及 DISBAND 接收和离群回调，才能共同宣布正式验收通过。
+Leader 发送 DISBAND 后短暂等待并删除本轮资源，cleanupSucceeded 不代表收到 Partner 离群确认。
+Partner 失败时只保存白名单业务错误码，不保存任意远端错误文本；没有可识别错误码时按任务 ID 查吴侧日志。
 空检索结果可以完成协议，但 `businessReady=false`、`passed=false`，保留 NO_RESULTS，不编造论文。
 错误、超时或 Ctrl+C 均尝试发送 DISBAND 并清理本轮随机群组资源和 ACL。
 清理失败会保留结果但 passed=false。只操作本轮临时群，不删除持久 Inbox 或共享 Exchange。

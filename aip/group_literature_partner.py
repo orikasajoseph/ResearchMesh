@@ -6,7 +6,7 @@ import ssl
 from pathlib import Path
 from typing import Any
 
-from acps_sdk.aip import GroupPartnerMqClient
+from acps_sdk.aip import GroupPartnerMqClient, GroupMgmtCommandType
 from aip.group_literature_handler import LiteratureGroupHandler
 
 
@@ -48,6 +48,27 @@ async def serve(*, partner_aic: str, leader_aic: str, credential_dir: Path) -> N
     )
     handler = LiteratureGroupHandler(client, leader_aic=leader_aic)
     client.set_command_handler(handler.on_command)
+    async def on_mgmt_command(command: Any) -> None:
+        if (
+            command.command == GroupMgmtCommandType.DISBAND
+            and command.groupId == client.group_id
+            and command.senderRole == "leader"
+            and command.senderId == leader_aic
+            and command.must_respond(partner_aic)
+        ):
+            print("DISBAND_RECEIVED")
+            print("Group:", command.groupId)
+
+    async def on_disconnect(
+        _client: GroupPartnerMqClient,
+        left_group_id: str | None,
+    ) -> None:
+        print("GROUP_LEFT")
+        print("Group:", left_group_id)
+        print("INBOX_RESTART_REQUIRED")
+
+    client.set_mgmt_command_handler(on_mgmt_command)
+    client.set_disconnect_handler(on_disconnect)
 
     async def policy(invitation: Any) -> bool:
         return invitation_allowed(

@@ -171,7 +171,7 @@ class ConversationTests(unittest.IsolatedAsyncioTestCase):
 class WorkflowTests(unittest.IsolatedAsyncioTestCase):
     async def scenario(self, *, execute=True, partner_ready=True, partner_commit="edb9dcf",
                        acl_error=False, join_timeout=False, task_timeout=False,
-                       cleanup_error=False, checkpoint=None, task=None):
+                       cleanup_error=False, checkpoint=None, task=None, task_release=None):
         operations = []
         acl = MagicMock()
         async def authorize(**kwargs):
@@ -234,7 +234,7 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
             stack.enter_context(patch.object(leader.LiteratureConversation, "run", quick))
             rec = await leader.run_group_literature(cfg, TASK if task is None else task,
                 execute=execute, partner_ready=partner_ready, partner_commit=partner_commit,
-                checkpoint=checkpoint)
+                checkpoint=checkpoint, task_release=task_release)
         return rec, operations, client, (a, b, c), deletion, acl
 
     async def test_default_offline_no_network_or_task(self):
@@ -274,6 +274,29 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         client.send_mgmt_command.assert_awaited_once_with(GroupMgmtCommandType.DISBAND, mentions="all")
         self.assertTrue(rec["groupId"].startswith("rm-literature-"))
         self.assertEqual(acl.delete_group.call_args.kwargs["group_id"], rec["groupId"])
+
+    async def test_manual_release_happens_after_join_before_start(self):
+        released = []
+        async def release(record):
+            released.append((record["groupId"], record["sessionId"], record["taskId"]))
+        rec, ops, _, _, _, _ = await self.scenario(task_release=release)
+        self.assertTrue(rec["taskReleaseRequired"])
+        self.assertTrue(rec["taskReleaseConfirmed"])
+        self.assertEqual(len(released), 1)
+        events = [event["event"] for event in rec["events"]]
+        self.assertLess(events.index("GROUP_JOINED_CONFIRMED"), events.index("TASK_RELEASE_WAITING"))
+        self.assertLess(events.index("TASK_RELEASE_CONFIRMED"), events.index("TASK_START_ATTEMPT"))
+        self.assertEqual(ops, ["acl", "acl", "invite", "start", "complete"])
+
+    async def test_declined_release_sends_no_task_and_cleans_up(self):
+        async def decline(_record):
+            raise leader.CheckError("TASK_RELEASE_DECLINED")
+        rec, _, client, _, _, _ = await self.scenario(task_release=decline)
+        self.assertEqual(rec["error"]["code"], "TASK_RELEASE_DECLINED")
+        self.assertFalse(rec["taskReleaseConfirmed"])
+        self.assertEqual(rec["taskCommandsSent"], 0)
+        client.send_task_command.assert_not_called()
+        self.assertTrue(rec["cleanupSucceeded"])
 
     async def test_acl_failure_stops_before_mq_and_redacts_error(self):
         rec, _, client, factories, _, _ = await self.scenario(acl_error=True)
@@ -397,6 +420,14 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
 
 
 class ReportTests(unittest.TestCase):
+    def test_release_prompt_requires_explicit_send(self):
+        record = {"groupId": "g", "sessionId": "s", "taskId": "t"}
+        with patch("builtins.input", return_value="SEND"):
+            asyncio.run(cli.confirm_task_release(record, 1))
+        with patch("builtins.input", return_value=""):
+            with self.assertRaisesRegex(leader.CheckError, "TASK_RELEASE_DECLINED"):
+                asyncio.run(cli.confirm_task_release(record, 1))
+
     def test_failure_diagnostic_keeps_code_but_not_remote_secrets(self):
         m = message("g", "t", "s", TaskState.Failed)
         m.status.dataItems = [StructuredDataItem(data={

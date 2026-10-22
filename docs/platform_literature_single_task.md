@@ -55,10 +55,13 @@ $partnerCommit = "替换为吴确认的7至40位十六进制commit"
   --leader-aic "1.2.156.3088.1.BUPT.RECKYJ.Q77J9R.52YOLZ.11P6" `
   --partner-aic "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL" `
   --credentials-dir "C:\Users\orika\Documents\Codex\ResearchMesh-platform" `
-  --partner-commit $partnerCommit --execute --partner-ready
+  --partner-commit $partnerCommit --execute --partner-ready --confirm-after-join
 ```
 
-程序输出 Group ID 时同步给吴，同时保留 Session ID、Task ID，以便对应后端调用。
+程序确认 GROUP_JOINED 后会暂停并输出 Group、Session、Task ID。将三个 ID 发给吴；
+只有收到吴侧同一 Group 的 GROUP_JOINED 确认后，输入大写 `SEND` 并按 Enter，程序才发送 Start。
+默认最多等待 600 秒，可用 `--release-timeout` 调整；等待超时、终端关闭或输入其他内容时，
+程序不发送 TaskCommand，并清理本轮 Group。
 正常事件顺序：GROUP_JOINED_CONFIRMED → TASK_START_PUBLISHED → TASK_STATE_... →
 BUSINESS_RESULT_VALIDATED → TASK_COMPLETE_PUBLISHED → TASK_COMPLETED_CONFIRMED → CLEANUP_FINISHED。
 accepted/working 中间状态可能因后台交付顺序而省略；必须有产物校验和 Complete/completed。

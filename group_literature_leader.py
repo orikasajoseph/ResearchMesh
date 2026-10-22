@@ -188,7 +188,8 @@ class LiteratureConversation:
 
 
 async def run_group_literature(config, task, *, execute=False, partner_ready=False,
-                               partner_commit=None, task_timeout=180, checkpoint=None):
+                               partner_commit=None, task_timeout=180, checkpoint=None,
+                               task_release=None):
     """Preflight by default. Live mode creates a fresh temporary group and task."""
     started = monotonic()
     group_id, task_id, session_id = (prefix + uuid4().hex for prefix in
@@ -205,6 +206,7 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
         "aclWriteAttempted": False, "leaderAuthorized": False, "partnerAuthorized": False,
         "amqpConnected": False, "groupCreationAttempted": False, "groupCreated": False,
         "invitationPublishAttempted": False, "invitationPublished": False, "partnerJoinConfirmed": False,
+        "taskReleaseRequired": task_release is not None, "taskReleaseConfirmed": False,
         "startAttempted": False, "startPublished": False, "taskCommandsSent": 0,
         "completeAttempted": False, "completePublished": False,
         "resultValidated": False, "result": None, "taskStates": [],
@@ -241,6 +243,8 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
         record["task"] = payload
         if type(execute) is not bool or type(partner_ready) is not bool:
             raise CheckError("INVALID_EXECUTION_FLAGS")
+        if task_release is not None and not callable(task_release):
+            raise CheckError("INVALID_TASK_RELEASE")
         directory = validate(config, "invite" if execute else "offline", execute, partner_ready)
         if type(task_timeout) not in (int, float) or not math.isfinite(task_timeout) or not 1 <= task_timeout <= 600:
             raise CheckError("INVALID_TASK_TIMEOUT")
@@ -292,6 +296,11 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
             await asyncio.wait_for(conversation.join.event.wait(), config.join_timeout)
             record["partnerJoinConfirmed"] = True
             event("GROUP_JOINED_CONFIRMED")
+            if task_release is not None:
+                event("TASK_RELEASE_WAITING")
+                await task_release(deepcopy(record))
+                record["taskReleaseConfirmed"] = True
+                event("TASK_RELEASE_CONFIRMED")
             await conversation.run(client, payload, record, event, task_timeout)
     except asyncio.CancelledError:
         record["error"] = {"code": "INTERRUPTED", "type": "CancelledError"}

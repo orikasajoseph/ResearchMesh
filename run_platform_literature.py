@@ -9,7 +9,23 @@ from uuid import uuid4
 
 from group_invitation import InviteConfig
 from group_literature_leader import run_group_literature, validate_literature_task
-from platform_mq_check import ROOT
+from platform_mq_check import CheckError, ROOT
+
+
+async def confirm_task_release(record, timeout):
+    print("已确认 GROUP_JOINED；请先把以下 ID 发给吴：", flush=True)
+    print("Group:", record["groupId"], flush=True)
+    print("Session:", record["sessionId"], flush=True)
+    print("Task:", record["taskId"], flush=True)
+    prompt = "收到吴侧 GROUP_JOINED 确认后输入 SEND 并按 Enter；其他输入将取消本轮："
+    try:
+        answer = await asyncio.wait_for(asyncio.to_thread(input, prompt), timeout)
+    except TimeoutError:
+        raise CheckError("TASK_RELEASE_TIMEOUT") from None
+    except EOFError:
+        raise CheckError("TASK_RELEASE_INPUT_CLOSED") from None
+    if answer.strip() != "SEND":
+        raise CheckError("TASK_RELEASE_DECLINED")
 
 
 def report_text(record):
@@ -59,12 +75,21 @@ def main(argv=None):
     parser.add_argument("--timeout", type=float, default=20)
     parser.add_argument("--join-timeout", type=float, default=45)
     parser.add_argument("--task-timeout", type=float, default=180)
+    parser.add_argument("--confirm-after-join", action="store_true",
+                        help="Pause after GROUP_JOINED until SEND is typed")
+    parser.add_argument("--release-timeout", type=float, default=600)
     args = parser.parse_args(argv)
     logging.disable(logging.CRITICAL)
     try:
         task = validate_literature_task(json.loads(args.task.read_text(encoding="utf-8-sig")))
     except (OSError, ValueError, TypeError, KeyError):
         print("任务文件无效：需要七字段 Literature v0.2 Task，maxResults=1。")
+        return 2
+    if args.confirm_after_join and not args.execute:
+        print("--confirm-after-join 仅用于 --execute 正式运行。")
+        return 2
+    if not 1 <= args.release_timeout <= 3600:
+        print("--release-timeout 必须为 1 至 3600 秒。")
         return 2
     directory = ROOT / "outputs/platform-literature" / f"{datetime.now():%Y%m%d-%H%M%S}-{uuid4().hex[:8]}"
     directory.mkdir(parents=True, exist_ok=False)
@@ -86,9 +111,12 @@ def main(argv=None):
         print("将发送一次真实检索任务；不调用 Planner，不自动重试 Start；Partner 可能使用外部 API 额度。", flush=True)
     print("记录：", directory, flush=True)
     try:
+        task_release = ((lambda record: confirm_task_release(record, args.release_timeout))
+                        if args.confirm_after_join else None)
         record = asyncio.run(run_group_literature(config, task, execute=args.execute,
             partner_ready=args.partner_ready, partner_commit=args.partner_commit,
-            task_timeout=args.task_timeout, checkpoint=checkpoint))
+            task_timeout=args.task_timeout, checkpoint=checkpoint,
+            task_release=task_release))
     except KeyboardInterrupt:
         print("已中断；先检查本轮记录与 Partner 状态，不要直接重发任务。")
         return 130

@@ -139,7 +139,8 @@ class RepositoryAgent:
         entrypoints = _unique_entrypoints([*artifact_entrypoints, *file_entrypoints])
         run_commands = _unique_commands([*artifact_commands, *file_commands])
 
-        enrichment = self._enrich(all_evidence, entrypoints, run_commands, dependencies)
+        enrichment = self._enrich(all_evidence, entrypoints, run_commands, dependencies,
+                                  task.input.paperNotes)
         warnings.extend(enrichment.warnings)
         total_ms = round((time.perf_counter() - started) * 1000, 3)
         record = RepositoryRecord(
@@ -153,6 +154,8 @@ class RepositoryAgent:
             reproductionBarriers=enrichment.reproduction_barriers,
             overview=enrichment.overview,
             evidence=all_evidence,
+            paperEvidence=[item for note in task.input.paperNotes for item in note.evidence],
+            paperCodeRelations=enrichment.paper_code_relations,
             diagnostics=Diagnostics(
                 codewikiVersion=CODEWIKI_VERSION,
                 codewikiCommit=CODEWIKI_COMMIT,
@@ -191,6 +194,7 @@ class RepositoryAgent:
         entrypoints: list[Entrypoint],
         run_commands: list[RunCommand],
         dependencies: list[Dependency],
+        paper_notes,
     ) -> EnrichmentResult:
         if not self.enrichment_enabled:
             return EnrichmentResult(None, [], [], 0.0)
@@ -206,12 +210,12 @@ class RepositoryAgent:
                 return EnrichmentResult(
                     None, [], ["LLM_ENRICHMENT_UNAVAILABLE"], 0.0
                 )
-        return enricher.enrich(
-            evidence,
-            entrypoints=[item.model_dump() for item in entrypoints],
-            run_commands=[item.model_dump() for item in run_commands],
-            dependency_summary={"edgeCount": len(dependencies)},
-        )
+        kwargs = {"entrypoints": [item.model_dump() for item in entrypoints],
+                  "run_commands": [item.model_dump() for item in run_commands],
+                  "dependency_summary": {"edgeCount": len(dependencies)}}
+        if paper_notes:
+            kwargs["paper_notes"] = paper_notes
+        return enricher.enrich(evidence, **kwargs)
 
     @staticmethod
     def _failure(

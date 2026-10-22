@@ -9,13 +9,19 @@ from planner import Planner
 from run_deepseek_planner import save_plan
 
 
-async def create_plan(query):
+async def create_plan(query, *, llm_adapter="existing-async"):
     settings = ProviderSettings.from_env()
+    if llm_adapter not in {"existing-async", "team"}:
+        raise ValueError("UNKNOWN_LLM_ADAPTER")
+    model_type = ProviderPlanningModel
+    if llm_adapter == "team":
+        from team_planning_model import TeamPlanningModel
+        model_type = TeamPlanningModel
     start = time.perf_counter()
-    async with ProviderPlanningModel(settings) as model:
+    async with model_type(settings) as model:
         plan = await Planner(model, timeout_seconds=settings.timeout_seconds).plan(query)
         metadata = {
-            "plannerMode": "live", "provider": settings.provider, "model": settings.model,
+            "plannerMode": "live", "provider": settings.provider, "model": settings.model, "llmAdapter": llm_adapter,
             "requestCount": model.request_count, "lastResponseUsage": model.last_usage,
             "elapsedMs": round((time.perf_counter() - start) * 1000),
             "planValidated": True, "agentsExecuted": False, "aipUsed": False,
@@ -26,11 +32,12 @@ async def create_plan(query):
 def main():
     parser = argparse.ArgumentParser(description="真实规划：消耗模型额度，不执行 Agent/AIP")
     parser.add_argument("--query")
+    parser.add_argument("--llm-adapter", choices=["existing-async", "team"], default="existing-async")
     args = parser.parse_args()
     try:
         ProviderSettings.from_env()
         query = args.query or input("请输入研究问题：").strip()
-        plan, metadata = asyncio.run(create_plan(query))
+        plan, metadata = asyncio.run(create_plan(query, llm_adapter=args.llm_adapter))
         print("已保存：", save_plan(plan, metadata))
         print(plan["clarificationQuestion"] or "计划通过字段、skill、输入及依赖校验。")
     except (EOFError, KeyboardInterrupt):

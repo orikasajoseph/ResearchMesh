@@ -6,6 +6,7 @@ outputs/
 .env.*
 !.env.example
 .venv/
+.venv-repository/
 venv/
 .vscode/
 .pytest_cache/
@@ -16,3 +17,25 @@ tmp/
 *.egg-info/
 build/
 dist/
+
+# Local paper fixture is not part of the reviewed team source delivery.
+/examples/reader_test.pdf
+# Credentials/certificates remain local, including future platform setup.
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Platform enrollment credentials and isolated tool environments stay local.
+.venv-*/
+.acps-cli/
+keyfiles/
+credentials/
+private/
+eab.json
+*-eab.json
+eab-*.json
+registry-user.json
+registry-admin.json

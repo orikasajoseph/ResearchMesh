@@ -224,9 +224,9 @@ class SemanticScholarProvider:
                                            else str(exc), attempts=semantic_attempts + 1) from exc
         if filters.year:
             try:
-                lower, _, upper = filters.year.partition(":")
+                lower, separator, upper = filters.year.partition(":")
                 start = int(lower) if lower else None
-                end = int(upper) if upper else start
+                end = (int(upper) if upper else None) if separator else start
             except ValueError as exc:
                 raise ProviderRequestError("INVALID_YEAR_FILTER", attempts=semantic_attempts + 1) from exc
             selected = [(paper, raw) for paper, raw in zip(papers, raw_papers)

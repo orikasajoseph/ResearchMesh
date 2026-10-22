@@ -37,6 +37,9 @@ def validate_result(result: dict[str, Any], task: dict[str, Any]) -> None:
                 raise ValueError("仓库结果必须记录许可证或明确 UNKNOWN")
             if not isinstance(data.get("relationEvidence"), str) or not data["relationEvidence"].strip():
                 raise ValueError("仓库结果必须说明论文关联依据；无关联请说明不适用")
+            if data.get('paperEvidence') or data.get('paperCodeRelations') or data.get('enrichment'):
+                from repository_enhancement_contract import validate_enhancement_evidence
+                validate_enhancement_evidence(data, task)
         if data.get("isMock") is not True and item.kind != "paper":
             evidence = data.get("evidence")
             if not isinstance(evidence, list) or not evidence:

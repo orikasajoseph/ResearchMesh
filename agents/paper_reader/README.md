@@ -1,5 +1,10 @@
 # ResearchMesh Paper Reader Agent v0.1
 
+> 2026-10-20：本目录业务包、依赖声明和离线测试选择性取自张
+> `zhang/three-agents-integration-preview@22863c0`，不是重新开发 Agent。
+> 五个业务 Python 文件保持上游内容；未整体合并 Partner 或调度器。
+> 默认统一入口可使用此目录，仍需本机 Reader Python 与 embedding 缓存。
+
 基于 PaperQA commit `57e89f7223b0960d5ee5ea048c69e3c47e088572` 的单篇论文
 全文分析业务 Wrapper。
 
@@ -44,8 +49,9 @@ payload = result.model_dump(mode="json")
 
 ```powershell
 python -m unittest agents.paper_reader.tests.test_researchmesh_paper_reader -v
-python agents/paper_reader/scripts/live_test_paper_reader.py
 ```
 
-第一条为离线单测，不调用 DeepSeek。第二条使用仓库旁的 PaperQA 真实测试 PDF，启动
-本地 HTTP 文件服务，并在同一 Agent 实例中执行 cold/warm 两次完整全文分析。
+上面是离线单测，不调用 DeepSeek。预览快照中会执行 cold/warm 两次阅读的付费脚本
+本轮没有迁入，不应把它当作免费预检。真实运行复用项目根目录 `run_aip_reader.py`
+或 `run_aip_research.py`，仅显式 `--execute` 才允许执行；需另行同意收费测试。
+三阶段统一入口与失败保留见根目录 `docs/three_agent_single_entry.md`。

@@ -1,0 +1,20 @@
+{
+  "result": {
+    "acsMap": {
+      "offline-literature": {
+        "aic": "offline-literature", "active": true,
+        "lastModifiedTime": "2026-10-12T00:00:00+08:00", "protocolVersion": "02.02",
+        "name": "Offline Literature", "description": "Synthetic discovery fixture, not registered",
+        "version": "0.1.0",
+        "provider": {"countryCode": "CN", "name": "Offline test", "email": "test@example.invalid"},
+        "securitySchemes": {"mtls": {"type": "mutualTLS", "description": "Preserve, never downgrade"}},
+        "endPoints": [{"url": "https://example.invalid/rpc", "transport": "JSONRPC", "security": [{"mtls": []}]}],
+        "capabilities": {"streaming": false, "notification": false, "messageQueue": []},
+        "defaultInputModes": ["application/json"], "defaultOutputModes": ["application/json"],
+        "skills": [{"id": "literature.search", "name": "Offline search", "description": "Synthetic only",
+                    "version": "0.1.0", "tags": ["offline"], "inputModes": ["application/json"], "outputModes": ["application/json"]}]
+      }
+    },
+    "agents": [{"group": "offline-only", "agentSkills": [{"aic": "offline-literature", "skillId": "literature.search", "ranking": 1}]}]
+  }
+}

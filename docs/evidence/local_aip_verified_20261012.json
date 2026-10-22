@@ -1,0 +1,75 @@
+{
+  "scope": "SANITIZED_SUMMARY_OF_TWO_PREVIOUS_LOCAL_AIP_RUNS",
+  "businessSchemaVersion": "0.2",
+  "sdkVersion": "2.2.0",
+  "tasks": [
+    {
+      "skill": "literature.search",
+      "state": "completed",
+      "latencyMs": 1072.918,
+      "itemCount": 3,
+      "evidenceCount": 0
+    },
+    {
+      "skill": "paper.analyze",
+      "state": "completed",
+      "latencyMs": 60647.392,
+      "itemCount": 1,
+      "evidenceCount": 5
+    }
+  ],
+  "platformDiscoveryVerified": false,
+  "tlsIdentityVerified": false,
+  "singleFreshEndToEndRun": false,
+  "repositoryExecuted": false,
+  "scientificClaimsHumanVerified": false,
+  "newApiCallsByExport": 0,
+  "regression": {
+    "testsPassed": 425,
+    "testsSkipped": 0,
+    "mockScenarioCount": 5,
+    "localHttpChecksPassed": true
+  },
+  "sourceHashes": [
+    {
+      "file": "plan.json",
+      "sha256": "9699ac4ae9347cf34c9e95b828ef415d58c296ca508d6db5502ddcf65ebbed8a"
+    },
+    {
+      "file": "payload.json",
+      "sha256": "d2107e3c2b6c39f72df7205a46ef2de163f9c89aab0f611a8150de4608932166"
+    },
+    {
+      "file": "outcome.json",
+      "sha256": "244a5f9a3ec00c7b4f0c5f13ff45ce30c37a1a88dff14d38be28393807c31f99"
+    },
+    {
+      "file": "backend_outcome.json",
+      "sha256": "c3ed8408cb8e13ce641b02d645bb163cde965fa41b51e0e2c34ccc1aeda69db0"
+    },
+    {
+      "file": "reader_input.json",
+      "sha256": "15ec6a0035eca84ff7f13e34839d5ae1cc9b0e8490785e1c9cdc25c817218af8"
+    },
+    {
+      "file": "reader_journal.json",
+      "sha256": "338e04bbde835763389f77ba2d908011bdac499843fce65d2ce2a3ca36e2ce26"
+    },
+    {
+      "file": "outcome.json",
+      "sha256": "9e5ed696d47254446fc72def6efff033ec4ab19a19befb3449044390fa6ff015"
+    }
+  ],
+  "omitted": [
+    "apiKeys",
+    "certificates",
+    "usernames",
+    "absolutePaths",
+    "researchQuery",
+    "rawMessages",
+    "paperText",
+    "modelClaims",
+    "pdfFiles",
+    "agentIdentities"
+  ]
+}

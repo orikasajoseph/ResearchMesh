@@ -1,4 +1,5 @@
 import os
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -53,7 +54,9 @@ class LiteratureAgentConfig:
             raise ValueError("backoff values cannot be negative")
         if self.cache_ttl_seconds < 0 or self.cache_max_entries < 1:
             raise ValueError("cache settings are invalid")
-        if self.resource_max_papers < 1 or self.resource_max_requests < 1 or self.resource_timeout_seconds <= 0:
+        if (type(self.resource_max_papers) is not int or not 1 <= self.resource_max_papers <= 3
+                or type(self.resource_max_requests) is not int or not 1 <= self.resource_max_requests <= 12
+                or not math.isfinite(self.resource_timeout_seconds) or not 0 < self.resource_timeout_seconds <= 5):
             raise ValueError("resource limits are invalid")
         if not isinstance(self.resource_trust_env, bool):
             raise ValueError("Resource Resolver proxy inheritance setting is invalid")
@@ -110,12 +113,16 @@ class LiteratureAgentConfig:
                 256,
             ),
             search_provider=os.getenv("LITERATURE_SEARCH_PROVIDER", "semantic-scholar"),
-            openalex_fallback=os.getenv("LITERATURE_OPENALEX_FALLBACK", "1").lower() in {"1", "true", "yes"},
+            openalex_fallback=os.getenv("LITERATURE_OPENALEX_FALLBACK", "0").lower() in {"1", "true", "yes"},
             openalex_api_key=os.getenv("OPENALEX_API_KEY") or None,
             openalex_timeout_seconds=float(os.getenv("LITERATURE_OPENALEX_TIMEOUT", "8")),
             openalex_max_results=int(os.getenv("LITERATURE_OPENALEX_MAX_RESULTS", "5")),
             openalex_trust_env=_parse_openalex_trust_env(),
             resource_trust_env=_parse_trust_env("LITERATURE_RESOURCE_TRUST_ENV"),
+            resolve_resources=_parse_trust_env("LITERATURE_RESOLVE_RESOURCES", default="0"),
+            resource_max_requests=int(os.getenv("LITERATURE_RESOURCE_MAX_REQUESTS", "12")),
+            resource_max_papers=int(os.getenv("LITERATURE_RESOURCE_MAX_PAPERS", "3")),
+            resource_timeout_seconds=float(os.getenv("LITERATURE_RESOURCE_TIMEOUT_SECONDS", "5")),
         )
 
 
@@ -123,8 +130,8 @@ def _parse_openalex_trust_env() -> bool:
     return _parse_trust_env("LITERATURE_OPENALEX_TRUST_ENV")
 
 
-def _parse_trust_env(name: str) -> bool:
-    value = os.getenv(name, "1").strip().lower()
+def _parse_trust_env(name: str, default="1") -> bool:
+    value = os.getenv(name, default).strip().lower()
     if value not in {"1", "true", "yes", "0", "false", "no"}:
         raise ValueError(f"{name} must be a boolean")
     return value in {"1", "true", "yes"}

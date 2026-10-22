@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "0.2",
+  "userQuery": "仅静态分析 https://github.com/pypa/sampleproject 的结构、依赖、声明的入口与运行方式，不执行代码、不搜索仓库。",
+  "needsClarification": false,
+  "clarificationQuestion": null,
+  "tasks": [
+    {
+      "schemaVersion": "0.2",
+      "subtaskId": "S3",
+      "taskType": "repository_analyze",
+      "goal": "静态分析指定仓库并保留可追溯的文件证据；不宣称复现成功。",
+      "input": {"repositoryUrls": ["https://github.com/pypa/sampleproject"]},
+      "constraints": {"maxRepositories": 1, "executeCode": false, "allowRepositorySearch": false, "requirePaperNotes": false},
+      "outputSchema": "code_records.v1",
+      "requiredSkill": "repository.analyze",
+      "dependsOn": []
+    }
+  ]
+}

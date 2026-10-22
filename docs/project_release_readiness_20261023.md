@@ -49,6 +49,11 @@
 联合报告 `accepted=true` 只证明三轮规定的协议、业务和资源证据完整。
 它不证明论文结论、代码关系或模型输出已经获得人工科学验收。
 
+Reader/Repository Leader 离线预检可分别使用
+`examples/group_reader_single_task_v02.json` 和
+`examples/group_repository_single_task_v02.json`。示例只是待发送任务候选；正式发送前仍须由
+Leader 核对 PDF、仓库地址、目标 AIC、运行 commit 和时间窗口。默认不带 `--execute`，不会联网。
+
 ## GitHub 堆叠审查
 
 为避免把跨成员历史一次性压成一个难以核对的大 PR，远端已准备三层分支：

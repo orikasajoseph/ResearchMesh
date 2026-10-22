@@ -84,6 +84,15 @@ class ProjectReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "INVALID_PLATFORM_ANALYSIS_TASK"):
             validate_platform_task(missing, "paper_read")
 
+    def test_committed_formal_analysis_examples_are_exact_partner_tasks(self):
+        for task_type, name in (
+            ("paper_read", "group_reader_single_task_v02.json"),
+            ("repository_analyze", "group_repository_single_task_v02.json"),
+        ):
+            payload = json.loads((ROOT / "examples" / name).read_text(encoding="utf-8"))
+            self.assertEqual(len(payload), 7)
+            self.assertEqual(validate_platform_task(payload, task_type), payload)
+
     def test_three_group_orchestrator_binds_in_order_and_uses_stage_budgets(self):
         calls = []
         async def stage(task, timeout):

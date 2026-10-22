@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "0.2",
+  "subtaskId": "S2",
+  "taskType": "paper_read",
+  "goal": "阅读全文并形成可定位证据；正式发送前由 Leader 重新确认 PDF 来源与可访问性。",
+  "input": {
+    "papers": [
+      {
+        "paperId": "a8ca46b171467ceb2d7652fbfb67fe701ad86092",
+        "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+        "doi": null,
+        "url": "https://arxiv.org/abs/2106.09685",
+        "pdfUrl": "https://arxiv.org/pdf/2106.09685",
+        "repositoryUrls": []
+      }
+    ]
+  },
+  "constraints": {
+    "maxPapers": 1
+  },
+  "outputSchema": "paper_notes.v1"
+}

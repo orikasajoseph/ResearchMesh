@@ -10,6 +10,7 @@ from copy import deepcopy
 import math
 
 from aip_business_partner import validate_local_task
+from aip.literature_audit import task_event
 from common.skills import SKILLS
 from reader_adapter import normalize_reader_result
 from repository_adapter import _repo_identity
@@ -91,7 +92,14 @@ async def execute_business_task(task, *, skill, backend, allow_execution=False,
         raise BusinessExecutionError("INVALID_BUSINESS_TIMEOUT")
 
     async def invoke():
-        return await backend(deepcopy(payload))
+        task_event("BACKEND_STARTED")
+        try:
+            result = await backend(deepcopy(payload))
+        except BaseException as error:
+            task_event("BACKEND_FINISHED", outcome="cancelled" if isinstance(error, asyncio.CancelledError) else "failed")
+            raise
+        task_event("BACKEND_FINISHED", outcome="success")
+        return result
 
     try:
         result = await asyncio.wait_for(invoke(), timeout)

@@ -28,6 +28,7 @@ from aip.group_literature_partner import (
     tls_context,
 )
 from aip.group_task_store import DurableTaskStore
+from aip.literature_audit import AuditJournal
 
 
 ROOT = Path(__file__).resolve().parent
@@ -62,6 +63,8 @@ async def run_live(
 
     # Initialize SQLite before starting the MQ Partner.
     # Any database initialization error must stop startup.
+    audit = AuditJournal()
+    print("AUDIT_JOURNAL:", audit.path, flush=True)
     task_store = DurableTaskStore(TASK_DB_PATH)
 
     print("GROUP_TASK_STORE_READY", flush=True)
@@ -106,6 +109,7 @@ async def run_live(
             leader_aic=leader_aic,
             credential_dir=CREDENTIAL_DIR,
             task_store=task_store,
+            audit=audit,
         )
 
     finally:

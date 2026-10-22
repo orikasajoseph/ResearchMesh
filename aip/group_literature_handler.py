@@ -11,6 +11,7 @@ from typing import Any, Awaitable, Callable
 from acps_sdk.aip import Product, StructuredDataItem, TaskCommandType, TaskState
 from business_execution import BusinessExecutionError
 from aip.group_task_store import DurableTaskStore
+from aip.literature_audit import task_scope
 from aip.literature_bridge import build_literature_request, execute_literature
 from aip.wu_delivery.contracts import ResearchResult as LegacyResult
 from aip.wu_delivery.contracts import ResearchTask as LegacyTask
@@ -62,6 +63,7 @@ class LiteratureGroupHandler:
         executor: Executor = execute_literature,
         backend_timeout_seconds: float = 120.0,
         task_store: DurableTaskStore | None = None,
+        audit=None,
     ) -> None:
         if not leader_aic.strip() or backend_timeout_seconds <= 0:
             raise ValueError("LEADER_AIC_AND_TIMEOUT_REQUIRED")
@@ -70,6 +72,7 @@ class LiteratureGroupHandler:
         self.executor = executor
         self.timeout = backend_timeout_seconds
         self.task_store = task_store
+        self.audit = audit
         self._tasks: dict[tuple[str, str], _TaskRecord] = {}
         self._lock = asyncio.Lock()
 
@@ -121,9 +124,24 @@ class LiteratureGroupHandler:
                 if not changed:
                     return  # A cancellation or another terminal change won.
             rec.state = TaskState.Failed
+        if self.audit:
+            self.audit.emit("TASK_FAILED", groupId=self.client.group_id, sessionId=session,
+                            taskId=task, errorCode=code)
         await self.client.fail_task(task, session, code)
 
     async def on_command(self, command: Any, is_mentioned: bool) -> None:
+        identity = dict(groupId=command.groupId, sessionId=command.sessionId,
+                        taskId=command.taskId, agentAic=getattr(self.client, "partner_aic", None))
+        with task_scope(self.audit, identity):
+            try:
+                await self._on_command(command, is_mentioned)
+            except BaseException as error:
+                if self.audit:
+                    self.audit.emit("COMMAND_EXCEPTION", **identity,
+                                    exceptionCategory="cancelled" if isinstance(error, asyncio.CancelledError) else "command_failed")
+                raise
+
+    async def _on_command(self, command: Any, is_mentioned: bool) -> None:
         if not is_mentioned or getattr(self.client, "is_muted", False):
             return
         if command.senderRole != "leader" or command.senderId != self.leader_aic:
@@ -134,6 +152,10 @@ class LiteratureGroupHandler:
         task_id, session_id = command.taskId, command.sessionId
         key = (session_id, task_id)
         action = command.command
+        identity = dict(groupId=command.groupId, sessionId=session_id, taskId=task_id,
+                        agentAic=getattr(self.client, "partner_aic", None))
+        if self.audit:
+            self.audit.emit("TASK_COMMAND", **identity, action=action.value)
 
         if action == TaskCommandType.Start:
             try:
@@ -156,6 +178,9 @@ class LiteratureGroupHandler:
                     except Exception:
                         await self.client.reject_task(task_id, session_id, "TASK_STORE_UNAVAILABLE")
                         return
+                    if self.audit:
+                        self.audit.emit("TASK_RESERVATION", **identity, decision=decision,
+                                        sqliteState=_previous_state)
                     if decision == "conflict":
                         await self.client.reject_task(task_id, session_id, "TASK_PAYLOAD_CONFLICT")
                         return
@@ -183,6 +208,8 @@ class LiteratureGroupHandler:
                 result_v02 = result_v01.model_dump(mode="json")
                 result_v02["schemaVersion"] = "0.2"
                 validate_result(result_v02, v02.model_dump())
+                if self.audit:
+                    self.audit.save_result(identity, v02.model_dump(mode="json"), result_v02)
                 products = [Product(
                     id=f"literature-{task_id}", name="paper-records-v1",
                     dataItems=[StructuredDataItem(data=result_v02)],
@@ -255,6 +282,10 @@ class LiteratureGroupHandler:
                 if not self._advance(key, ("awaiting_completion",), "completed"):
                     raise RuntimeError("TASK_STATE_CONFLICT")
                 rec.state = TaskState.Completed
+                if self.audit:
+                    state = self.task_store.lookup(agent_aic=self.client.partner_aic,
+                                                   session_id=session_id, task_id=task_id)
+                    self.audit.emit("SQLITE_COMPLETED", **identity, sqliteState=state)
 
         elif action == TaskCommandType.Cancel:
             async with self._lock:

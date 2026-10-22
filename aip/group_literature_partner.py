@@ -1,4 +1,3 @@
-
 """Trusted Inbox + Group connector for a registered Literature Agent."""
 
 from __future__ import annotations
@@ -15,24 +14,18 @@ from acps_sdk.aip import (
 
 from aip.group_literature_handler import LiteratureGroupHandler
 from aip.group_task_store import DurableTaskStore
+from aip.literature_unified_executor import execute_unified_literature
 
 
 def tls_context(credential_dir: Path) -> ssl.SSLContext:
     """Build the official mTLS client context."""
 
-    ctx = ssl.create_default_context(
-        ssl.Purpose.SERVER_AUTH
-    )
-
-    ctx.load_verify_locations(
-        cafile=str(credential_dir / "trust-bundle.pem")
-    )
-
+    ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    ctx.load_verify_locations(cafile=str(credential_dir / "trust-bundle.pem"))
     ctx.load_cert_chain(
         certfile=str(credential_dir / "agent-cert.pem"),
         keyfile=str(credential_dir / "agent-key.pem"),
     )
-
     return ctx
 
 
@@ -43,21 +36,12 @@ def invitation_allowed(
     current_group: str | None,
 ) -> bool:
     """Reject invitations that do not come from the allowed Leader."""
-
     if not allowed_leader_aic or current_group:
         return False
-
-    leader = getattr(
-        getattr(invitation, "group", None),
-        "leader",
-        None,
-    )
-
+    leader = getattr(getattr(invitation, "group", None), "leader", None)
     if getattr(leader, "aic", None) != allowed_leader_aic:
         return False
-
     sender = getattr(invitation, "senderId", None)
-
     return sender == allowed_leader_aic
 
 
@@ -68,18 +52,11 @@ async def serve(
     credential_dir: Path,
     task_store: DurableTaskStore,
 ) -> None:
-    """Run the formally registered Literature Group Partner."""
-
+    """Run the formal Literature Group Partner with durable task handling."""
     if not partner_aic.strip() or not leader_aic.strip():
-        raise ValueError(
-            "REAL_PARTNER_AND_LEADER_AICS_REQUIRED"
-        )
-
-    # Production Group tasks must not fall back to memory-only dedup.
+        raise ValueError("REAL_PARTNER_AND_LEADER_AICS_REQUIRED")
     if task_store is None:
-        raise RuntimeError(
-            "DURABLE_TASK_STORE_REQUIRED"
-        )
+        raise RuntimeError("DURABLE_TASK_STORE_REQUIRED")
 
     client = GroupPartnerMqClient(
         partner_aic=partner_aic,
@@ -93,19 +70,17 @@ async def serve(
         robust_connection=True,
     )
 
-    # Reuse the existing Literature business handler.
-    # DurableTaskStore is injected before any TaskCommand arrives.
+    # The Group Handler owns AIP lifecycle and SQLite reservations.
+    # The injected unified executor owns seven-field Task / six-field Result
+    # validation and calls the existing Literature pipeline exactly once.
     handler = LiteratureGroupHandler(
         client,
         leader_aic=leader_aic,
+        executor=execute_unified_literature,
         task_store=task_store,
     )
-
     client.set_command_handler(handler.on_command)
 
-    # --------------------------------------------
-    # Group lifecycle observability
-    # --------------------------------------------
     async def on_mgmt_command(command: Any) -> None:
         if (
             command.command == GroupMgmtCommandType.DISBAND
@@ -123,17 +98,11 @@ async def serve(
     ) -> None:
         print("GROUP_LEFT", flush=True)
         print("Group:", left_group_id, flush=True)
-
-        # The SDK may close the shared AMQP connection during
-        # Group cleanup. Do not claim the Inbox is still active.
         print("INBOX_RESTART_REQUIRED", flush=True)
 
     client.set_mgmt_command_handler(on_mgmt_command)
     client.set_disconnect_handler(on_disconnect)
 
-    # --------------------------------------------
-    # Invitation policy
-    # --------------------------------------------
     async def policy(invitation: Any) -> bool:
         return invitation_allowed(
             invitation,
@@ -143,47 +112,24 @@ async def serve(
 
     client.set_invitation_handler(policy)
 
-    # --------------------------------------------
-    # Inbox invitation handling
-    # --------------------------------------------
     async def on_invitation(invitation: Any) -> None:
-        joined = await client.join_group_from_invitation(
-            invitation
-        )
-
+        joined = await client.join_group_from_invitation(invitation)
         print(
-            "GROUP_JOINED"
-            if joined
-            else "GROUP_INVITATION_REJECTED",
+            "GROUP_JOINED" if joined else "GROUP_INVITATION_REJECTED",
             flush=True,
         )
-
         if joined:
-            print(
-                "Group:",
-                client.group_id,
-                flush=True,
-            )
+            print("Group:", client.group_id, flush=True)
 
-    # --------------------------------------------
-    # Connection lifecycle
-    # --------------------------------------------
     try:
         await client.connect()
         print("AMQPS_CONNECTED", flush=True)
-
-        await client.start_inbox_consuming(
-            on_invitation
-        )
-
+        await client.start_inbox_consuming(on_invitation)
         print("INBOX_LISTENING", flush=True)
         print(
-            "Waiting for permitted Leader invitation. "
-            "Press Ctrl+C to stop.",
+            "Waiting for permitted Leader invitation. Press Ctrl+C to stop.",
             flush=True,
         )
-
         await asyncio.Event().wait()
-
     finally:
         await client.close()

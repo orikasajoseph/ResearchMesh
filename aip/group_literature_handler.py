@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 from acps_sdk.aip import Product, StructuredDataItem, TaskCommandType, TaskState
+from business_execution import BusinessExecutionError
 from aip.group_task_store import DurableTaskStore
 from aip.literature_bridge import build_literature_request, execute_literature
 from aip.wu_delivery.contracts import ResearchResult as LegacyResult
@@ -20,6 +21,30 @@ from result_contract import validate_result
 
 FIELDS = frozenset(BusinessTask.model_fields)
 Executor = Callable[[LegacyTask], Awaitable[Any]]
+
+# These codes are emitted before the unified executor invokes the backend.
+# Only this known class of failures can safely be marked "failed" without
+# treating an already-triggered upstream operation as retryable.
+PRE_EXECUTION_ERROR_CODES = frozenset({
+    "BUSINESS_EXECUTION_NOT_AUTHORIZED",
+    "INVALID_BUSINESS_CONFIGURATION",
+    "INVALID_BUSINESS_TASK",
+    "BUSINESS_SKILL_MISMATCH",
+    "INVALID_BUSINESS_TIMEOUT",
+})
+
+# Never forward arbitrary upstream error strings to the AIP Leader.
+SAFE_BUSINESS_ERROR_CODES = PRE_EXECUTION_ERROR_CODES | frozenset({
+    "BACKEND_TIMEOUT_EXECUTION_MAY_HAVE_OCCURRED",
+    "INVALID_BUSINESS_RESULT",
+    "BUSINESS_BACKEND_FAILED",
+    "INVALID_REQUEST",
+    "RATE_LIMITED",
+    "PROVIDER_UNAVAILABLE",
+    "NO_RESULTS",
+    "BACKEND_UNAVAILABLE",
+})
+
 
 
 @dataclass
@@ -182,6 +207,22 @@ class LiteratureGroupHandler:
                 except Exception:
                     pass  # The existing durable claim still blocks duplicate Starts.
                 raise
+            except BusinessExecutionError as exc:
+                # Unified execution errors differentiate pre-backend rejection
+                # from an execution whose remote side effects are unknown.
+                # Never infer "not executed" from an arbitrary/unrecognized
+                # error code even when its exception flag is False.
+                code = (
+                    exc.code if exc.code in SAFE_BUSINESS_ERROR_CODES
+                    else "LITERATURE_BACKEND_ERROR"
+                )
+                uncertain = (
+                    exc.remote_execution_uncertain
+                    or exc.code not in PRE_EXECUTION_ERROR_CODES
+                )
+                await self._fail_if_active(
+                    key, task_id, session_id, code, uncertain=uncertain,
+                )
             except TimeoutError:
                 await self._fail_if_active(key, task_id, session_id, "LITERATURE_TIMEOUT")
             except (ValueError, TypeError):

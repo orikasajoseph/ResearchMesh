@@ -25,6 +25,15 @@ class _FailureCapture(logging.Handler):
 class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
     audit = None
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Application-owned signal.  The SDK still owns ACK, leave ordering and
+        # resource cleanup; a service loop may only build a fresh client after
+        # the complete leave path has returned.
+        self.leave_finished = asyncio.Event()
+        self.leave_succeeded = False
+        self._audited_cleanup_succeeded = False
+
     async def _handle_incoming_message(self, body):
         try:
             return await super()._handle_incoming_message(body)
@@ -51,7 +60,12 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
 
     async def _handle_leave_request(self):
         if not self.audit:
-            return await super()._handle_leave_request()
+            try:
+                result = await super()._handle_leave_request()
+                self.leave_succeeded = True
+                return result
+            finally:
+                self.leave_finished.set()
         identity = self._identity()
         self.audit.emit("LEAVE_ENTERED", **identity,
                         managementSessionId=getattr(self, "_pending_leave_session_id", None))
@@ -71,7 +85,10 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
             _CLEANUP.reset(token)
             if failures:
                 self.audit.emit("LEAVE_STATUS_FAILED", **identity)
-        self.audit.emit("LEAVE_FINISHED", **identity)
+            self.leave_succeeded = bool(not failures and self._audited_cleanup_succeeded)
+            self.leave_finished.set()
+        if self.leave_succeeded:
+            self.audit.emit("LEAVE_FINISHED", **identity)
 
     async def _cleanup_group_resources(self):
         if not self.audit or not self.group_id:
@@ -94,7 +111,10 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
             raise
         else:
             snapshot = self.resource_snapshot(channel, connection)
-            self.audit.emit("CLEANUP_SUCCEEDED" if not failures and snapshot["groupResourcesCleared"]
+            self._audited_cleanup_succeeded = bool(
+                not failures and snapshot["groupResourcesCleared"]
+            )
+            self.audit.emit("CLEANUP_SUCCEEDED" if self._audited_cleanup_succeeded
                             else "CLEANUP_FAILED", **identity, failures=failures, **snapshot)
         finally:
             SDK_LOGGER.removeHandler(capture)

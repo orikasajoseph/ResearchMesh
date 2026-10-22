@@ -22,6 +22,9 @@ from acps_sdk.aip.aip_group_runtime import (
 
 from aip_business_partner import validate_local_task
 from business_execution import SAFE_BACKEND_CODES, validate_business_result
+from input_binding import validate_task_input
+from reader_adapter import to_reader_request
+from repository_paper_context import prepare_repository_task
 from group_invitation import AUTH_SERVICE_URL, JoinConfirmation, delete_resource, validate
 from platform_mq_check import HOST, PORT, VHOST, CheckError, certificate_context, classify_error
 
@@ -32,6 +35,28 @@ def validate_literature_task(task):
         raise CheckError("ONLY_LITERATURE_TASK_SUPPORTED")
     if payload["constraints"].get("maxResults") != 1:
         raise CheckError("FIRST_PLATFORM_CHECK_REQUIRES_MAX_RESULTS_ONE")
+    return payload
+
+
+def validate_platform_task(task, expected_task_type):
+    """Validate the exact Partner-facing task before any platform mutation."""
+    if expected_task_type == "literature_search":
+        return validate_literature_task(task)
+    if expected_task_type not in {"paper_read", "repository_analyze"}:
+        raise CheckError("UNSUPPORTED_PLATFORM_TASK_TYPE")
+    try:
+        payload = validate_local_task(deepcopy(task))
+        if payload["taskType"] != expected_task_type:
+            raise ValueError("TASK_TYPE_MISMATCH")
+        validate_task_input(payload, dispatch=True)
+        if expected_task_type == "paper_read":
+            checked = to_reader_request(payload)
+            if len(checked["input"]["papers"]) != 1 or not checked["input"]["papers"][0].get("pdfUrl"):
+                raise ValueError("VERIFIED_SINGLE_PDF_REQUIRED")
+        else:
+            prepare_repository_task(payload)
+    except (ValueError, TypeError, KeyError, AttributeError):
+        raise CheckError("INVALID_PLATFORM_ANALYSIS_TASK") from None
     return payload
 
 
@@ -189,14 +214,19 @@ class LiteratureConversation:
 
 async def run_group_literature(config, task, *, execute=False, partner_ready=False,
                                partner_commit=None, task_timeout=180, checkpoint=None,
-                               task_release=None):
+                               task_release=None, expected_task_type="literature_search"):
     """Preflight by default. Live mode creates a fresh temporary group and task."""
     started = monotonic()
+    capability = {"literature_search": "literature", "paper_read": "reader",
+                  "repository_analyze": "repository"}.get(expected_task_type)
+    if capability is None:
+        raise CheckError("UNSUPPORTED_PLATFORM_TASK_TYPE")
     group_id, task_id, session_id = (prefix + uuid4().hex for prefix in
-                                    ("rm-literature-", "task-", "session-"))
+                                    (f"rm-{capability}-", "task-", "session-"))
     record = {
         "timeUtc": datetime.now(timezone.utc).isoformat(),
-        "scope": "PLATFORM_LITERATURE_SINGLE_TASK" if execute else "OFFLINE_PLATFORM_LITERATURE_PREFLIGHT",
+        "scope": (f"PLATFORM_{capability.upper()}_SINGLE_TASK" if execute else
+                  f"OFFLINE_PLATFORM_{capability.upper()}_PREFLIGHT"),
         "groupId": group_id, "taskId": task_id, "sessionId": session_id,
         "leaderAic": config.leader_aic, "partnerAic": config.partner_aic,
         "partnerSelection": "explicit_aic_not_adp", "partnerCommitDeclared": partner_commit,
@@ -239,14 +269,15 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
             return False
 
     try:
-        payload = validate_literature_task(task)
+        payload = validate_platform_task(task, expected_task_type)
         record["task"] = payload
         if type(execute) is not bool or type(partner_ready) is not bool:
             raise CheckError("INVALID_EXECUTION_FLAGS")
         if task_release is not None and not callable(task_release):
             raise CheckError("INVALID_TASK_RELEASE")
         directory = validate(config, "invite" if execute else "offline", execute, partner_ready)
-        if type(task_timeout) not in (int, float) or not math.isfinite(task_timeout) or not 1 <= task_timeout <= 600:
+        timeout_limit = 900 if expected_task_type == "paper_read" else 600
+        if type(task_timeout) not in (int, float) or not math.isfinite(task_timeout) or not 1 <= task_timeout <= timeout_limit:
             raise CheckError("INVALID_TASK_TIMEOUT")
         if execute and (not isinstance(partner_commit, str) or not 7 <= len(partner_commit) <= 40
                         or any(c not in "0123456789abcdefABCDEF" for c in partner_commit)):
@@ -360,3 +391,10 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
                 record["journalError"] = "JOURNAL_WRITE_FAILED"
                 record["passed"] = False
     return record
+
+
+async def run_group_task(config, task, *, task_type, **kwargs):
+    """Capability-neutral public entry; defaults remain unchanged for Literature."""
+    return await run_group_literature(
+        config, task, expected_task_type=task_type, **kwargs
+    )

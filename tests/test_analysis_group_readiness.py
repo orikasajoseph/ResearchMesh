@@ -190,7 +190,7 @@ class AnalysisTests(unittest.IsolatedAsyncioTestCase):
                 audit = AuditJournal(root, mode="offline")
                 client = fake_client()
                 client._group_id = None
-                ready = asyncio.Event()
+                ready, restarted = asyncio.Event(), asyncio.Event()
                 client.connect = AsyncMock()
                 client.close = AsyncMock()
                 client.send_status_result = AsyncMock()
@@ -210,6 +210,13 @@ class AnalysisTests(unittest.IsolatedAsyncioTestCase):
                 client._connection = SimpleNamespace(is_closed=False, close=AsyncMock(side_effect=close_connection))
                 client._queue = SimpleNamespace(name="offline-queue", cancel=AsyncMock(), delete=AsyncMock())
                 client._consumer_tag = "offline-consumer"
+                second = fake_client()
+                second._group_id = None
+                second.connect = AsyncMock()
+                second.close = AsyncMock()
+                async def second_inbox(callback):
+                    restarted.set()
+                second.start_inbox_consuming = second_inbox
                 python = root / "python.exe"; python.touch()
                 name = "researchmesh_paper_reader" if agent_type == "paper_read" else "researchmesh_repository"
                 wrapper = root / "wrapper" / name; wrapper.mkdir(parents=True)
@@ -228,7 +235,7 @@ class AnalysisTests(unittest.IsolatedAsyncioTestCase):
                     target = "aip.repository_unified_executor.create_repository_business_executor"
                     backend = AsyncMock(return_value=valid_result(BusinessTask.model_validate(payload)))
                     root_target = "aip.repository_unified_executor.ROOT"
-                with patch("aip.group_analysis_partner.AuditedGroupPartnerMqClient", return_value=client), \
+                with patch("aip.group_analysis_partner.AuditedGroupPartnerMqClient", side_effect=[client, second]), \
                      patch("aip.group_analysis_partner.tls_context", return_value=object()), \
                      patch(root_target, root), patch(target, return_value=backend):
                     server = asyncio.create_task(serve_analysis(partner_aic=PARTNER, leader_aic=LEADER,
@@ -242,8 +249,11 @@ class AnalysisTests(unittest.IsolatedAsyncioTestCase):
                             senderId=LEADER, groupId=GROUP, sessionId=SESSION, mentions=[PARTNER], command=GroupMgmtCommandType.DISBAND)
                         await client._handle_incoming_message(disband.model_dump(mode="json"))
                         await client._handle_leave_request()
+                        await asyncio.wait_for(restarted.wait(), 3)
                         self.assertFalse(server.done())
-                        client.close.assert_not_awaited()
+                        client.close.assert_awaited_once()
+                        self.assertTrue(any(e["event"] == "INBOX_RESTART_SUCCEEDED"
+                                            for e in read_events(audit.path)))
                         backend.assert_awaited_once()
                         report = verify(audit.path, store.path, group=GROUP, session=SESSION, task=TASK,
                             agent=PARTNER, require_formal=False, require_http=False, expected_task_type=agent_type)

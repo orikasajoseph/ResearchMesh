@@ -28,6 +28,8 @@ class FakeClient:
         self.mgmt_handler = None
         self.disconnect_handler = None
         self.closed = False
+        self.leave_finished = asyncio.Event()
+        self.leave_succeeded = False
 
     def set_command_handler(self, handler):
         pass
@@ -154,10 +156,7 @@ class GroupLifecycleLoggingTests(
             logs,
         )
 
-        self.assertIn(
-            "INBOX_RESTART_REQUIRED",
-            logs,
-        )
+        self.assertNotIn("INBOX_RESTART_REQUIRED", logs)
 
         self.assertTrue(
             client.closed

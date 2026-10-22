@@ -45,8 +45,9 @@
 
 审计文件与报告均独占新建，位于 `D:\research\aic\evidence\`，不覆盖历史。
 Worker 本地科研原件在工作树 `outputs/`（被 Git 忽略）；不会把这些全文记录推送到 GitHub。
-正常退群后应用继续存活；SDK 可能关闭共享连接，保留 INBOX_RESTART_REQUIRED，
-这不表示 Inbox 已自动恢复，也不以强制关闭整个应用作为退群成功条件。
+正常退群后应用继续存活。SDK 完整清理成功后，应用关闭旧客户端并创建新连接与 Inbox；
+审计记录 `INBOX_RESTART_STARTED` / `INBOX_RESTART_SUCCEEDED`。清理失败时停止重建，
+不以强制关闭整个应用作为退群成功条件，也不在残留资源上继续服务。
 
 ## 本机验证结果
 

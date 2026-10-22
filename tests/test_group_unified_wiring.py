@@ -81,6 +81,8 @@ class FakePartner:
         self.is_muted = False
         self.command_handler = None
         self.closed = False
+        self.leave_finished = asyncio.Event()
+        self.leave_succeeded = False
         for method in (
             "accept_task", "start_working", "submit_for_completion",
             "complete_task", "reject_task", "fail_task", "cancel_task",

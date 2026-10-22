@@ -63,8 +63,9 @@ SDK 子类调用原有 super 方法，不抢先退群，不改 `_pending_leave`�
 对 SDK 吞掉的 consumer cancel / queue delete / leave status 异常，只读取日志模板中的固定事件码，绝不格式化异常参数。
 若 SDK warning 日志被禁用、级别屏蔽或配置过滤器，保守拒绝清理成功证明。
 检查 Group 资源时排除独立 Inbox 资源；退出 Group 和结束整个 AMQPS 应用是不同动作。
-正常退群不会设置应用停止信号，不要求强制退出进程。现有 SDK 清理可能关闭共享连接，
-原有 `INBOX_RESTART_REQUIRED` 提示保留；应用存活不代表 Inbox 已自动恢复或能够立即加入下一组。
+正常退群不会设置应用停止信号，不要求强制退出进程。SDK 清理成功后，应用使用新客户端、
+新连接和新 Inbox consumer 恢复监听，并记录 `INBOX_RESTART_STARTED` 与
+`INBOX_RESTART_SUCCEEDED`；清理失败则停止重建。
 
 ## 离线验证
 
@@ -131,7 +132,7 @@ Set-Location D:\research\aic\worktrees\literature-acceptance-audit
 - Leader 只发送一个七字段 Literature Task。不要为补证而重发业务执行；重复 Start 应仅被去重。
 - 等待六字段 Result，Leader 按现有生命周期发送 Complete；确认 SQLite completed。
 - Leader 发送 DISBAND；等待 GROUP_LEFT、CLEANUP_SUCCEEDED、LEAVE_FINISHED，检查无 CLEANUP_FAILED/LEAVE_FAILED。
-- 保留应用进程；无需为了证明退群而强制关应用。需要恢复 Inbox 时另行人工安排。
+- 保留应用进程；无需为了证明退群而强制关应用。确认 `INBOX_RESTART_SUCCEEDED` 后再接受下一轮邀请。
 - 运行验收器并保存其报告；五项均 true 且 accepted=true 才能通过。
 - 保留原始 JSONL、报告及 Leader 本次独立证据；不修改原证据、不补造历史记录。
 

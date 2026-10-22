@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "researchmesh.formal-acceptance.v1",
+  "runs": [
+    {
+      "taskType": "literature_search",
+      "journal": "D:/research/aic/evidence/literature-NEW-RUN.jsonl",
+      "database": "D:/research/aic/state/group_tasks.sqlite3",
+      "group": "NEW-LITERATURE-GROUP",
+      "session": "NEW-LITERATURE-SESSION",
+      "task": "NEW-LITERATURE-TASK",
+      "agent": "LITERATURE-AIC"
+    },
+    {
+      "taskType": "paper_read",
+      "journal": "D:/research/aic/evidence/literature-NEW-READER-RUN.jsonl",
+      "database": "D:/research/aic/state/group_tasks.sqlite3",
+      "group": "NEW-READER-GROUP",
+      "session": "NEW-READER-SESSION",
+      "task": "NEW-READER-TASK",
+      "agent": "READER-AIC"
+    },
+    {
+      "taskType": "repository_analyze",
+      "journal": "D:/research/aic/evidence/literature-NEW-REPOSITORY-RUN.jsonl",
+      "database": "D:/research/aic/state/group_tasks.sqlite3",
+      "group": "NEW-REPOSITORY-GROUP",
+      "session": "NEW-REPOSITORY-SESSION",
+      "task": "NEW-REPOSITORY-TASK",
+      "agent": "REPOSITORY-AIC"
+    }
+  ]
+}

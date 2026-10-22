@@ -14,6 +14,8 @@ from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 from weakref import WeakKeyDictionary
 
+from aip.literature_audit import CURRENT
+
 import httpx
 from semanticscholar import AsyncSemanticScholar
 from semanticscholar.ApiRequester import ApiRequester
@@ -180,6 +182,14 @@ class ObservedRequester(ApiRequester):
                              for k, v in parse_qs(parameters).items() if k in {"query", "year", "limit", "offset"}}}
                 started = time.monotonic()
                 response = None
+                audit_context = CURRENT.get()
+                audit_request = None
+                if audit_context:
+                    journal, identity = audit_context
+                    # Path allowlist avoids persisting query text or paper IDs in paths.
+                    endpoint = parts.path if parts.path in {"/graph/v1/paper/search", "/graph/v1/paper/search/bulk"} else "/graph/v1/[redacted]"
+                    audit_request = journal.request_started(identity, endpoint)
+                exception_category = None
                 try:
                     response = await client.send(request)
                     event["httpStatus"] = response.status_code
@@ -193,13 +203,23 @@ class ObservedRequester(ApiRequester):
                             body = {}
                         message = body.get("message") or body.get("error") if isinstance(body, dict) else None
                         event["responseReason"] = safe_text(message or "HTTP_" + str(response.status_code), self._key)
+                except asyncio.CancelledError:
+                    exception_category = "CANCELLED"
+                    raise
                 except Exception as error:
+                    exception_category = transport_failure(error)["transportError"]
                     event.update(transport_failure(error))
                     raise RuntimeError("SEMANTIC_SCHOLAR_TRANSPORT_FAILED") from None
                 finally:
                     event.update(requestFinishedAt=now(), durationMs=round((time.monotonic() - started) * 1000, 3))
                     self.events.append(deepcopy(event))
                     self.gate.append(event)
+                    if audit_request:
+                        journal.emit("HTTP_FINISHED", **identity, requestId=audit_request[0],
+                                     requestSequence=audit_request[1], endpoint=endpoint,
+                                     httpStatus=event["httpStatus"], durationMs=event["durationMs"],
+                                     exceptionCategory=exception_category or (
+                                         "HTTP_ERROR" if response is not None and response.status_code != 200 else None))
                 status = response.status_code
                 # 保留 SDK/Provider 原有异常分类；不回显原始服务端消息。
                 if status == 429:

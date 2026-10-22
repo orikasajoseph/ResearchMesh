@@ -8,10 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from acps_sdk.aip import (
-    GroupPartnerMqClient,
     GroupMgmtCommandType,
 )
 
+from aip.audited_group_client import AuditedGroupPartnerMqClient as GroupPartnerMqClient
 from aip.group_literature_handler import LiteratureGroupHandler
 from aip.group_task_store import DurableTaskStore
 from aip.literature_unified_executor import execute_unified_literature
@@ -51,6 +51,7 @@ async def serve(
     leader_aic: str,
     credential_dir: Path,
     task_store: DurableTaskStore,
+    audit=None,
 ) -> None:
     """Run the formal Literature Group Partner with durable task handling."""
     if not partner_aic.strip() or not leader_aic.strip():
@@ -70,6 +71,8 @@ async def serve(
         robust_connection=True,
     )
 
+    client.audit = audit
+
     # The Group Handler owns AIP lifecycle and SQLite reservations.
     # The injected unified executor owns seven-field Task / six-field Result
     # validation and calls the existing Literature pipeline exactly once.
@@ -78,6 +81,7 @@ async def serve(
         leader_aic=leader_aic,
         executor=execute_unified_literature,
         task_store=task_store,
+        audit=audit,
     )
     client.set_command_handler(handler.on_command)
 
@@ -89,6 +93,10 @@ async def serve(
             and command.senderId == leader_aic
             and command.must_respond(partner_aic)
         ):
+            if audit:
+                audit.emit("DISBAND_RECEIVED", groupId=command.groupId,
+                           managementSessionId=getattr(command, "sessionId", None),
+                           agentAic=partner_aic, pendingLeave=client._pending_leave)
             print("DISBAND_RECEIVED", flush=True)
             print("Group:", command.groupId, flush=True)
 
@@ -96,6 +104,9 @@ async def serve(
         _client: GroupPartnerMqClient,
         left_group_id: str | None,
     ) -> None:
+        if audit:
+            audit.emit("GROUP_LEFT", groupId=left_group_id, agentAic=partner_aic,
+                       **_client.resource_snapshot())
         print("GROUP_LEFT", flush=True)
         print("Group:", left_group_id, flush=True)
         print("INBOX_RESTART_REQUIRED", flush=True)
@@ -118,6 +129,9 @@ async def serve(
             "GROUP_JOINED" if joined else "GROUP_INVITATION_REJECTED",
             flush=True,
         )
+        if audit:
+            audit.emit("GROUP_JOINED" if joined else "GROUP_INVITATION_REJECTED",
+                       groupId=client.group_id, agentAic=partner_aic)
         if joined:
             print("Group:", client.group_id, flush=True)
 
@@ -131,5 +145,9 @@ async def serve(
             flush=True,
         )
         await asyncio.Event().wait()
+    except BaseException as error:
+        if audit:
+            audit.emit("PARTNER_EXIT", exceptionCategory="cancelled" if isinstance(error, asyncio.CancelledError) else "partner_failed")
+        raise
     finally:
         await client.close()

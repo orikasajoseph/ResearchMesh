@@ -11,7 +11,8 @@ from aip.literature_audit import AUDIT_ROOT, HISTORICAL_TASK, digest, read_event
 from result_contract import validate_result
 
 
-def verify(journal, database, *, group, session, task, agent, require_formal=True):
+def verify(journal, database, *, group, session, task, agent, require_formal=True,
+           require_http=True, expected_task_type="literature_search"):
     events = read_events(journal)  # Malformed/truncated journals must fail, never skip lines.
     if not events or [e["sequence"] for e in events] != list(range(1, len(events) + 1)):
         raise ValueError("INVALID_JOURNAL_SEQUENCE")
@@ -41,6 +42,7 @@ def verify(journal, database, *, group, session, task, agent, require_formal=Tru
         result = saved["result"]
         validate_result(result, result)
         result_ok = (len(result) == 6 and digest(result) == saved["redactedSha256"]
+                     and result["taskType"] == expected_task_type
                      and saved["source"] == "partner_redacted_copy" and saved["originalSchemaValid"] is True
                      and len(saved["originalSha256"]) == 64
                      and readbacks[0]["resultSequence"] == saved["sequence"]
@@ -70,13 +72,19 @@ def verify(journal, database, *, group, session, task, agent, require_formal=Tru
              and not any(e["decision"] == "conflict" for e in reservations)
              and all(e.get("agentAic", agent) == agent for e in grouped)
              and lifecycle_ok)
-    if clean and http_ok and result_ok and sqlite_ok:
-        clean = (backend_start[0]["sequence"] < starts[0]["sequence"] < ends[0]["sequence"]
-                 < backend_end[0]["sequence"] < results[0]["sequence"]
+    if clean and (http_ok or not require_http) and result_ok and sqlite_ok:
+        clean = (backend_start[0]["sequence"] < backend_end[0]["sequence"] < results[0]["sequence"]
                  < readbacks[0]["sequence"] < completed[0]["sequence"])
+        if require_http:
+            clean = clean and (backend_start[0]["sequence"] < starts[0]["sequence"]
+                               < ends[0]["sequence"] < backend_end[0]["sequence"])
     checks = dict(sqlite_completed=sqlite_ok, exactly_one_actual_http=http_ok,
                   result_readback_schema_valid=result_ok, disband_cleanup_group_left=lifecycle_ok,
                   no_duplicate_execution_errors_or_resources=clean)
+    if not require_http:
+        del checks["exactly_one_actual_http"]
+        checks["single_backend_execution"] = (len(backend_start) == len(backend_end) == 1
+                                               and backend_end[0]["outcome"] == "success")
     eligible = formal and task != HISTORICAL_TASK
     return dict(accepted=eligible and all(checks.values()), eligible=eligible,
                 checks=checks, groupId=group, sessionId=session, taskId=task,

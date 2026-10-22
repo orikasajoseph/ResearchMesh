@@ -76,12 +76,30 @@ class AuditJournal:
             raise ValueError("EXACTLY_SIX_RESULT_FIELDS_REQUIRED")
         # Retain only schema shape and hashed paper identity; discard all free text,
         # URLs (which may contain tokens), extra data, warnings and provider bodies.
+        def redact_item(item):
+            code = digest(item["data"])
+            url = "https://evidence.invalid/redacted/" + code
+            if item["kind"] == "paper":
+                data = {"paperId": code, "title": "[redacted]", "url": url}
+            else:
+                evidence = [{"sourceId": digest(e.get("sourceId")), "url": url,
+                             "locator": "[redacted]", "supports": "[redacted]"}
+                            for e in item["data"].get("evidence", [])]
+                if item["kind"] == "paper_note":
+                    data = {"source": {"paperId": code, "title": "[redacted]", "url": url},
+                            "method": "[redacted]", "findings": "[redacted]",
+                            "limitations": "[redacted]", "analysisLevel": item["data"].get("analysisLevel"),
+                            "evidence": evidence}
+                elif item["kind"] == "repository":
+                    data = {"url": url, "license": "[redacted]", "relationEvidence": "[redacted]",
+                            "evidence": evidence}
+                else:
+                    raise ValueError("UNSUPPORTED_AUDIT_RESULT_KIND")
+            return {"kind": item["kind"], "data": data}
+
         redacted = {"schemaVersion": result["schemaVersion"], "subtaskId": result["subtaskId"],
                     "taskType": result["taskType"], "summary": "[redacted]",
-                    "items": [{"kind": "paper", "data": {
-                        "paperId": digest(item["data"]), "title": "[redacted]",
-                        "url": "https://evidence.invalid/redacted/" + digest(item["data"])}}
-                              for item in result["items"]],
+                    "items": [redact_item(item) for item in result["items"]],
                     "warnings": ["[redacted]" for _ in result["warnings"]]}
         validate_result(redacted, task)
         record = self.emit("RESULT_SAVED", **identity, result=redacted,

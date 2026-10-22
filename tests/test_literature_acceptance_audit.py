@@ -2,6 +2,7 @@
 import asyncio
 from copy import deepcopy
 import json
+import logging
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -27,6 +28,13 @@ from business_execution import execute_business_task, BusinessExecutionError
 
 class AuditTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
+        from aip.audited_group_client import SDK_LOGGER
+        self.enterContext(patch.object(SDK_LOGGER, "disabled", False))
+        self.enterContext(patch.object(SDK_LOGGER, "filters", []))
+        self.enterContext(patch.object(SDK_LOGGER, "level", logging.WARNING))
+        previous_disable = logging.root.manager.disable
+        logging.disable(logging.NOTSET)
+        self.addCleanup(logging.disable, previous_disable)
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)

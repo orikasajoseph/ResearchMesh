@@ -58,7 +58,7 @@ def static_worker_env():
     env = {key: value for key, value in os.environ.items()
            if not any(word in key.upper() for word in ('API_KEY', 'ACCESS_TOKEN', 'AUTH_TOKEN', 'SECRET', 'PASSWORD'))}
     env.update(PYTHON_DOTENV_DISABLED='1', PYTHONIOENCODING='utf-8', PYTHONDONTWRITEBYTECODE='1',
-               GIT_TERMINAL_PROMPT='0')
+               GIT_TERMINAL_PROMPT='0', LITELLM_LOCAL_MODEL_COST_MAP='True')
     return env
 
 

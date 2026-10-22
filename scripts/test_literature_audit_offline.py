@@ -10,6 +10,7 @@ from unittest.mock import patch
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
 parser.add_argument("--pattern", action="append")
+parser.add_argument("--module", action="append", help="Additional unittest modules, e.g. agent wrapper tests")
 args = parser.parse_args()
 ROOT = args.root.resolve()
 sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
@@ -21,6 +22,13 @@ def blocked(*args, **kwargs):
 
 original_connect = socket.socket.connect
 original_connect_ex = socket.socket.connect_ex
+original_getaddrinfo = socket.getaddrinfo
+
+
+def local_dns(host, port, *args, **kwargs):
+    if host not in {"127.0.0.1", "::1", "localhost"} or not isinstance(port, int) or port < 49152:
+        return blocked()
+    return original_getaddrinfo(host, port, *args, **kwargs)
 
 
 def local_only(original):
@@ -33,12 +41,12 @@ def local_only(original):
 
 
 if __name__ == "__main__":
-    patterns = args.pattern or ["test_literature_acceptance_audit.py", "test_group*.py", "test_semantic_http.py",
+    patterns = args.pattern or ([] if args.module else ["test_literature_acceptance_audit.py", "test_group*.py", "test_semantic_http.py",
                 "test_literature_adapter.py", "test_literature_resources.py",
-                "test_aip_literature_bridge.py", "test_wu_integration.py", "test_research_pipeline.py"]
+                "test_aip_literature_bridge.py", "test_wu_integration.py", "test_research_pipeline.py"])
     with (patch("socket.socket.connect", local_only(original_connect)),
           patch("socket.socket.connect_ex", local_only(original_connect_ex)),
-          patch("socket.getaddrinfo", blocked),
+          patch("socket.getaddrinfo", local_dns),
           patch("httpx.AsyncHTTPTransport.handle_async_request", side_effect=blocked),
           patch("httpx.HTTPTransport.handle_request", side_effect=blocked),
           patch("aio_pika.connect", side_effect=blocked),
@@ -46,5 +54,7 @@ if __name__ == "__main__":
         suite = unittest.TestSuite()
         for pattern in patterns:
             suite.addTests(unittest.defaultTestLoader.discover(str(ROOT / "tests"), pattern=pattern))
+        for module in args.module or []:
+            suite.addTests(unittest.defaultTestLoader.loadTestsFromName(module))
         result = unittest.TextTestRunner(verbosity=2).run(suite)
     raise SystemExit(0 if result.wasSuccessful() else 1)

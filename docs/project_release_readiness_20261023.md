@@ -49,6 +49,30 @@
 联合报告 `accepted=true` 只证明三轮规定的协议、业务和资源证据完整。
 它不证明论文结论、代码关系或模型输出已经获得人工科学验收。
 
+## GitHub 堆叠审查
+
+为避免把跨成员历史一次性压成一个难以核对的大 PR，远端已准备三层分支：
+
+1. `zhao/planner-integration` ← `wu/platform-integration-base`：基础平台与三 Agent 运行时合流。
+2. `wu/platform-integration-base` ← `wu/platform-acceptance-stack`：Literature 持久化验收审计。
+3. `wu/platform-acceptance-stack` ← `wu/project-release-readiness`：联合验收、Inbox 恢复、
+   Reader/Repository Leader 入口、AMP 和发布扫描。
+
+可直接检查或创建 PR：
+
+- <https://github.com/orikasajoseph/ResearchMesh/compare/zhao/planner-integration...wu/platform-integration-base>
+- <https://github.com/orikasajoseph/ResearchMesh/compare/wu/platform-integration-base...wu/platform-acceptance-stack>
+- <https://github.com/orikasajoseph/ResearchMesh/compare/wu/platform-acceptance-stack...wu/project-release-readiness>
+
+建议标题依次为：
+
+- `Integrate Wu platform and three-agent runtime baseline`
+- `Add persisted Literature Group acceptance audit`
+- `Complete project release readiness tooling`
+
+当前 GitHub App 对创建 PR 返回 403；分支推送和远端 SHA 已独立验证。该限制不影响比较，
+但需要具备仓库 PR 写权限的账号完成最后创建动作。
+
 ## 仍依赖协作或正式环境
 
 - Leader 路由、ACL、目标 AIC、Reader 超时余量和正式运行窗口确认。

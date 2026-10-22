@@ -1,7 +1,8 @@
 # 正式平台 Literature 单任务联调
 
 Leader 入口为 `run_platform_literature.py`，通信逻辑为 `group_literature_leader.py`。
-单任务入口已推送基线为 `zhao/planner-integration@3090f7b`；正式业务任务仍待双方在线验收。
+单任务入口初始提交为 `3090f7b`，人工放行已推送基线为 `zhao/planner-integration@cd56780`。
+2026-10-22 第三次真实任务已通过 Leader 自动验收，双方完整证据尚待闭合，见下方记录。
 
 ## 已完成和本轮范围
 
@@ -61,7 +62,9 @@ $partnerCommit = "替换为吴确认的7至40位十六进制commit"
 程序确认 GROUP_JOINED 后会暂停并输出 Group、Session、Task ID。将三个 ID 发给吴；
 只有收到吴侧同一 Group 的 GROUP_JOINED 确认后，输入大写 `SEND` 并按 Enter，程序才发送 Start。
 默认最多等待 600 秒，可用 `--release-timeout` 调整；等待超时、终端关闭或输入其他内容时，
-程序不发送 TaskCommand，并清理本轮 Group。
+程序不发送 TaskCommand，并清理本轮 Group、保存失败记录与报告后退出（清理失败会单独记录）。
+确认输入使用单次守护线程；它只接收文字，无权发送任务。超时/取消不等待阻塞stdin结束，后到的输入不会再次放行。
+此交互入口每个进程仅使用一次；需要下一轮时重新启动进程并生成新ID。
 正常事件顺序：GROUP_JOINED_CONFIRMED → TASK_START_PUBLISHED → TASK_STATE_... →
 BUSINESS_RESULT_VALIDATED → TASK_COMPLETE_PUBLISHED → TASK_COMPLETED_CONFIRMED → CLEANUP_FINISHED。
 accepted/working 中间状态可能因后台交付顺序而省略；必须有产物校验和 Complete/completed。
@@ -87,18 +90,38 @@ Start 发布出错也不自动重发，避免发送响应丢失但后台已经�
 Leader 不读取 Partner 的 API Key，`providerExecutionVerified=false` 保留为未独立验证；
 结合吴侧同一任务的 Provider 日志后再记录真实检索来源，不能凭返回 JSON 推断真实 API 调用。
 
+### 2026-10-22 第三次任务
+
+- Group：`rm-literature-a0dbde797bb445deac0edcc9db191f7f`
+- Session：`session-f552d712faab401fb772ca04d6b825f4`
+- Task：`task-e88431cbb7054355a8c19e3078219832`
+- Leader记录：`outputs/platform-literature/20261022-194336-3eeaa1c4/`，包含 `record.json`、完整 `result.json` 和 `report.md`；原始记录不随Git上传。
+- accepted → working → awaiting-completion → completed；六字段Result返回1篇正确LoRA论文；Leader清理通过。
+- `taskCommandsSent=2` 指一次Start与一次Complete，不能解释为两次检索，也不能推出Provider仅请求一次。
+- 吴侧反馈SQLite中该Task唯一一条completed记录，并收到同Group的GROUP_JOINED与DISBAND_RECEIVED。
+- 待补：本次Group实际Provider请求次数、Partner结果缓存回读、GROUP_LEFT及实际部署版本核对。预检HTTP 200不能替代本次任务的请求证据。
+
+Leader已回读两个JSON并核对Result一致：`FIELD_COUNT=6`、业务校验通过。
+完整Result按 `json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')` 计算的SHA-256为
+`f590909ecf82509a0bdd894de9848b22f02b9d4cbb9645fa47eab3d523e5ac14`。
+这是Leader本地文件回读，不是Partner SQLite缓存验证；共享时发送完整 `result.json`，不要用删减后的消息正文核对上述哈希。
+后续补充证据另行归档，不修改此次原始记录，不为补日志重跑科研任务。
+
 ## 离线回归
 
 ```powershell
-.\.venv\Scripts\python.exe -X utf8 -m unittest tests.test_platform_literature tests.test_group_invitation -v
+.\.venv\Scripts\python.exe -X utf8 -m unittest tests.test_platform_literature tests.test_platform_release_process tests.test_group_invitation -v
 .\.venv\Scripts\python.exe -X utf8 verify_project.py
 ```
 
 离线测试只使用内存传输和替身，无真实平台连接、论文 API、PDF 或 LLM。
 
-2026-10-21 本轮开发验收：新增 28 项离线用例；完整 712 项自动测试（0 跳过）、5 个模拟场景与本机 HTTP 检查通过。
+2026-10-22人工放行修复后：完整726项自动测试（0跳过）+5个模拟场景+本地HTTP检查通过，
+记录为 `outputs/acceptance-20261022-235646-449970/`。新增保持stdin打开的子进程测试，验证超时/取消/EOF能清理并生成报告后退出，SEND仍完成原协议流程。
+
+2026-10-21 历史开发验收：新增 28 项离线用例；完整 712 项自动测试（0 跳过）、5 个模拟场景与本机 HTTP 检查通过。
 记录目录为 `outputs/acceptance-20261021-220556-467710/`。
 实际 `.venv-mq-check` 环境使用正式 Leader 证书运行默认离线预检通过，记录为
 `outputs/platform-literature/20261021-220504-ed86ba62/record.json`，networkAttempted=false、taskCommandsSent=0。
-尚未执行新的正式平台 Literature 业务任务。
+以上2026-10-21记录只覆盖预检；2026-10-22真实任务以本页第三次任务记录为准。
 完整回归还修正了一条旧对齐测试：历史发布记录已改用 localCommits，不再读取已删除的 workingTreeChangesPublished。

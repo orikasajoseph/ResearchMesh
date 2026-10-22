@@ -5,6 +5,8 @@ from datetime import datetime
 import json
 import logging
 from pathlib import Path
+from queue import Empty, Queue
+from threading import Thread
 from uuid import uuid4
 
 from group_invitation import InviteConfig
@@ -18,12 +20,33 @@ async def confirm_task_release(record, timeout):
     print("Session:", record["sessionId"], flush=True)
     print("Task:", record["taskId"], flush=True)
     prompt = "收到吴侧 GROUP_JOINED 确认后输入 SEND 并按 Enter；其他输入将取消本轮："
+    answers = Queue(maxsize=1)
+
+    def read_once():
+        try:
+            answers.put((input(prompt), False))
+        except (EOFError, OSError):
+            answers.put((None, True))
+
+    # This CLI has one prompt per process. A blocked stdin read cannot be
+    # cancelled; keep it out of asyncio's executor, whose shutdown would wait
+    # for input even after the release deadline and Group cleanup. A daemon
+    # reader only returns a line; it cannot publish or authorize a task.
+    Thread(target=read_once, name="task-release-input", daemon=True).start()
+
+    async def wait_answer():
+        while True:
+            try:
+                return answers.get_nowait()
+            except Empty:
+                await asyncio.sleep(.05)
+
     try:
-        answer = await asyncio.wait_for(asyncio.to_thread(input, prompt), timeout)
+        answer, closed = await asyncio.wait_for(wait_answer(), timeout)
     except TimeoutError:
         raise CheckError("TASK_RELEASE_TIMEOUT") from None
-    except EOFError:
-        raise CheckError("TASK_RELEASE_INPUT_CLOSED") from None
+    if closed:
+        raise CheckError("TASK_RELEASE_INPUT_CLOSED")
     if answer.strip() != "SEND":
         raise CheckError("TASK_RELEASE_DECLINED")
 
@@ -41,6 +64,9 @@ def report_text(record):
     if record["error"]:
         lines.extend(["错误：" + record["error"]["code"], ""])
     if live:
+        lines.extend([f"Start 已发布：{record.get('startPublished', False)}；"
+                      f"Complete 已发布：{record.get('completePublished', False)}。",
+                      "taskCommandsSent 统计 Start/Complete 协议命令，不是 Provider HTTP 请求次数。", ""])
         lines.extend(["验收待人工核对：返回论文是否为指定目标、吴侧真实 Provider 调用日志、"
                       "DISBAND 接收与离群日志。passed 仅表示本程序检查通过；"
                       "cleanupSucceeded 不代表已收到 Partner 离群确认。", ""])

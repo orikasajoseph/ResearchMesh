@@ -10,8 +10,8 @@ from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parents[1]
 PATTERNS = [re.compile(p) for p in (
-    r"sk-[A-Za-z0-9_-]{20,}", r"gh[pousr]_[A-Za-z0-9]{20,}",
-    r"github_pat_[A-Za-z0-9_]{20,}", r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")]
+    r"(?<![A-Za-z0-9_])sk-[A-Za-z0-9_-]{20,}", r"(?<![A-Za-z0-9_])gh[pousr]_[A-Za-z0-9]{20,}",
+    r"(?<![A-Za-z0-9_])github_pat_[A-Za-z0-9_]{20,}", r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")]
 
 
 def classify(path, text, secrets):

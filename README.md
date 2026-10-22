@@ -1,5 +1,16 @@
 # ResearchMesh 智研协作
 
+## 当前状态（2026-10-22）
+
+- 本机三智能体链已真实运行：Planner → Literature → Reader → Repository 静态分析 → 报告。入口为 `run_aip_research.py`；Repository 可选增强另有真实验收记录。
+- 正式梧桐 Literature 第三次单任务已通过 Leader 自动验收：返回正确 LoRA 论文，六字段 Result 校验、Complete/completed 和 Leader 清理成功。
+- 吴已反馈同一 Task 的 SQLite 唯一记录为 completed，收到 GROUP_JOINED 与 DISBAND_RECEIVED；该次 Provider HTTP 请求次数、Partner 缓存回读和 GROUP_LEFT 证据仍待核对。
+- 正式 Reader/Repository 的 Leader 单任务入口、ADP 自动发现接线和正式平台 S1→S2→S3 全链仍待完成。本机三智能体通过不替代这些验收。
+- 三个业务包均已在 `agents/` 中。协议沿用 v0.2 七字段 Task、六字段 Result，平台身份与状态置于官方 AIP 消息中。
+
+当前核对的已推送基线为 `zhao/planner-integration@cd56780`；后续补丁是否提交以 Git 状态为准。
+证据位置、修复说明及剩余工作见 [当前进度与本地修复](docs/current_status_20261022.md)。下方带早期日期的条目是历史记录。
+
 正式梧桐 Literature 单任务 Leader 入口：`run_platform_literature.py`。
 默认仅离线预检；双方就绪并确认 Partner commit 后，通过正式 Group 发送一次检索任务。
 七字段 Start → 校验六字段产物 → Complete/completed → 清理，详见
@@ -13,8 +24,8 @@
 
 > 2026-10-19 Repository 双模式已整合：默认静态零模型；仅 `--analysis-mode enhanced --execute` 才允许收费增强。复用旧 LoRA Reader 的真实增强验收已通过（模型 1 次），不代表正式梧桐联调完成。见 [运行说明](docs/repository_dual_mode.md)、[真实增强验收](docs/repository_dual_mode_live_20261019.md) 和 [桌面项目整合说明](docs/repository_dual_mode_integration_20261019.md)。
 
-> invitation-only 入口已在本地补齐：`run_group_invitation.py` 默认离线，真实 ACL 和邀请分别需要显式开启。
-> 见 [建群与邀请说明](docs/group_invitation.md)。当前开发验收不代表已发送真实 invitation，不发送 TaskCommand。
+> 2026-10-21 invitation-only 已由双方核对通过。`run_group_invitation.py` 默认离线，真实 ACL 和邀请分别需要显式开启。
+> 见 [建群与邀请说明](docs/group_invitation.md)。此入口只负责邀请，不发送 TaskCommand；业务验收使用独立的 Literature 入口。
 
 > 2026-10-16 平台接入更新：Leader 已取得身份与 clientAuth 证书，独立梧桐 MQ 连接检查通过。
 > 新增可配置的 `run_mq_check.py`，默认离线、加 `--execute` 才连接；不建群、不发任务、不调用模型。
@@ -46,14 +57,14 @@ python -m venv .venv
 - `common/`：公共基础模块，包括统一 LLM Provider。
 - `docs/`：业务协议、接口说明与联调交接文档。
 
-当前状态：
+早期 Literature / LLM 交付记录（历史，不代表当前平台状态）：
 
 - Literature Agent v0.1：**DONE / FROZEN**。
 - Semantic Scholar real API：**PASS**。最新 `AlphaEvolve` 回归返回 5 篇，
   `latencyMs=2750.866`，`retryCount=0`；第一篇有 DOI，`pdfUrl=null` 属正常缺失。
 - DeepSeek LLM Provider v0.1：**PASS**，已在迁移后完成真实联网验证。
-- AIP integration：待团队 AIP 负责人联调。
-- Planner integration：赵分支已有文献适配器与真实检索记录；新增 `run_research.py` 串联自然语言规划与独立文献检索，真实 AIP / ADP 接入仍待完成。
+- 当前 AIP integration：本机三 Agent 已通过，正式 Literature 单任务 Leader 已通过；正式 Reader/Repository 和全链仍待联调。
+- 当前 Planner integration：`run_research.py` 提供直接检索，`run_aip_research.py` 提供本机三阶段链；正式平台自动发现与编排尚未接通。
 
 张的 API 实测、赵的业务适配及本地 Mock 分别保留验收记录；它们不代表已经完成真实平台发现或 AIP 科研链路。
 
@@ -274,19 +285,19 @@ v0.2 沿用 camelCase 字段风格，任务名和技能名见新的接口文档�
 
 模拟入口的 resolver 和 executor 是同一个进程里的函数调用，不是 AIP 证明。
 新本地 AIP 入口使用官方 SDK 的 TaskCommand、TaskResult 和标准状态；业务字典是消息内的数据，不是另一套通信协议。
-本机 AIP 文献检索和单篇全文 Reader 都已真实通过（2026-10-12），阅读返回1篇全文笔记和5条证据。平台发现、证书认证及代码 Agent 尚未验收；这些成功记录不等于科研结论已人工核验。
+本机 AIP 文献检索和单篇全文 Reader 在2026-10-12已真实通过；2026-10-20本机三Agent静态链通过；2026-10-22正式平台Literature单任务Leader检查通过。正式Reader/Repository及ADP全链仍待验收，科研结论仍需人工核验。
 
 Schema 导出和校验细节见 [数据模型说明](docs/schema_notes.md)。Planner 遇到格式/结构错误最多修正一次，
 单次模型调用默认最多等 30 秒；两次格式错误或调用失败不会用虚构计划兜底。
 
 ## 尚未完成
 
-前两周逐项复核、本轮补齐代码和明日会议所需材料见 [会议进度说明](docs/meeting_progress_20261012.md)。新增ADP接口和公共Provider桥接仅离线验收，不冒充正式平台发现或全组已切换；详情见 [接入说明](docs/week2_integration_ready_20261012.md)。
+当前待办以 [当前进度](docs/current_status_20261022.md) 为准：Literature双方证据闭合、正式Reader/Repository Leader入口、ADP接线与正式平台全链、最终用户界面及交付材料。
 
-DeepSeek 已接通，文献实时检索、直接全文阅读、检索→阅读本地链路已运行成功；真实本机 AIP 文献检索与 Reader 分别已通过。新单入口整合仅离线验收，尚未重新付费实测。Repository Agent、ADP/梧桐发现、证书及跨电脑完整科研链、最终用户界面仍未验收。此状态不代表已经提交或合入 main。
+前两周记录见 [2026-10-12会议进度](docs/meeting_progress_20261012.md) 和 [当时接入说明](docs/week2_integration_ready_20261012.md)，其中“尚未实现/验收”的文字仅描述当时状态。分支提交和 main 合并状态另以 Git 为准。
 Mock 数据和格式检查不证明科研结论真实，也不证明平台发现或赛事互联已完成。
 
-## 最新文献接入进展
+## 文献接入与早期交付记录
 
 张的 Literature Wrapper 已增加独立适配与运行入口：`run_literature.py`。支持交付样例回放和显式实时调用，不等于 AIP/ADP 已接通。安装、字段映射、运行步骤及最新 152 项测试结果见 [文献接入说明](docs/literature_integration.md)。
 
@@ -297,17 +308,17 @@ Mock 数据和格式检查不证明科研结论真实，也不证明平台发现
 .\.venv\Scripts\python.exe -X utf8 -m unittest agents.literature.tests.test_researchmesh_literature common.llm.tests.test_researchmesh_llm -v
 ```
 
-真实检索仍需本机 Semantic Scholar Key；调用时可将 `run_literature.py` 的 `--wrapper-root` 指定为 `agents/literature`。Paper Reader / Repository 目录目前只有说明，不能据此视为已实现。
+真实检索仍需本机 Semantic Scholar Key；调用时可将 `run_literature.py` 的 `--wrapper-root` 指定为 `agents/literature`。当前 `agents/paper_reader` 与 `agents/repository` 均含已选择性整合的业务实现，运行时分别需要对应依赖环境。
 
 ## 本地 AIP 检索与阅读进展（2026-10-12）
 
-真实文献 AIP 已通过：`run_aip_literature.py`。单篇 Reader AIP 新入口：`run_aip_reader.py`，默认只做免费预检，加 `--execute` 才会调用收费 Reader。复用成功的 AIP 检索结果与已核验 PDF 缓存，不重复规划、检索或下载；没有自动模型重试。Reader 使用显式指定的张 Wrapper 独立副本，并非主仓库里空的 `agents/paper_reader` 目录。
+真实文献 AIP 已通过：`run_aip_literature.py`。单篇 Reader AIP 入口：`run_aip_reader.py`，默认只做免费预检，加 `--execute` 才会调用收费 Reader。复用成功的 AIP 检索结果与已核验 PDF 缓存；没有自动模型重试。2026-10-12使用的是张Wrapper独立副本，后续业务实现已迁入 `agents/paper_reader`，当前统一入口默认使用仓库内版本。
 
 详情和本机命令见 [Reader AIP 接入说明](docs/aip_reader_live_20261012.md)、[文献 AIP 接入说明](docs/aip_literature_live_20261012.md)。382项是Reader接入阶段的历史离线测试数量；最新数量请看新验收记录，离线回归不代替真实 Reader 或平台验收。
 
 ## 单入口与可共享交付
 
-`run_aip_research.py` 整合真实Planner（可选已有计划）→本地AIP检索→已知arXiv全文核验→本地AIP单篇阅读→统一报告。默认不联网、不计费；`--execute`才明确启动，失败阶段不自动付费重跑。只支持一个独立检索任务加一个依赖它的单篇阅读任务，不丢弃计划里的其他任务来假装全部完成。
+`run_aip_research.py` 整合真实Planner（可选已有计划）→本地AIP检索→已知arXiv全文核验→本地AIP单篇阅读→可选单仓库分析→统一报告。默认不联网、不计费；`--execute`才启动，失败阶段不自动付费重跑。支持两阶段和三阶段计划，Reader/Repository各限1篇/1个；操作见 [当前统一入口说明](docs/three_agent_single_entry.md)。
 
 操作、限制及换机说明见 [独立工作收尾与运行指南](docs/independent_completion_20261012.md)。`export_team_evidence.py`只导出经过复核的数量/耗时和文件哈希；`scripts/prepare_team_sync.py`只检查Git候选和泄密风险，不提交或推送。未经审核的PDF、`.env`、证书及`outputs`原始日志不应打包上传。
 

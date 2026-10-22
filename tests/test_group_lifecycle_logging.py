@@ -1,14 +1,22 @@
-"""Offline verification of Literature Group lifecycle callbacks."""
+
+"""Offline tests for Literature Group lifecycle callbacks.
+
+No external AMQP connections.
+No actual invitation is sent.
+No research backend is called.
+"""
 
 import asyncio
 import unittest
+
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from acps_sdk.aip import GroupMgmtCommandType
+
 from aip.group_literature_partner import serve
 
 
@@ -43,12 +51,18 @@ class FakeClient:
         self.closed = True
 
 
-class GroupLifecycleLoggingTests(unittest.IsolatedAsyncioTestCase):
-
+class GroupLifecycleLoggingTests(
+    unittest.IsolatedAsyncioTestCase
+):
     async def test_disband_and_group_left(self):
         ready = asyncio.Event()
         client = FakeClient(ready)
+
         output = StringIO()
+
+        # This test only checks callback registration and logs.
+        # It deliberately does not initialize a real SQLite DB.
+        fake_store = MagicMock()
 
         with (
             patch(
@@ -66,24 +80,37 @@ class GroupLifecycleLoggingTests(unittest.IsolatedAsyncioTestCase):
                     partner_aic="partner-aic",
                     leader_aic="leader-aic",
                     credential_dir=Path("."),
+                    task_store=fake_store,
                 )
             )
 
             try:
-                await asyncio.wait_for(ready.wait(), timeout=2)
+                await asyncio.wait_for(
+                    ready.wait(),
+                    timeout=2,
+                )
 
-                self.assertIsNotNone(client.mgmt_handler)
-                self.assertIsNotNone(client.disconnect_handler)
+                self.assertIsNotNone(
+                    client.mgmt_handler
+                )
+
+                self.assertIsNotNone(
+                    client.disconnect_handler
+                )
 
                 valid_command = SimpleNamespace(
                     command=GroupMgmtCommandType.DISBAND,
                     groupId="rm-test-group",
                     senderRole="leader",
                     senderId="leader-aic",
-                    must_respond=lambda aic: aic == "partner-aic",
+                    must_respond=(
+                        lambda aic: aic == "partner-aic"
+                    ),
                 )
 
-                await client.mgmt_handler(valid_command)
+                await client.mgmt_handler(
+                    valid_command
+                )
 
                 invalid_command = SimpleNamespace(
                     command=GroupMgmtCommandType.DISBAND,
@@ -93,24 +120,48 @@ class GroupLifecycleLoggingTests(unittest.IsolatedAsyncioTestCase):
                     must_respond=lambda aic: True,
                 )
 
-                await client.mgmt_handler(invalid_command)
+                await client.mgmt_handler(
+                    invalid_command
+                )
 
                 await client.disconnect_handler(
-                    client, "rm-test-group"
+                    client,
+                    "rm-test-group",
                 )
 
             finally:
                 task.cancel()
-                with self.assertRaises(asyncio.CancelledError):
+
+                with self.assertRaises(
+                    asyncio.CancelledError
+                ):
                     await task
 
         logs = output.getvalue()
 
-        self.assertEqual(logs.count("DISBAND_RECEIVED"), 1)
-        self.assertIn("GROUP_LEFT", logs)
-        self.assertIn("Group: rm-test-group", logs)
-        self.assertIn("INBOX_RESTART_REQUIRED", logs)
-        self.assertTrue(client.closed)
+        self.assertEqual(
+            logs.count("DISBAND_RECEIVED"),
+            1,
+        )
+
+        self.assertIn(
+            "GROUP_LEFT",
+            logs,
+        )
+
+        self.assertIn(
+            "Group: rm-test-group",
+            logs,
+        )
+
+        self.assertIn(
+            "INBOX_RESTART_REQUIRED",
+            logs,
+        )
+
+        self.assertTrue(
+            client.closed
+        )
 
         print("LIFECYCLE_CALLBACKS_OK: True")
         print("UNTRUSTED_LEADER_FILTERED: True")

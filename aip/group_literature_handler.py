@@ -1,7 +1,6 @@
-"""Group-mode TaskCommand -> frozen Literature v0.1 backend -> v0.2 business result.
+"""Group TaskCommand -> Literature backend -> v0.2 business Result.
 
-This module does not create MQ connections; use a fake client for offline tests.
-Do not change the frozen wu_delivery wire models.
+The formal Group Partner injects durable storage. No MQ is opened here.
 """
 from __future__ import annotations
 
@@ -10,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 from acps_sdk.aip import Product, StructuredDataItem, TaskCommandType, TaskState
+from aip.group_task_store import DurableTaskStore
 from aip.literature_bridge import build_literature_request, execute_literature
 from aip.wu_delivery.contracts import ResearchResult as LegacyResult
 from aip.wu_delivery.contracts import ResearchTask as LegacyTask
@@ -30,9 +30,13 @@ class _TaskRecord:
 
 class LiteratureGroupHandler:
     def __init__(
-        self, client: Any, *, leader_aic: str,
+        self,
+        client: Any,
+        *,
+        leader_aic: str,
         executor: Executor = execute_literature,
         backend_timeout_seconds: float = 120.0,
+        task_store: DurableTaskStore | None = None,
     ) -> None:
         if not leader_aic.strip() or backend_timeout_seconds <= 0:
             raise ValueError("LEADER_AIC_AND_TIMEOUT_REQUIRED")
@@ -40,6 +44,7 @@ class LiteratureGroupHandler:
         self.leader_aic = leader_aic.strip()
         self.executor = executor
         self.timeout = backend_timeout_seconds
+        self.task_store = task_store
         self._tasks: dict[tuple[str, str], _TaskRecord] = {}
         self._lock = asyncio.Lock()
 
@@ -58,8 +63,40 @@ class LiteratureGroupHandler:
         legacy_payload = v02.model_dump()
         legacy_payload["schemaVersion"] = "0.1"
         legacy = LegacyTask.model_validate(legacy_payload)
-        build_literature_request(legacy)  # Validate Literature-specific limits.
+        build_literature_request(legacy)
         return v02, legacy
+
+    def _advance(self, key: tuple[str, str], expected: tuple[str, ...], new_state: str) -> bool:
+        if self.task_store is None:
+            return True  # Compatibility only for offline fake-client tests.
+        session_id, task_id = key
+        return self.task_store.advance_state(
+            agent_aic=self.client.partner_aic,
+            session_id=session_id,
+            task_id=task_id,
+            expected=expected,
+            new_state=new_state,
+        )
+
+    async def _fail_if_active(
+        self, key: tuple[str, str], task: str, session: str, code: str, *, uncertain: bool = True
+    ) -> None:
+        async with self._lock:
+            rec = self._tasks.get(key)
+            if rec is None or rec.state in (TaskState.Canceled, TaskState.Completed):
+                return
+            try:
+                changed = self._advance(
+                    key, ("reserved", "working", "awaiting_completion"),
+                    "uncertain" if uncertain else "failed"
+                )
+            except Exception:
+                code = "TASK_STORE_UNAVAILABLE"
+            else:
+                if not changed:
+                    return  # A cancellation or another terminal change won.
+            rec.state = TaskState.Failed
+        await self.client.fail_task(task, session, code)
 
     async def on_command(self, command: Any, is_mentioned: bool) -> None:
         if not is_mentioned or getattr(self.client, "is_muted", False):
@@ -79,15 +116,41 @@ class LiteratureGroupHandler:
             except (ValueError, TypeError, KeyError):
                 await self.client.reject_task(task_id, session_id, "INVALID_LITERATURE_TASK")
                 return
+
             async with self._lock:
-                # Repeated starts must never re-run a potentially paid search.
+                # Check SQLite before memory so conflicting same-process Starts
+                # are rejected, not silently treated as duplicates.
+                if self.task_store is not None:
+                    try:
+                        decision, _previous_state = self.task_store.reserve(
+                            agent_aic=self.client.partner_aic,
+                            session_id=session_id,
+                            task_id=task_id,
+                            payload=v02.model_dump(mode="json"),
+                        )
+                    except Exception:
+                        await self.client.reject_task(task_id, session_id, "TASK_STORE_UNAVAILABLE")
+                        return
+                    if decision == "conflict":
+                        await self.client.reject_task(task_id, session_id, "TASK_PAYLOAD_CONFLICT")
+                        return
+                    if decision == "duplicate":
+                        return  # No automatic re-execution or fabricated result.
                 if key in self._tasks:
                     return
                 self._tasks[key] = _TaskRecord(TaskState.Accepted)
+
             try:
                 await self.client.accept_task(task_id, session_id)
+                # Mark intent durably before ANY paid backend invocation.
+                if not self._advance(key, ("reserved",), "working"):
+                    await self._fail_if_active(key, task_id, session_id, "TASK_STATE_CONFLICT")
+                    return
                 self._tasks[key].state = TaskState.Working
                 await self.client.start_working(task_id, session_id)
+                if self._tasks[key].state == TaskState.Canceled:
+                    return
+
                 async with asyncio.timeout(self.timeout):
                     raw = await self.executor(legacy)
                 data = raw.model_dump(mode="json") if hasattr(raw, "model_dump") else raw
@@ -99,36 +162,84 @@ class LiteratureGroupHandler:
                     id=f"literature-{task_id}", name="paper-records-v1",
                     dataItems=[StructuredDataItem(data=result_v02)],
                 )]
-                if self._tasks[key].state == TaskState.Canceled:
-                    return
-                self._tasks[key] = _TaskRecord(TaskState.AwaitingCompletion, products)
+
+                async with self._lock:
+                    if self._tasks[key].state == TaskState.Canceled:
+                        return
+                    if not self._advance(key, ("working",), "awaiting_completion"):
+                        return  # Stale or canceled: do not send a Product.
+                    self._tasks[key] = _TaskRecord(TaskState.AwaitingCompletion, products)
                 await self.client.submit_for_completion(task_id, session_id, products)
+
+            except asyncio.CancelledError:
+                # The remote backend may already have run when we are canceled.
+                try:
+                    self._advance(
+                        key,
+                        ("reserved", "working", "awaiting_completion"),
+                        "uncertain",
+                    )
+                except Exception:
+                    pass  # The existing durable claim still blocks duplicate Starts.
+                raise
             except TimeoutError:
                 await self._fail_if_active(key, task_id, session_id, "LITERATURE_TIMEOUT")
-            except (ValueError, TypeError, BackendFailure):
-                await self._fail_if_active(key, task_id, session_id, "LITERATURE_INVALID_RESULT_OR_BACKEND")
+            except (ValueError, TypeError):
+                await self._fail_if_active(
+                    key, task_id, session_id, "LITERATURE_INVALID_RESULT_OR_BACKEND",
+                    uncertain=False,
+                )
+            except BackendFailure:
+                await self._fail_if_active(
+                    key, task_id, session_id, "LITERATURE_INVALID_RESULT_OR_BACKEND"
+                )
             except Exception:
-                # Never log or send upstream error text (may include credentials).
                 await self._fail_if_active(key, task_id, session_id, "LITERATURE_BACKEND_ERROR")
 
         elif action == TaskCommandType.Complete:
-            rec = self._tasks.get(key)
-            if rec and rec.state == TaskState.AwaitingCompletion:
-                await self.client.complete_task(task_id, session_id)
+            async with self._lock:
+                rec = self._tasks.get(key)
+                if not rec or rec.state != TaskState.AwaitingCompletion:
+                    return
+                try:
+                    # AIP completion must succeed before recording completed.
+                    await self.client.complete_task(task_id, session_id)
+                except (asyncio.CancelledError, Exception):
+                    try:
+                        self._advance(key, ("awaiting_completion",), "uncertain")
+                    except Exception:
+                        pass
+                    raise
+                # Backend must never restart even when this SQLite write fails.
+                if not self._advance(key, ("awaiting_completion",), "completed"):
+                    raise RuntimeError("TASK_STATE_CONFLICT")
                 rec.state = TaskState.Completed
+
         elif action == TaskCommandType.Cancel:
-            rec = self._tasks.get(key)
-            if rec and rec.state not in (TaskState.Completed, TaskState.Canceled, TaskState.Failed):
+            async with self._lock:
+                rec = self._tasks.get(key)
+                if not rec or rec.state in (TaskState.Completed, TaskState.Canceled, TaskState.Failed):
+                    return
+                try:
+                    await self.client.cancel_task(task_id, session_id)
+                except (asyncio.CancelledError, Exception):
+                    try:
+                        self._advance(
+                            key, ("reserved", "working", "awaiting_completion"), "uncertain"
+                        )
+                    except Exception:
+                        pass
+                    raise
+                if not self._advance(
+                    key, ("reserved", "working", "awaiting_completion"), "canceled"
+                ):
+                    raise RuntimeError("TASK_STATE_CONFLICT")
                 rec.state = TaskState.Canceled
-                await self.client.cancel_task(task_id, session_id)
+
         elif action == TaskCommandType.Get:
             rec = self._tasks.get(key)
             if rec:
-                await self.client.send_task_result(task_id, session_id, rec.state, products=rec.products)
-
-    async def _fail_if_active(self, key: tuple[str, str], task: str, session: str, code: str) -> None:
-        rec = self._tasks[key]
-        if rec.state in (TaskState.Canceled, TaskState.Completed):
-            return
-        rec.state = TaskState.Failed
-        await self.client.fail_task(task, session, code)
+                await self.client.send_task_result(
+                    task_id, session_id, rec.state, products=rec.products
+                )
+            # Product is not persisted, so restart cannot synthesize it for Get.

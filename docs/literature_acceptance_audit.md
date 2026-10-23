@@ -1,7 +1,7 @@
 # Literature Group 正式验收审计交接
 
-开发分支：`wu/literature-acceptance-audit`。
-开发工作树：`D:\research\aic\worktrees\literature-acceptance-audit`。
+正式候选分支：`wu/project-release-readiness`；Literature 审计的原始开发分支为 `wu/literature-acceptance-audit`。
+正式候选工作树：`D:\research\aic\worktrees\reader-repository-readiness`，分支 `wu/project-release-readiness`。
 基线：`a619422`。从干净的正式工作树创建；未覆盖现有改动。
 当前实现尚未进行新的正式联调，不能据此宣布五项正式验收通过。
 
@@ -72,7 +72,7 @@ SDK 子类调用原有 super 方法，不抢先退群，不改 `_pending_leave`�
 运行命令（只用于离线测试）：
 
 ```powershell
-Set-Location D:\research\aic\worktrees\literature-acceptance-audit
+Set-Location D:\research\aic\worktrees\reader-repository-readiness
 & D:\research\ResearchMesh\.venv\Scripts\python.exe scripts/test_literature_audit_offline.py
 ```
 
@@ -101,7 +101,7 @@ SDK 吞异常、关闭失败、残留对象、日志观察不可用和报告防�
 强制使用 Semantic Scholar、限制单请求，关闭 OpenAlex fallback 和附加资源查找，使单请求验收范围明确。
 
 ```powershell
-Set-Location D:\research\aic\worktrees\literature-acceptance-audit
+Set-Location D:\research\aic\worktrees\reader-repository-readiness
 & D:\research\ResearchMesh\.venv\Scripts\python.exe -c 'from dotenv import load_dotenv; import os,runpy,sys; load_dotenv(r"D:\research\ResearchMesh-literature-live\.env", override=False); os.environ.update(RESEARCHMESH_S1_SINGLE_REQUEST="1", LITERATURE_SEARCH_PROVIDER="semantic-scholar", LITERATURE_OPENALEX_FALLBACK="0", LITERATURE_RESOLVE_RESOURCES="0"); sys.argv=["run_group_literature.py","--serve"]; runpy.run_path("run_group_literature.py",run_name="__main__")'
 ```
 
@@ -111,7 +111,7 @@ SQLite 沿用 `D:\research\aic\state\group_tasks.sqlite3`，不迁移、不删�
 正式联调完成后，在另一个终端执行以下只读验收（占位符必须替换为本次新 ID）：
 
 ```powershell
-Set-Location D:\research\aic\worktrees\literature-acceptance-audit
+Set-Location D:\research\aic\worktrees\reader-repository-readiness
 & D:\research\ResearchMesh\.venv\Scripts\python.exe verify_literature_acceptance.py `
   --journal 'D:\research\aic\evidence\literature-<本次run UUID>.jsonl' `
   --database 'D:\research\aic\state\group_tasks.sqlite3' `

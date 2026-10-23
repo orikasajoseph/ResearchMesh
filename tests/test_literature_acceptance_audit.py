@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 import httpx
-from acps_sdk.aip import GroupMgmtCommand, GroupMgmtCommandType, TaskCommandType
+from acps_sdk.aip import GroupMgmtCommand, GroupMgmtCommandType, GroupPartnerMqClient, TaskCommandType
 
 from aip.audited_group_client import AuditedGroupPartnerMqClient
 from aip.group_literature_partner import serve
@@ -333,6 +333,85 @@ class AuditTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(cleanup[0]["consumerCallbackCancelled"])
         self.assertTrue(cleanup[0]["groupResourcesCleared"])
         self.assertEqual(len(self.events("LEAVE_FINISHED")), 1)
+
+    async def test_concurrent_cleanup_waits_for_one_sdk_sequence(self):
+        client = AuditedGroupPartnerMqClient(PARTNER)
+        client.audit = self.audit
+        client._group_id = GROUP
+        client._consumer_tag = "live-consumer"
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def pause_cancel(*args, **kwargs):
+            entered.set()
+            await release.wait()
+
+        queue = SimpleNamespace(
+            name="live-queue",
+            cancel=AsyncMock(side_effect=pause_cancel),
+            delete=AsyncMock(),
+        )
+        client._queue = queue
+        client._channel = SimpleNamespace(is_closed=False)
+        client._connection = SimpleNamespace(is_closed=False)
+        client._connection_owner = True
+
+        async def close_channel():
+            client._channel.is_closed = True
+
+        async def close_connection():
+            client._connection.is_closed = True
+
+        client._channel.close = AsyncMock(side_effect=close_channel)
+        client._connection.close = AsyncMock(side_effect=close_connection)
+        disconnected = AsyncMock()
+        client.set_disconnect_handler(disconnected)
+
+        first = asyncio.create_task(client._cleanup_group_resources())
+        await asyncio.wait_for(entered.wait(), 1)
+        second = asyncio.create_task(client._cleanup_group_resources())
+        await asyncio.sleep(0)
+        release.set()
+        await asyncio.wait_for(asyncio.gather(first, second), 1)
+
+        queue.cancel.assert_awaited_once_with("live-consumer")
+        queue.delete.assert_awaited_once_with(if_unused=False, if_empty=False)
+        disconnected.assert_awaited_once_with(client, GROUP)
+        self.assertEqual(len(self.events("CLEANUP_ENTERED")), 1)
+        self.assertEqual(len(self.events("CLEANUP_SUCCEEDED")), 1)
+        self.assertFalse(self.events("CLEANUP_FAILED"))
+
+    async def test_cancelled_concurrent_cleanup_does_not_cancel_active_cleanup(self):
+        client = AuditedGroupPartnerMqClient(PARTNER)
+        client.audit = self.audit
+        client._group_id = GROUP
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def sdk_cleanup():
+            entered.set()
+            await release.wait()
+            client._reset_group_state()
+
+        with patch.object(
+            GroupPartnerMqClient,
+            "_cleanup_group_resources",
+            new=AsyncMock(side_effect=sdk_cleanup),
+        ) as cleanup:
+            first = asyncio.create_task(client._cleanup_group_resources())
+            await asyncio.wait_for(entered.wait(), 1)
+            waiter = asyncio.create_task(client._cleanup_group_resources())
+            await asyncio.sleep(0)
+            waiter.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await waiter
+            release.set()
+            await asyncio.wait_for(first, 1)
+
+        cleanup.assert_awaited_once()
+        self.assertEqual(len(self.events("CLEANUP_ENTERED")), 1)
+        self.assertEqual(len(self.events("CLEANUP_SUCCEEDED")), 1)
+        self.assertFalse(self.events("CLEANUP_FAILED"))
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
         self.leave_finished = asyncio.Event()
         self.leave_succeeded = False
         self._audited_cleanup_succeeded = False
+        self._audited_cleanup_task = None
 
     async def _handle_incoming_message(self, body):
         try:
@@ -91,8 +92,18 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
             self.audit.emit("LEAVE_FINISHED", **identity)
 
     async def _cleanup_group_resources(self):
+        current = asyncio.current_task()
+        active_cleanup = self._audited_cleanup_task
+        if active_cleanup is not None and active_cleanup is not current:
+            # DISBAND can race with application shutdown.  The SDK cleanup is
+            # not re-entrant: a second cancel/delete/close sequence can cancel
+            # the first one after it has already started.  A concurrent caller
+            # therefore observes the in-flight result instead of entering the
+            # SDK a second time.
+            return await asyncio.shield(active_cleanup)
         if not self.audit or not self.group_id:
             return await super()._cleanup_group_resources()
+        self._audited_cleanup_task = current
         identity = self._identity()
         channel, connection = self._channel, self._connection
         # aio-pika cancels the active consumer callback when that callback asks
@@ -145,3 +156,5 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
         finally:
             SDK_LOGGER.removeHandler(capture)
             _CLEANUP.reset(token)
+            if self._audited_cleanup_task is current:
+                self._audited_cleanup_task = None

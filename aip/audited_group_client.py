@@ -34,6 +34,8 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
         self.leave_succeeded = False
         self._audited_cleanup_succeeded = False
         self._audited_cleanup_task = None
+        self._audited_leave_scheduled = False
+        self._audited_leave_task = None
 
     async def _handle_incoming_message(self, body):
         try:
@@ -67,6 +69,23 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
                 return result
             finally:
                 self.leave_finished.set()
+        # The SDK invokes this method before its AMQP consumer callback has
+        # returned.  Cancelling that consumer from inside the same callback can
+        # cancel the leave coroutine itself.  Queue the complete leave path for
+        # the next loop turn so ACK and callback teardown finish first.
+        if self._audited_leave_scheduled:
+            return
+        self._audited_leave_scheduled = True
+        asyncio.get_running_loop().call_soon(self._start_audited_leave)
+
+    def _start_audited_leave(self):
+        if self._audited_leave_task is None:
+            self._audited_leave_task = asyncio.create_task(
+                self._run_audited_leave_request(),
+                name="audited-group-leave",
+            )
+
+    async def _run_audited_leave_request(self):
         identity = self._identity()
         self.audit.emit("LEAVE_ENTERED", **identity,
                         managementSessionId=getattr(self, "_pending_leave_session_id", None))
@@ -80,7 +99,6 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
             await super()._handle_leave_request()
         except BaseException:
             self.audit.emit("LEAVE_FAILED", **identity)
-            raise
         finally:
             SDK_LOGGER.removeHandler(capture)
             _CLEANUP.reset(token)

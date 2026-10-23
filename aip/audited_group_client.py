@@ -95,6 +95,16 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
             return await super()._cleanup_group_resources()
         identity = self._identity()
         channel, connection = self._channel, self._connection
+        # aio-pika cancels the active consumer callback when that callback asks
+        # the SDK to cancel its own consumer after DISBAND.  Run the SDK cleanup
+        # in an independent task so that callback cancellation cannot interrupt
+        # channel/connection closure, state reset, or GROUP_LEFT.  Cancellation
+        # is absorbed only when a consumer existed and the complete SDK cleanup
+        # task subsequently succeeded; every cleanup exception still propagates.
+        had_consumer = bool(self._queue and self._consumer_tag)
+        caller = asyncio.current_task()
+        cancel_count = caller.cancelling() if caller else 0
+        consumer_callback_cancelled = False
         self.audit.emit("CLEANUP_ENTERED", **identity)
         failures = []
         if SDK_LOGGER.disabled or not SDK_LOGGER.isEnabledFor(logging.WARNING) or SDK_LOGGER.filters:
@@ -103,7 +113,21 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
         capture = _FailureCapture()
         SDK_LOGGER.addHandler(capture)
         try:
-            await super()._cleanup_group_resources()
+            if not had_consumer:
+                await super()._cleanup_group_resources()
+            else:
+                cleanup = asyncio.create_task(
+                    super()._cleanup_group_resources(),
+                    name="sdk-group-resource-cleanup",
+                )
+                try:
+                    await asyncio.shield(cleanup)
+                except asyncio.CancelledError:
+                    if not (caller and caller.cancelling() > cancel_count):
+                        raise
+                    caller.uncancel()
+                    await asyncio.shield(cleanup)
+                    consumer_callback_cancelled = True
         except BaseException as error:
             self.audit.emit("CLEANUP_FAILED", **identity,
                             exceptionCategory="cancelled" if isinstance(error, asyncio.CancelledError) else "sdk_cleanup_error",
@@ -115,7 +139,9 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
                 not failures and snapshot["groupResourcesCleared"]
             )
             self.audit.emit("CLEANUP_SUCCEEDED" if self._audited_cleanup_succeeded
-                            else "CLEANUP_FAILED", **identity, failures=failures, **snapshot)
+                            else "CLEANUP_FAILED", **identity, failures=failures,
+                            consumerCallbackCancelled=consumer_callback_cancelled,
+                            **snapshot)
         finally:
             SDK_LOGGER.removeHandler(capture)
             _CLEANUP.reset(token)

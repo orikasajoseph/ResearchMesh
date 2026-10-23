@@ -284,6 +284,56 @@ class AuditTests(unittest.IsolatedAsyncioTestCase):
         await client._cleanup_group_resources()
         self.assertIn("channel_not_closed", self.events("CLEANUP_FAILED")[0]["residual"])
 
+    async def test_consumer_self_cancel_does_not_interrupt_disband_cleanup(self):
+        client = AuditedGroupPartnerMqClient(PARTNER)
+        client.audit = self.audit
+        client._group_id = GROUP
+        client._consumer_tag = "live-consumer"
+        caller = None
+
+        async def cancel_active_callback(*args, **kwargs):
+            caller.cancel()
+            await asyncio.sleep(0)
+
+        client._queue = SimpleNamespace(
+            name="live-queue",
+            cancel=AsyncMock(side_effect=cancel_active_callback),
+            delete=AsyncMock(),
+        )
+        client._channel = SimpleNamespace(is_closed=False)
+        client._connection = SimpleNamespace(is_closed=False)
+        client._connection_owner = True
+
+        async def close_channel():
+            client._channel.is_closed = True
+
+        async def close_connection():
+            client._connection.is_closed = True
+
+        client._channel.close = AsyncMock(side_effect=close_channel)
+        client._connection.close = AsyncMock(side_effect=close_connection)
+        disconnected = AsyncMock()
+        client.set_disconnect_handler(disconnected)
+
+        async def leave_from_consumer_callback():
+            nonlocal caller
+            caller = asyncio.current_task()
+            await client._handle_leave_request()
+
+        await asyncio.wait_for(
+            asyncio.create_task(leave_from_consumer_callback()),
+            1,
+        )
+
+        disconnected.assert_awaited_once_with(client, GROUP)
+        self.assertTrue(client.leave_succeeded)
+        self.assertEqual(len(self.events("GROUP_LEFT")), 0)
+        cleanup = self.events("CLEANUP_SUCCEEDED")
+        self.assertEqual(len(cleanup), 1)
+        self.assertTrue(cleanup[0]["consumerCallbackCancelled"])
+        self.assertTrue(cleanup[0]["groupResourcesCleared"])
+        self.assertEqual(len(self.events("LEAVE_FINISHED")), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

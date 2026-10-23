@@ -35,6 +35,19 @@ def validate_literature_task(task):
     return payload
 
 
+def validate_reader_task(task):
+    """Validate the first formal Reader check before any platform I/O."""
+    payload = validate_local_task(deepcopy(task))
+    if payload["taskType"] != "paper_read":
+        raise CheckError("ONLY_READER_TASK_SUPPORTED")
+    if payload["constraints"].get("maxPapers") != 1 or len(payload["input"].get("papers", [])) != 1:
+        raise CheckError("FIRST_PLATFORM_CHECK_REQUIRES_ONE_PAPER")
+    paper = payload["input"]["papers"][0]
+    if not paper.get("pdfUrl"):
+        raise CheckError("READER_REQUIRES_ACCESSIBLE_PDF_URL")
+    return payload
+
+
 async def settle_group_shutdown():
     # Give the Partner time to consume DISBAND before its temporary queue is removed.
     await asyncio.sleep(2)
@@ -94,6 +107,8 @@ class SingleTaskMqClient(GroupLeaderMqClient):
 class LiteratureConversation:
     """SDK validates AMQP user_id first; correlate all task identifiers here."""
 
+    invalid_result_code = "INVALID_LITERATURE_RESULT"
+
     def __init__(self, config, group_id, task_id, session_id):
         self.join = JoinConfirmation(config.partner_aic, group_id)
         self.task_id, self.session_id = task_id, session_id
@@ -115,8 +130,8 @@ class LiteratureConversation:
         except asyncio.QueueFull:
             self.overflow = True
 
-    @staticmethod
-    def extract(message, task):
+    @classmethod
+    def extract(cls, message, task):
         items = [item for product in message.products or [] for item in product.dataItems]
         if len(items) != 1 or not isinstance(items[0], StructuredDataItem):
             raise CheckError("EXPECTED_ONE_BUSINESS_RESULT")
@@ -124,7 +139,7 @@ class LiteratureConversation:
         try:
             validate_business_result(task, result)
         except (ValueError, TypeError, KeyError, AttributeError):
-            raise CheckError("INVALID_LITERATURE_RESULT") from None
+            raise CheckError(cls.invalid_result_code) from None
         if any(w.startswith(("TRANSPORT_TEST_ONLY", "SIMULATED_RESEARCH")) for w in result["warnings"]):
             raise CheckError("SIMULATED_RESULT_NOT_ACCEPTED")
         return result
@@ -187,16 +202,24 @@ class LiteratureConversation:
                     return
 
 
-async def run_group_literature(config, task, *, execute=False, partner_ready=False,
-                               partner_commit=None, task_timeout=180, checkpoint=None,
-                               task_release=None):
+class ReaderConversation(LiteratureConversation):
+    """Reader uses the same official protocol flow with Reader-specific errors."""
+
+    invalid_result_code = "INVALID_READER_RESULT"
+
+
+async def _run_group_single_task(config, task, *, execute, partner_ready,
+                                 partner_commit, task_timeout, checkpoint,
+                                 task_release, task_validator, conversation_type,
+                                 group_prefix, live_scope, offline_scope,
+                                 connection_prefix, max_task_timeout):
     """Preflight by default. Live mode creates a fresh temporary group and task."""
     started = monotonic()
     group_id, task_id, session_id = (prefix + uuid4().hex for prefix in
-                                    ("rm-literature-", "task-", "session-"))
+                                    (group_prefix, "task-", "session-"))
     record = {
         "timeUtc": datetime.now(timezone.utc).isoformat(),
-        "scope": "PLATFORM_LITERATURE_SINGLE_TASK" if execute else "OFFLINE_PLATFORM_LITERATURE_PREFLIGHT",
+        "scope": live_scope if execute else offline_scope,
         "groupId": group_id, "taskId": task_id, "sessionId": session_id,
         "leaderAic": config.leader_aic, "partnerAic": config.partner_aic,
         "partnerSelection": "explicit_aic_not_adp", "partnerCommitDeclared": partner_commit,
@@ -239,14 +262,15 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
             return False
 
     try:
-        payload = validate_literature_task(task)
+        payload = task_validator(task)
         record["task"] = payload
         if type(execute) is not bool or type(partner_ready) is not bool:
             raise CheckError("INVALID_EXECUTION_FLAGS")
         if task_release is not None and not callable(task_release):
             raise CheckError("INVALID_TASK_RELEASE")
         directory = validate(config, "invite" if execute else "offline", execute, partner_ready)
-        if type(task_timeout) not in (int, float) or not math.isfinite(task_timeout) or not 1 <= task_timeout <= 600:
+        if (type(task_timeout) not in (int, float) or not math.isfinite(task_timeout)
+                or not 1 <= task_timeout <= max_task_timeout):
             raise CheckError("INVALID_TASK_TIMEOUT")
         if execute and (not isinstance(partner_commit, str) or not 7 <= len(partner_commit) <= 40
                         or any(c not in "0123456789abcdefABCDEF" for c in partner_commit)):
@@ -262,7 +286,7 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
             record["leaderAuthorized"] = True
             event("LEADER_ACL_AUTHORIZED")
             url = build_external_connection_url(host=HOST, port=PORT, vhost=VHOST,
-                                               connection_name="literature-check-" + config.leader_aic)
+                                               connection_name=connection_prefix + config.leader_aic)
             connection = aio_pika.Connection(make_url(url), ssl_context=ctx)
             await bounded(connection.connect(timeout=config.timeout))
             record["amqpConnected"] = not connection.is_closed
@@ -280,7 +304,7 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
                 raise CheckError("UNEXPECTED_GROUP_ID")
             record["groupCreated"] = True
             event("GROUP_CREATED")
-            conversation = LiteratureConversation(config, group_id, task_id, session_id)
+            conversation = conversation_type(config, group_id, task_id, session_id)
             client.set_message_handler(conversation.on_message)
             await bounded(client.start_consuming())
             await bounded(acl.add_member(leader_aic=config.leader_aic, group_id=group_id, member_aic=config.partner_aic))
@@ -360,3 +384,39 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
                 record["journalError"] = "JOURNAL_WRITE_FAILED"
                 record["passed"] = False
     return record
+
+
+async def run_group_literature(config, task, *, execute=False, partner_ready=False,
+                               partner_commit=None, task_timeout=180, checkpoint=None,
+                               task_release=None):
+    """Run one formal Literature task while preserving the sealed interface."""
+    return await _run_group_single_task(
+        config, task, execute=execute, partner_ready=partner_ready,
+        partner_commit=partner_commit, task_timeout=task_timeout,
+        checkpoint=checkpoint, task_release=task_release,
+        task_validator=validate_literature_task,
+        conversation_type=LiteratureConversation,
+        group_prefix="rm-literature-",
+        live_scope="PLATFORM_LITERATURE_SINGLE_TASK",
+        offline_scope="OFFLINE_PLATFORM_LITERATURE_PREFLIGHT",
+        connection_prefix="literature-check-",
+        max_task_timeout=600,
+    )
+
+
+async def run_group_reader(config, task, *, execute=False, partner_ready=False,
+                           partner_commit=None, task_timeout=750, checkpoint=None,
+                           task_release=None):
+    """Run one formal Paper Reader task; no Planner, search or Repository work."""
+    return await _run_group_single_task(
+        config, task, execute=execute, partner_ready=partner_ready,
+        partner_commit=partner_commit, task_timeout=task_timeout,
+        checkpoint=checkpoint, task_release=task_release,
+        task_validator=validate_reader_task,
+        conversation_type=ReaderConversation,
+        group_prefix="rm-reader-",
+        live_scope="PLATFORM_READER_SINGLE_TASK",
+        offline_scope="OFFLINE_PLATFORM_READER_PREFLIGHT",
+        connection_prefix="reader-check-",
+        max_task_timeout=900,
+    )

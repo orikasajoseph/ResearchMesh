@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "0.2",
+  "subtaskId": "S2",
+  "taskType": "paper_read",
+  "goal": "阅读全文 LoRA: Low-Rank Adaptation of Large Language Models，概括方法、主要发现与局限，并保留可回到原 PDF 的具体证据。",
+  "input": {
+    "papers": [
+      {
+        "paperId": "arxiv:2106.09685",
+        "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+        "doi": null,
+        "url": "https://arxiv.org/abs/2106.09685",
+        "pdfUrl": "https://arxiv.org/pdf/2106.09685.pdf",
+        "repositoryUrls": [
+          "https://github.com/microsoft/LoRA"
+        ]
+      }
+    ]
+  },
+  "constraints": {
+    "maxPapers": 1
+  },
+  "outputSchema": "paper_notes.v1"
+}

@@ -3,18 +3,19 @@
 ## 当前状态（2026-10-22）
 
 - 本机三智能体链已真实运行：Planner → Literature → Reader → Repository 静态分析 → 报告。入口为 `run_aip_research.py`；Repository 可选增强另有真实验收记录。
-- 正式梧桐 Literature 第三次单任务已通过 Leader 自动验收：返回正确 LoRA 论文，六字段 Result 校验、Complete/completed 和 Leader 清理成功。
-- 吴已反馈同一 Task 的 SQLite 唯一记录为 completed，收到 GROUP_JOINED 与 DISBAND_RECEIVED；该次 Provider HTTP 请求次数、Partner 缓存回读和 GROUP_LEFT 证据仍待核对。
-- 正式 Reader/Repository 的 Leader 单任务入口、ADP 自动发现接线和正式平台 S1→S2→S3 全链仍待完成。本机三智能体通过不替代这些验收。
+- 正式梧桐 Literature 单任务联合验收已封板通过：实际 Semantic Scholar HTTP=1、业务执行=1、SQLite completed、六字段 Result 回读及双方 SHA-256 一致，首次 DISBAND 清理产生 GROUP_LEFT 且无残留或重复执行。
+- 正式 Reader Leader 单任务入口已补齐并完成离线回归，仍待双方真实平台验收；Repository Leader 单任务、ADP 自动发现接线和正式平台 S1→S2→S3 全链仍待完成。本机三智能体通过不替代这些验收。
 - 三个业务包均已在 `agents/` 中。协议沿用 v0.2 七字段 Task、六字段 Result，平台身份与状态置于官方 AIP 消息中。
 
-当前核对的已推送基线为 `zhao/planner-integration@cd56780`；后续补丁是否提交以 Git 状态为准。
+当前已推送基线以 `zhao/planner-integration` 远端 HEAD 为准；具体提交使用 `git rev-parse origin/zhao/planner-integration` 核对。
 证据位置、修复说明及剩余工作见 [当前进度与本地修复](docs/current_status_20261022.md)。下方带早期日期的条目是历史记录。
 
 正式梧桐 Literature 单任务 Leader 入口：`run_platform_literature.py`。
+正式梧桐 Reader 单任务 Leader 入口：`run_platform_reader.py`（单篇、必须有 `pdfUrl`，默认等待750秒）。
 默认仅离线预检；双方就绪并确认 Partner commit 后，通过正式 Group 发送一次检索任务。
 七字段 Start → 校验六字段产物 → Complete/completed → 清理，详见
 [正式平台 Literature 单任务联调](docs/platform_literature_single_task.md)。
+[正式平台 Reader 单任务联调](docs/platform_reader_single_task.md)。
 
 > 2026-10-20 后续集成：OpenAlex Provider、Resource Resolver配置、动态Reader接缝已选择性迁入，保留旧链路兼容；备用检索/资源解析默认关闭，显式配置才新增联网。平台稳定业务入口为 `business_execution.execute_business_task`，默认拒绝执行，不新增协议字段。隔离Worker与持久Reader复用方式见 [给吴的业务入口说明](docs/delivery/platform_business_entry_v1.md)。新增能力尚未进行真实联网/收费或正式平台验收。
 
@@ -63,7 +64,7 @@ python -m venv .venv
 - Semantic Scholar real API：**PASS**。最新 `AlphaEvolve` 回归返回 5 篇，
   `latencyMs=2750.866`，`retryCount=0`；第一篇有 DOI，`pdfUrl=null` 属正常缺失。
 - DeepSeek LLM Provider v0.1：**PASS**，已在迁移后完成真实联网验证。
-- 当前 AIP integration：本机三 Agent 已通过，正式 Literature 单任务 Leader 已通过；正式 Reader/Repository 和全链仍待联调。
+- 当前 AIP integration：本机三 Agent已通过，正式 Literature 单任务联合验收已通过；正式 Reader入口已具备但尚待联调，Repository和全链仍待联调。
 - 当前 Planner integration：`run_research.py` 提供直接检索，`run_aip_research.py` 提供本机三阶段链；正式平台自动发现与编排尚未接通。
 
 张的 API 实测、赵的业务适配及本地 Mock 分别保留验收记录；它们不代表已经完成真实平台发现或 AIP 科研链路。

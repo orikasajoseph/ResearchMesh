@@ -55,7 +55,8 @@ class ReaderTaskTests(unittest.TestCase):
         task = leader.validate_reader_task(json.loads(path.read_text(encoding="utf-8")))
         self.assertEqual(len(task), 7)
         self.assertEqual(task["constraints"], {"maxPapers": 1})
-        self.assertTrue(task["input"]["papers"][0]["pdfUrl"].endswith(".pdf"))
+        self.assertEqual(task["input"]["papers"][0]["pdfUrl"],
+                         "https://arxiv.org/pdf/2106.09685")
 
     def test_rejects_wrong_task_batch_and_missing_pdf(self):
         wrong = deepcopy(TASK); wrong["taskType"] = "literature_search"

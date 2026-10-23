@@ -10,7 +10,7 @@
         "title": "LoRA: Low-Rank Adaptation of Large Language Models",
         "doi": null,
         "url": "https://arxiv.org/abs/2106.09685",
-        "pdfUrl": "https://arxiv.org/pdf/2106.09685.pdf",
+        "pdfUrl": "https://arxiv.org/pdf/2106.09685",
         "repositoryUrls": [
           "https://github.com/microsoft/LoRA"
         ]

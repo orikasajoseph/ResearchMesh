@@ -140,6 +140,32 @@ class DynamicReaderTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(second["pdfDownloadedThisRun"])
             self.assertNotEqual(root / "reader_input.json", reused / "reader_input.json")
 
+    async def test_arxiv_pdf_suffix_variant_keeps_verified_identity(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache = root / "cache"
+            cache.mkdir()
+            digest = "b" * 64
+            cached = cache / (digest + ".pdf")
+            cached.write_bytes(b"%PDF-1.7 offline")
+            current = task()
+            current["input"]["papers"][0]["pdfUrl"] = PDF + ".pdf"
+            proof = {"state": "verified", "paperId": "W1", "sha256": digest,
+                     "pdfUrl": PDF, "sourceUrl": "https://arxiv.org/abs/2305.14314",
+                     "cachePath": str(cached), "bytes": 16, "pageTitle": TITLE,
+                     "pages": 26, "networkAttempted": True}
+
+            async def resolve(unresolved, source, *, previous=None):
+                updated = deepcopy(unresolved)
+                updated["input"]["papers"][0]["pdfUrl"] = PDF
+                return updated, [proof]
+
+            with patch("aip_reader_inputs.ArxivPdfResolver",
+                       return_value=SimpleNamespace(resolve=resolve)):
+                result = await prepare_bound_reader_input(current, root, cache_dir=cache)
+            self.assertEqual(result["payload"]["input"]["papers"][0]["pdfUrl"], PDF + ".pdf")
+            self.assertEqual(result["pdf"]["pdfUrl"], PDF)
+
     async def test_no_pdf_or_mismatched_proof_rejects_before_worker(self):
         from reader_adapter import ReaderAdapterError
         with TemporaryDirectory() as directory:

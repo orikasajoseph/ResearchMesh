@@ -132,7 +132,11 @@ async def prepare_bound_reader_input(payload, output, *, cache_dir):
         reason = proofs[0].get("reason", "") if proofs else ""
         code = "PDF_DOWNLOAD_FAILED" if reason.startswith(("ARXIV_HTTP_", "ARXIV_NETWORK_", "PDF_CACHE_")) else "PDF_SOURCE_UNVERIFIED"
         raise ReaderAdapterError(code)
-    if resolved["input"]["papers"][0]["pdfUrl"] != paper["pdfUrl"]:
+    resolved_pdf_url = resolved["input"]["papers"][0]["pdfUrl"]
+    # arXiv serves the same document at both /pdf/<id> and /pdf/<id>.pdf.
+    # The resolver has already verified the source page, first-page title and
+    # PDF hash, so compare the normalized arXiv identity rather than URL text.
+    if arxiv_id(resolved_pdf_url, "pdf") != identity:
         raise ReaderAdapterError("PDF_SOURCE_UNVERIFIED")
     proof = proofs[0]
     cache_path = Path(cache_dir).resolve() / (proof["sha256"] + ".pdf")

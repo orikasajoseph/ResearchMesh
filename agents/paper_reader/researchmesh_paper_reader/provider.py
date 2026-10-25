@@ -66,6 +66,29 @@ PdfFetcher = Callable[[str], Awaitable[bytes]]
 class PaperQAProvider:
     """Long-lived PaperQA provider with one in-memory embedding model instance."""
 
+    @staticmethod
+    def router_config(config: PaperReaderConfig) -> dict[str, Any]:
+        """Build the shared generation/summary Router with retries disabled."""
+        alias = "researchmesh-deepseek"
+        return {
+            "model_list": [
+                {
+                    "model_name": alias,
+                    "litellm_params": {
+                        "model": config.provider_model,
+                        "api_base": config.api_base,
+                        "api_key": config.api_key,
+                        "temperature": 0,
+                        # LMI converts this legacy field to ModelSpec.max_retries.
+                        "max_retries": 0,
+                    },
+                }
+            ],
+            # LiteLLM Router also receives an explicit zero so neither layer
+            # silently restores its installed default retry policy.
+            "router_kwargs": {"num_retries": 0},
+        }
+
     def __init__(
         self,
         config: PaperReaderConfig | None = None,
@@ -80,19 +103,7 @@ class PaperQAProvider:
 
         self._docs_type = Docs
         alias = "researchmesh-deepseek"
-        router_config = {
-            "model_list": [
-                {
-                    "model_name": alias,
-                    "litellm_params": {
-                        "model": self.config.provider_model,
-                        "api_base": self.config.api_base,
-                        "api_key": self.config.api_key,
-                        "temperature": 0,
-                    },
-                }
-            ]
-        }
+        router_config = self.router_config(self.config)
         self.settings = Settings(
             llm=alias,
             summary_llm=alias,
@@ -207,6 +218,7 @@ class PaperQAProvider:
                     "summaryModel": self.config.model,
                     "evidenceK": self.settings.answer.evidence_k,
                     "summaryConcurrency": self.settings.answer.max_concurrent_requests,
+                    "automaticRetries": 0,
                 },
             )
         finally:

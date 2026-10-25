@@ -234,6 +234,20 @@ class PaperQAProviderUtilityTests(unittest.TestCase):
         self.assertEqual(config.max_concurrent_requests, 4)
         self.assertEqual(config.provider_model, "deepseek/deepseek-flash")
 
+    def test_generation_and_summary_router_disable_all_automatic_retries(self):
+        config = PaperReaderConfig(
+            api_key="test-key",
+            api_base="https://api.deepseek.com",
+            model="deepseek-flash",
+        )
+
+        router = PaperQAProvider.router_config(config)
+
+        self.assertEqual(router["router_kwargs"], {"num_retries": 0})
+        self.assertEqual(
+            router["model_list"][0]["litellm_params"]["max_retries"], 0
+        )
+
     def test_pqac_ids_are_removed_from_display_answer(self):
         answer = "METHOD: supported (pqac-deadbeef). FINDINGS: pqac-1234abcd."
 

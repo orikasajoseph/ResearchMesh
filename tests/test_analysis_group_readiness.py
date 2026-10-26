@@ -11,7 +11,9 @@ from contextlib import redirect_stdout
 from io import StringIO
 from unittest.mock import AsyncMock, patch
 
-from acps_sdk.aip import GroupMgmtCommand, GroupMgmtCommandType, TaskCommand, TaskCommandType, StructuredDataItem
+from acps_sdk.aip import (GroupMgmtCommand, GroupMgmtCommandType, GroupPartnerMqClient,
+                          TaskCommand, TaskCommandType, TaskResult, TaskState, StructuredDataItem)
+from aio_pika.exceptions import AMQPConnectionError
 from aip.audited_group_client import AuditedGroupPartnerMqClient
 from aip.group_analysis_partner import serve_analysis
 from aip.group_reader_handler import ReaderGroupHandler
@@ -121,6 +123,119 @@ class AnalysisTests(unittest.IsolatedAsyncioTestCase):
         release.set()
         await first
         execute.assert_awaited_once()
+
+    async def test_transport_cancel_detaches_delivery_not_business_lifecycle(self):
+        entered, release = asyncio.Event(), asyncio.Event()
+        async def backend(task):
+            entered.set()
+            await release.wait()
+            return note_result()
+        execute = AsyncMock(side_effect=backend)
+        client = AuditedGroupPartnerMqClient(PARTNER)
+        client._group_id = GROUP
+        client.audit = self.audit
+        for name in ("accept_task", "start_working", "submit_for_completion", "fail_task"):
+            setattr(client, name, AsyncMock())
+        handler = ReaderGroupHandler(client, leader_aic=LEADER, task_store=self.store,
+                                     executor=execute, audit=self.audit)
+        client.set_command_handler(handler.on_command)
+        body = command(fixture_task()).model_dump(mode="json")
+
+        delivery = asyncio.create_task(client._handle_incoming_message(body))
+        await entered.wait()
+        delivery.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await delivery
+        self.assertEqual(self.state(), "working")
+
+        # Broker redelivery is acknowledged by the durable duplicate claim and
+        # cannot start a second backend while the detached lifecycle continues.
+        await client._handle_incoming_message(body)
+        execute.assert_awaited_once()
+        release.set()
+        await asyncio.wait_for(asyncio.gather(*tuple(client._command_lifecycles)), 3)
+        execute.assert_awaited_once()
+        client.submit_for_completion.assert_awaited_once()
+        self.assertEqual(self.state(), "awaiting_completion")
+        self.assertTrue(any(e["event"] == "COMMAND_DELIVERY_DETACHED"
+                            for e in read_events(self.audit.path)))
+
+    async def test_result_delivery_retries_same_message_after_transport_recovers(self):
+        client = AuditedGroupPartnerMqClient(PARTNER)
+        client._group_id = GROUP
+        client.audit = self.audit
+        sent = []
+        async def publish(_client, message):
+            sent.append(message.id)
+            if len(sent) == 1:
+                raise AMQPConnectionError("offline test")
+        async def elapse(awaitable, *, timeout):
+            awaitable.close()
+            raise TimeoutError
+        result = TaskResult(id="stable-result-id", sentAt="2026-10-23T00:00:00Z",
+            senderRole="partner", senderId=PARTNER, groupId=GROUP, sessionId=SESSION,
+            taskId=TASK, status={"state": TaskState.AwaitingCompletion,
+                                "stateChangedAt": "2026-10-23T00:00:00Z"})
+        with patch.object(GroupPartnerMqClient, "_publish_message", new=publish), \
+             patch("aip.audited_group_client.asyncio.wait_for", new=elapse):
+            await client._publish_message(result)
+        self.assertEqual(sent, ["stable-result-id", "stable-result-id"])
+        deferred = [e for e in read_events(self.audit.path)
+                    if e["event"] == "RESULT_DELIVERY_DEFERRED"]
+        self.assertEqual(len(deferred), 1)
+
+    async def test_detached_business_exception_is_reaped_and_remains_uncertain(self):
+        entered, release = asyncio.Event(), asyncio.Event()
+        async def backend(task):
+            entered.set()
+            await release.wait()
+            raise RuntimeError("SECRET")
+        client = AuditedGroupPartnerMqClient(PARTNER)
+        client._group_id = GROUP
+        client.audit = self.audit
+        for name in ("accept_task", "start_working", "submit_for_completion", "fail_task"):
+            setattr(client, name, AsyncMock())
+        handler = ReaderGroupHandler(client, leader_aic=LEADER, task_store=self.store,
+                                     executor=backend, audit=self.audit)
+        client.set_command_handler(handler.on_command)
+        delivery = asyncio.create_task(client._handle_incoming_message(
+            command(fixture_task()).model_dump(mode="json")))
+        await entered.wait()
+        delivery.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await delivery
+        release.set()
+        active = tuple(client._command_lifecycles)
+        await asyncio.wait_for(asyncio.gather(*active), 3)
+        self.assertFalse(client._command_lifecycles)
+        self.assertEqual(self.state(), "uncertain")
+        client.fail_task.assert_awaited_once()
+        client.submit_for_completion.assert_not_awaited()
+        self.assertNotIn("SECRET", self.audit.path.read_text(encoding="utf-8"))
+
+    async def test_cleanup_cancels_and_reaps_detached_business_lifecycle(self):
+        entered = asyncio.Event()
+        async def backend(task):
+            entered.set()
+            await asyncio.Event().wait()
+        client = AuditedGroupPartnerMqClient(PARTNER)
+        client._group_id = GROUP
+        client.audit = self.audit
+        for name in ("accept_task", "start_working", "submit_for_completion", "fail_task"):
+            setattr(client, name, AsyncMock())
+        handler = ReaderGroupHandler(client, leader_aic=LEADER, task_store=self.store,
+                                     executor=backend, audit=self.audit)
+        client.set_command_handler(handler.on_command)
+        delivery = asyncio.create_task(client._handle_incoming_message(
+            command(fixture_task()).model_dump(mode="json")))
+        await entered.wait()
+        delivery.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await delivery
+        with patch.object(GroupPartnerMqClient, "_cleanup_group_resources", new=AsyncMock()):
+            await client._cleanup_group_resources()
+        self.assertFalse(client._command_lifecycles)
+        self.assertEqual(self.state(), "uncertain")
 
     async def test_cancel_blocks_product_after_backend_returns(self):
         entered, release = asyncio.Event(), asyncio.Event()

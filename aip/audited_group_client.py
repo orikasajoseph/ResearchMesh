@@ -4,7 +4,13 @@ from contextvars import ContextVar
 from importlib import import_module
 import logging
 
-from acps_sdk.aip import GroupPartnerMqClient
+from acps_sdk.aip import GroupPartnerMqClient, TaskResult
+from aio_pika.exceptions import (
+    AMQPConnectionError,
+    ChannelClosed,
+    ChannelInvalidStateError,
+    ConnectionClosed,
+)
 
 _CLEANUP = ContextVar("sdk_cleanup_audit", default=None)
 SDK_LOGGER = import_module(GroupPartnerMqClient.__module__).logger
@@ -36,14 +42,87 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
         self._audited_cleanup_task = None
         self._audited_leave_scheduled = False
         self._audited_leave_task = None
+        # Group task commands can run for minutes.  aio-pika cancels an active
+        # consumer callback when its transport drops, but that transient
+        # callback cancellation must not kill business work already protected
+        # by the durable task claim.  Keep strong references until completion;
+        # explicit Group cleanup cancels and drains them below.
+        self._command_lifecycles = set()
+        self._command_shutdown = asyncio.Event()
 
     async def _handle_incoming_message(self, body):
+        if body.get("type") == "task-command":
+            lifecycle = asyncio.create_task(
+                super()._handle_incoming_message(body),
+                name="audited-group-task-command",
+            )
+            self._command_lifecycles.add(lifecycle)
+            lifecycle.add_done_callback(self._command_lifecycle_finished)
+            try:
+                # Cancellation of the AMQP delivery callback leaves the
+                # lifecycle running.  The unacked message may be redelivered;
+                # DurableTaskStore prevents a second business execution.
+                return await asyncio.shield(lifecycle)
+            except asyncio.CancelledError:
+                if self.audit:
+                    self.audit.emit("COMMAND_DELIVERY_DETACHED", **self._identity())
+                raise
+            except BaseException:
+                if self.audit:
+                    self.audit.emit("SDK_MESSAGE_FAILED", **self._identity())
+                raise
         try:
             return await super()._handle_incoming_message(body)
         except BaseException:
             if self.audit:
                 self.audit.emit("SDK_MESSAGE_FAILED", **self._identity())
             raise
+
+    def _command_lifecycle_finished(self, lifecycle):
+        self._command_lifecycles.discard(lifecycle)
+        if lifecycle.cancelled():
+            return
+        try:
+            error = lifecycle.exception()
+        except (asyncio.CancelledError, Exception):
+            error = None
+        if error is not None and self.audit:
+            self.audit.emit("COMMAND_LIFECYCLE_FAILED", **self._identity())
+
+    async def _cancel_command_lifecycles(self):
+        self._command_shutdown.set()
+        current = asyncio.current_task()
+        active = [task for task in self._command_lifecycles
+                  if task is not current and not task.done()]
+        for task in active:
+            task.cancel()
+        if active:
+            await asyncio.gather(*active, return_exceptions=True)
+
+    async def _publish_message(self, message):
+        if not isinstance(message, TaskResult):
+            return await super()._publish_message(message)
+        attempt = 0
+        while True:
+            if self._command_shutdown.is_set():
+                raise asyncio.CancelledError()
+            try:
+                # Retrying reuses the same TaskResult object and message id.
+                # The protocol remains at-least-once, while business execution
+                # remains exactly-once under the durable task claim.
+                return await super()._publish_message(message)
+            except (AMQPConnectionError, ChannelClosed, ChannelInvalidStateError,
+                    ConnectionClosed, ConnectionError, OSError):
+                attempt += 1
+                if self.audit:
+                    self.audit.emit("RESULT_DELIVERY_DEFERRED", **self._identity(),
+                                    deliveryAttempt=attempt)
+                delay = min(0.25 * (2 ** min(attempt - 1, 3)), 2.0)
+                try:
+                    await asyncio.wait_for(self._command_shutdown.wait(), timeout=delay)
+                except TimeoutError:
+                    continue
+                raise asyncio.CancelledError()
 
     def _identity(self):
         return dict(groupId=self.group_id, agentAic=self.partner_aic)
@@ -119,6 +198,7 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
             # therefore observes the in-flight result instead of entering the
             # SDK a second time.
             return await asyncio.shield(active_cleanup)
+        await self._cancel_command_lifecycles()
         if not self.audit or not self.group_id:
             return await super()._cleanup_group_resources()
         self._audited_cleanup_task = current

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "1.0",
+  "createdAt": "2026-10-26",
+  "scope": "FORMAL_PLATFORM_THREE_INDEPENDENT_SINGLE_TASK_ACCEPTANCE",
+  "canonicalResultHash": "sha256(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8'))",
+  "allPassed": true,
+  "notProven": [
+    "ONE_LEADER_REQUEST_AUTOMATICALLY_COMPLETES_S1_S2_S3_ON_FORMAL_PLATFORM",
+    "FORMAL_ADP_DISCOVERY_FOR_ALL_THREE_TASKS",
+    "TARGET_REPOSITORY_CODE_EXECUTION_OR_REPRODUCTION_SUCCESS"
+  ],
+  "agents": [
+    {
+      "agent": "literature",
+      "skill": "literature.search",
+      "taskType": "literature_search",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL",
+      "partnerCommit": "479fefdd980b7388f529ad84f617f89002b8042e",
+      "groupId": "rm-literature-b7212baac82c471ea39dfa61f8fb02d0",
+      "sessionId": "session-1aa2275c9a9b4f0c8775382b8a8ff48d",
+      "taskId": "task-a3091bc91f4d4b1e9e5d4cf3cc1b2a7f",
+      "leaderRecord": "outputs/platform-literature/20261023-231351-ef9c2ae1/record.json",
+      "leaderReport": "outputs/platform-literature/20261023-231351-ef9c2ae1/report.md",
+      "resultSha256": "059822c40f2e6b659eb688931437a96adcf659b937e0792b96e7ca2bb430f418",
+      "resultBytes": 2663,
+      "items": 1,
+      "warnings": 1,
+      "leaderChecks": {
+        "passed": true,
+        "protocolCompleted": true,
+        "businessReady": true,
+        "resultValidated": true,
+        "cleanupSucceeded": true,
+        "ignoredTaskResults": 0
+      },
+      "partnerAudit": "TEAM_CONFIRMED_PASS"
+    },
+    {
+      "agent": "reader",
+      "skill": "paper.analyze",
+      "taskType": "paper_read",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+      "partnerCommit": "2564a13767eb9db7e8d10ac8ee752ece5b224008",
+      "groupId": "rm-reader-14165cc0f0b04e9f9b718aa3ee54d7d6",
+      "sessionId": "session-1be9e09f11ea422e8ddc356e43114d23",
+      "taskId": "task-aa97db4972914d8bace1ef6201f92bc4",
+      "leaderRecord": "outputs/platform-reader/20261026-204820-0fedb39b/record.json",
+      "leaderReport": "outputs/platform-reader/20261026-204820-0fedb39b/report.md",
+      "resultSha256": "a658ed719b3c8110c6eae091a42cd10a746e5b211420fd13d5e7b34713998640",
+      "resultBytes": 40503,
+      "items": 1,
+      "warnings": 0,
+      "leaderChecks": {
+        "passed": true,
+        "protocolCompleted": true,
+        "businessReady": true,
+        "resultValidated": true,
+        "cleanupSucceeded": true,
+        "ignoredTaskResults": 0
+      },
+      "partnerAudit": "TEAM_CONFIRMED_PASS"
+    },
+    {
+      "agent": "repository",
+      "skill": "repository.analyze",
+      "taskType": "repository_analyze",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+      "partnerCommit": "2564a13767eb9db7e8d10ac8ee752ece5b224008",
+      "groupId": "rm-repository-5c7a20e6197c45b7bb75734ba30a32b0",
+      "sessionId": "session-12fa5ac490ea4ed386da3a3c07689e47",
+      "taskId": "task-1df25892b76b4009bb8c941b4db86487",
+      "leaderRecord": "outputs/platform-repository/20261026-223726-68636635/record.json",
+      "leaderReport": "outputs/platform-repository/20261026-223726-68636635/report.md",
+      "resultSha256": "f741f66984b0f50e380ff01a39b63b932f19f6b9732bf23bbe2c0580f36d6f80",
+      "resultBytes": 35899,
+      "items": 1,
+      "warnings": 2,
+      "leaderChecks": {
+        "passed": true,
+        "protocolCompleted": true,
+        "businessReady": true,
+        "resultValidated": true,
+        "cleanupSucceeded": true,
+        "ignoredTaskResults": 0
+      },
+      "partnerAudit": "TEAM_CONFIRMED_PASS",
+      "staticFacts": {
+        "repository": "https://github.com/pypa/sampleproject",
+        "commit": "621e4974ca25ce531773def586ba3ed8e736b3fc",
+        "components": 12,
+        "dependencyEdges": 7,
+        "evidence": 16,
+        "deepSeekCalls": 0,
+        "targetCodeExecuted": false
+      }
+    }
+  ]
+}

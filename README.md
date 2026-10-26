@@ -13,6 +13,8 @@
 正式梧桐 Literature 单任务 Leader 入口：`run_platform_literature.py`。
 正式梧桐 Reader 单任务 Leader 入口：`run_platform_reader.py`（单篇、必须有 `pdfUrl`，默认等待750秒）。
 正式梧桐 Repository 单任务 Leader 入口：`run_platform_repository.py`（指定一个 GitHub 仓库、static、默认等待300秒）。
+三个独立 Agent 的正式平台单任务均已通过双方验收；证据矩阵见
+[2026-10-26 三 Agent 单任务验收汇总](docs/platform_single_task_acceptance_20261026.md)。
 默认仅离线预检；双方就绪并确认 Partner commit 后，通过正式 Group 发送一次检索任务。
 七字段 Start → 校验六字段产物 → Complete/completed → 清理，详见
 [正式平台 Literature 单任务联调](docs/platform_literature_single_task.md)。

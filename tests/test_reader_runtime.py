@@ -14,6 +14,17 @@ class RuntimeTests(unittest.TestCase):
     values = {"DEEPSEEK_API_KEY": "synthetic-file-key", "DEEPSEEK_BASE_URL": "https://example.invalid",
               "DEEPSEEK_MODEL": "synthetic-model"}
 
+    @staticmethod
+    def make_embedding_cache(directory):
+        root = Path(directory) / "sentence_transformers" / "models--sentence-transformers--multi-qa-MiniLM-L6-cos-v1"
+        revision = "synthetic-revision"
+        (root / "refs").mkdir(parents=True)
+        (root / "refs" / "main").write_text(revision, encoding="utf-8")
+        snapshot = root / "snapshots" / revision
+        snapshot.mkdir(parents=True)
+        for name in ("config.json", "modules.json", "model.safetensors", "tokenizer.json"):
+            (snapshot / name).touch()
+
     def test_missing_config_before_import_or_environment_mutation(self):
         with patch.dict(os.environ, {}, clear=True), patch("reader_runtime.dotenv_values", return_value={}), \
                 patch("reader_runtime.load_reader") as load:
@@ -40,11 +51,14 @@ class RuntimeTests(unittest.TestCase):
     def test_project_config_and_process_override_used_not_wrapper_env(self):
         with tempfile.TemporaryDirectory() as directory:
             (Path(directory) / "huggingface").mkdir()
+            self.make_embedding_cache(directory)
             wrapper = SimpleNamespace(PaperReaderConfig=Mock(return_value=SimpleNamespace(provider_model="deepseek/synthetic")),
                 PaperQAProvider=Mock(return_value="provider"), PaperReaderAgent=Mock(return_value="agent"), PaperReadTask="task-model")
             def load(root):
                 self.assertEqual(os.environ["HF_HUB_OFFLINE"], "1")
                 self.assertEqual(os.environ["HF_HOME"], str(Path(directory) / "huggingface"))
+                self.assertEqual(os.environ["HF_HUB_CACHE"], str(Path(directory) / "sentence_transformers"))
+                self.assertEqual(os.environ["SENTENCE_TRANSFORMERS_HOME"], str(Path(directory) / "sentence_transformers"))
                 return wrapper
             with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "synthetic-process-key"}, clear=True), \
                     patch("reader_runtime.dotenv_values", return_value=self.values) as dotenv, \
@@ -57,6 +71,7 @@ class RuntimeTests(unittest.TestCase):
     def test_local_pdf_fetcher_forwarded_to_provider(self):
         with tempfile.TemporaryDirectory() as directory:
             (Path(directory) / "huggingface").mkdir()
+            self.make_embedding_cache(directory)
             config = SimpleNamespace(provider_model="deepseek/synthetic")
             wrapper = SimpleNamespace(PaperReaderConfig=Mock(return_value=config),
                 PaperQAProvider=Mock(return_value="provider"), PaperReaderAgent=Mock(return_value="agent"),

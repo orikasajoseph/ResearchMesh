@@ -11,6 +11,24 @@ from reader_batch_adapter import call_reader_batch
 from reader_adapter import call_reader, to_reader_request
 
 
+EMBEDDING_REPOSITORY = "models--sentence-transformers--multi-qa-MiniLM-L6-cos-v1"
+
+
+def _require_embedding_cache(cache):
+    hub = cache / "sentence_transformers"
+    repository = hub / EMBEDDING_REPOSITORY
+    reference = repository / "refs" / "main"
+    try:
+        revision = reference.read_text(encoding="utf-8").strip()
+    except OSError:
+        raise ReaderAdapterError("READER_EMBEDDING_CACHE_MISSING") from None
+    snapshot = repository / "snapshots" / revision
+    required = ("config.json", "modules.json", "model.safetensors", "tokenizer.json")
+    if not revision or any(not (snapshot / name).is_file() for name in required):
+        raise ReaderAdapterError("READER_EMBEDDING_CACHE_MISSING")
+    return hub
+
+
 def prepare_live_reader(root, *, env_file, runtime_home=None, pdf_fetcher=None):
     values = dict(dotenv_values(env_file, encoding="utf-8-sig", interpolate=False))
     for key in ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL"):
@@ -21,10 +39,10 @@ def prepare_live_reader(root, *, env_file, runtime_home=None, pdf_fetcher=None):
     if any(importlib.util.find_spec(name) is None for name in ("paperqa", "sentence_transformers", "torch")):
         raise ReaderAdapterError("READER_RUNTIME_DEPENDENCIES_MISSING")
     cache = Path(runtime_home if runtime_home is not None else Path(sys.prefix) / "runtime-cache").resolve()
-    if not (cache / "huggingface").is_dir():
-        raise ReaderAdapterError("READER_EMBEDDING_CACHE_MISSING")
+    embedding_hub = _require_embedding_cache(cache)
     # 在导入依赖前关闭自动下载及遥测。此入口要求已准备好的离线 embedding。
     os.environ.update(HF_HOME=str(cache / "huggingface"), PQA_HOME=str(cache / "paperqa"),
+                      HF_HUB_CACHE=str(embedding_hub), SENTENCE_TRANSFORMERS_HOME=str(embedding_hub),
                       TIKTOKEN_CACHE_DIR=str(cache / "tiktoken"), HF_HUB_OFFLINE="1",
                       TRANSFORMERS_OFFLINE="1", HF_HUB_DISABLE_TELEMETRY="1",
                       HF_HUB_DISABLE_IMPLICIT_TOKEN="1", DO_NOT_TRACK="1",

@@ -17,7 +17,7 @@ import sys
 
 from arxiv_pdf import inspect_pdf, MAX_PDF
 from reader_adapter import ReaderAdapterError, call_reader, load_reader, normalize_reader_result, to_reader_request
-from reader_runtime import prepare_live_reader
+from reader_runtime import prepare_live_reader, _require_embedding_cache
 from dotenv import dotenv_values
 from aip_record_paths import require_record_directory
 
@@ -80,8 +80,7 @@ def check_runtime(args, task, env_file, runtime_home):
     if any(importlib.util.find_spec(name) is None for name in ("paperqa", "torch", "sentence_transformers")):
         raise ReaderAdapterError("READER_RUNTIME_DEPENDENCIES_MISSING")
     cache = Path(runtime_home).resolve() if runtime_home else Path(sys.prefix) / "runtime-cache"
-    if not (cache / "huggingface").is_dir():
-        raise ReaderAdapterError("READER_EMBEDDING_CACHE_MISSING")
+    _require_embedding_cache(cache)
     config = wrapper.PaperReaderConfig(api_key=values["DEEPSEEK_API_KEY"],
                                       api_base=values["DEEPSEEK_BASE_URL"], model=values["DEEPSEEK_MODEL"])
     config.provider_model

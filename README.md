@@ -12,10 +12,12 @@
 
 正式梧桐 Literature 单任务 Leader 入口：`run_platform_literature.py`。
 正式梧桐 Reader 单任务 Leader 入口：`run_platform_reader.py`（单篇、必须有 `pdfUrl`，默认等待750秒）。
+正式梧桐 Repository 单任务 Leader 入口：`run_platform_repository.py`（指定一个 GitHub 仓库、static、默认等待300秒）。
 默认仅离线预检；双方就绪并确认 Partner commit 后，通过正式 Group 发送一次检索任务。
 七字段 Start → 校验六字段产物 → Complete/completed → 清理，详见
 [正式平台 Literature 单任务联调](docs/platform_literature_single_task.md)。
 [正式平台 Reader 单任务联调](docs/platform_reader_single_task.md)。
+[正式平台 Repository 单任务联调](docs/platform_repository_single_task.md)。
 
 > 2026-10-20 后续集成：OpenAlex Provider、Resource Resolver配置、动态Reader接缝已选择性迁入，保留旧链路兼容；备用检索/资源解析默认关闭，显式配置才新增联网。平台稳定业务入口为 `business_execution.execute_business_task`，默认拒绝执行，不新增协议字段。隔离Worker与持久Reader复用方式见 [给吴的业务入口说明](docs/delivery/platform_business_entry_v1.md)。新增能力尚未进行真实联网/收费或正式平台验收。
 

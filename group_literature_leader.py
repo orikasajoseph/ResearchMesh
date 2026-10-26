@@ -48,6 +48,24 @@ def validate_reader_task(task):
     return payload
 
 
+def validate_repository_task(task):
+    """Validate the first formal static Repository check before platform I/O."""
+    payload = validate_local_task(deepcopy(task))
+    if payload["taskType"] != "repository_analyze":
+        raise CheckError("ONLY_REPOSITORY_TASK_SUPPORTED")
+    urls = payload["input"].get("repositoryUrls", [])
+    constraints = payload["constraints"]
+    if constraints.get("maxRepositories") != 1 or len(urls) != 1:
+        raise CheckError("FIRST_PLATFORM_CHECK_REQUIRES_ONE_REPOSITORY")
+    if (constraints.get("executeCode") is not False
+            or constraints.get("allowRepositorySearch") is not False
+            or constraints.get("requirePaperNotes") is not False):
+        raise CheckError("FIRST_PLATFORM_CHECK_REQUIRES_STATIC_EXPLICIT_REPOSITORY")
+    if payload["input"].get("papers") or payload["input"].get("paperNotes"):
+        raise CheckError("FIRST_PLATFORM_CHECK_REJECTS_PAPER_CONTEXT")
+    return payload
+
+
 async def settle_group_shutdown():
     # Give the Partner time to consume DISBAND before its temporary queue is removed.
     await asyncio.sleep(2)
@@ -206,6 +224,12 @@ class ReaderConversation(LiteratureConversation):
     """Reader uses the same official protocol flow with Reader-specific errors."""
 
     invalid_result_code = "INVALID_READER_RESULT"
+
+
+class RepositoryConversation(LiteratureConversation):
+    """Repository uses the sealed flow with static-result validation."""
+
+    invalid_result_code = "INVALID_REPOSITORY_RESULT"
 
 
 async def _run_group_single_task(config, task, *, execute, partner_ready,
@@ -419,4 +443,22 @@ async def run_group_reader(config, task, *, execute=False, partner_ready=False,
         offline_scope="OFFLINE_PLATFORM_READER_PREFLIGHT",
         connection_prefix="reader-check-",
         max_task_timeout=900,
+    )
+
+
+async def run_group_repository(config, task, *, execute=False, partner_ready=False,
+                               partner_commit=None, task_timeout=300, checkpoint=None,
+                               task_release=None):
+    """Run one formal static Repository task; no search, code execution or LLM."""
+    return await _run_group_single_task(
+        config, task, execute=execute, partner_ready=partner_ready,
+        partner_commit=partner_commit, task_timeout=task_timeout,
+        checkpoint=checkpoint, task_release=task_release,
+        task_validator=validate_repository_task,
+        conversation_type=RepositoryConversation,
+        group_prefix="rm-repository-",
+        live_scope="PLATFORM_REPOSITORY_SINGLE_TASK",
+        offline_scope="OFFLINE_PLATFORM_REPOSITORY_PREFLIGHT",
+        connection_prefix="repository-check-",
+        max_task_timeout=600,
     )

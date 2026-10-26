@@ -20,6 +20,10 @@
 [正式平台 Literature 单任务联调](docs/platform_literature_single_task.md)。
 [正式平台 Reader 单任务联调](docs/platform_reader_single_task.md)。
 [正式平台 Repository 单任务联调](docs/platform_repository_single_task.md)。
+[正式平台三 Agent 连续编排核心](docs/platform_three_agent_orchestration.md)提供动态绑定、持久检查点、
+canonical Result 哈希和禁止自动重放；当前仅完成离线合成验收，尚未宣称正式连续链通过。
+正式适配入口为 `run_platform_three_agent.py`，默认仅校验固定链；必须显式确认三个 Partner 均就绪
+并逐阶段人工放行，才会创建三个独立 Group。
 
 > 2026-10-20 后续集成：OpenAlex Provider、Resource Resolver配置、动态Reader接缝已选择性迁入，保留旧链路兼容；备用检索/资源解析默认关闭，显式配置才新增联网。平台稳定业务入口为 `business_execution.execute_business_task`，默认拒绝执行，不新增协议字段。隔离Worker与持久Reader复用方式见 [给吴的业务入口说明](docs/delivery/platform_business_entry_v1.md)。新增能力尚未进行真实联网/收费或正式平台验收。
 

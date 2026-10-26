@@ -83,6 +83,27 @@ class RepositoryTaskTests(unittest.TestCase):
             with self.subTest(task=task), self.assertRaises(ValueError):
                 leader.validate_repository_task(task)
 
+    def test_contextual_chain_task_requires_one_paper_note_and_repository(self):
+        contextual = deepcopy(TASK)
+        contextual["constraints"]["requirePaperNotes"] = True
+        contextual["input"].update(
+            papers=[{"paperId": "arxiv:2106.09685", "title": "LoRA", "doi": None,
+                     "url": "https://arxiv.org/abs/2106.09685",
+                     "pdfUrl": "https://arxiv.org/pdf/2106.09685",
+                     "repositoryUrls": ["https://github.com/pypa/sampleproject"]}],
+            paperNotes=[{"source": {"paperId": "arxiv:2106.09685", "title": "LoRA", "doi": None,
+                                    "url": "https://arxiv.org/abs/2106.09685",
+                                    "pdfUrl": "https://arxiv.org/pdf/2106.09685",
+                                    "repositoryUrls": ["https://github.com/pypa/sampleproject"]},
+                         "method": "method", "findings": "findings", "limitations": "limitations",
+                         "analysisLevel": "fulltext", "evidence": [{
+                             "sourceId": "arxiv:2106.09685", "url": "https://arxiv.org/pdf/2106.09685",
+                             "locator": "page 3", "supports": "The base weights are frozen."}]}])
+        self.assertEqual(leader.validate_repository_chain_task(contextual), contextual)
+        missing = deepcopy(contextual); missing["input"]["paperNotes"] = []
+        with self.assertRaises(ValueError):
+            leader.validate_repository_chain_task(missing)
+
 
 class RepositoryConversationTests(unittest.IsolatedAsyncioTestCase):
     async def test_one_start_one_complete_and_duplicate_result_is_idempotent(self):
@@ -136,6 +157,17 @@ class RepositoryWorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(kwargs["live_scope"], "PLATFORM_REPOSITORY_SINGLE_TASK")
         self.assertEqual(kwargs["max_task_timeout"], 600)
         self.assertIs(kwargs["conversation_type"], leader.RepositoryConversation)
+
+    async def test_contextual_repository_wrapper_selects_chain_scope(self):
+        expected = {"passed": True}
+        with patch.object(leader, "_run_group_single_task", new_callable=AsyncMock,
+                          return_value=expected) as run:
+            actual = await leader.run_group_repository_chain(config(), TASK)
+        self.assertIs(actual, expected)
+        kwargs = run.await_args.kwargs
+        self.assertIs(kwargs["task_validator"], leader.validate_repository_chain_task)
+        self.assertEqual(kwargs["group_prefix"], "rm-repository-chain-")
+        self.assertEqual(kwargs["live_scope"], "PLATFORM_REPOSITORY_CHAIN_TASK")
 
 
 class RepositoryCliTests(unittest.TestCase):

@@ -66,6 +66,23 @@ def validate_repository_task(task):
     return payload
 
 
+def validate_repository_chain_task(task):
+    """Validate contextual Repository input produced by the formal chain."""
+    payload = validate_local_task(deepcopy(task))
+    if payload["taskType"] != "repository_analyze":
+        raise CheckError("ONLY_REPOSITORY_TASK_SUPPORTED")
+    data, constraints = payload["input"], payload["constraints"]
+    if (constraints.get("maxRepositories") != 1
+            or constraints.get("executeCode") is not False
+            or constraints.get("allowRepositorySearch") is not False
+            or constraints.get("requirePaperNotes") is not True):
+        raise CheckError("FORMAL_CHAIN_REPOSITORY_CONSTRAINTS_REQUIRED")
+    if (len(data.get("repositoryUrls", [])) != 1 or len(data.get("papers", [])) != 1
+            or len(data.get("paperNotes", [])) != 1):
+        raise CheckError("FORMAL_CHAIN_REQUIRES_ONE_REPOSITORY_PAPER_AND_NOTE")
+    return payload
+
+
 async def settle_group_shutdown():
     # Give the Partner time to consume DISBAND before its temporary queue is removed.
     await asyncio.sleep(2)
@@ -460,5 +477,23 @@ async def run_group_repository(config, task, *, execute=False, partner_ready=Fal
         live_scope="PLATFORM_REPOSITORY_SINGLE_TASK",
         offline_scope="OFFLINE_PLATFORM_REPOSITORY_PREFLIGHT",
         connection_prefix="repository-check-",
+        max_task_timeout=600,
+    )
+
+
+async def run_group_repository_chain(config, task, *, execute=False, partner_ready=False,
+                                     partner_commit=None, task_timeout=300, checkpoint=None,
+                                     task_release=None):
+    """Run contextual S3 after verified S1/S2 results; still static and no LLM."""
+    return await _run_group_single_task(
+        config, task, execute=execute, partner_ready=partner_ready,
+        partner_commit=partner_commit, task_timeout=task_timeout,
+        checkpoint=checkpoint, task_release=task_release,
+        task_validator=validate_repository_chain_task,
+        conversation_type=RepositoryConversation,
+        group_prefix="rm-repository-chain-",
+        live_scope="PLATFORM_REPOSITORY_CHAIN_TASK",
+        offline_scope="OFFLINE_PLATFORM_REPOSITORY_CHAIN_PREFLIGHT",
+        connection_prefix="repository-chain-",
         max_task_timeout=600,
     )

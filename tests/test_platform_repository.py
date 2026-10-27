@@ -13,6 +13,7 @@ from acps_sdk.aip import Product, StructuredDataItem, TaskCommandType, TaskResul
 import group_literature_leader as leader
 import run_platform_repository as cli
 from repository_adapter import normalize_repository_result
+from repository_paper_context import attach_comparison
 from tests.test_group_invitation import LEADER, PARTNER, config
 
 
@@ -51,6 +52,28 @@ def result():
     return normalize_repository_result(TASK, native_result(), WRAPPER)
 
 
+def contextual_task():
+    contextual = deepcopy(TASK)
+    contextual["constraints"]["requirePaperNotes"] = True
+    source = {"paperId": "arxiv:2106.09685", "title": "LoRA", "doi": None,
+              "url": "https://arxiv.org/abs/2106.09685",
+              "pdfUrl": "https://arxiv.org/pdf/2106.09685",
+              "repositoryUrls": ["https://github.com/pypa/sampleproject"]}
+    contextual["input"].update(
+        papers=[deepcopy(source)],
+        paperNotes=[{"source": deepcopy(source), "method": "Low-rank adapters",
+                     "findings": "Reduced trainable parameters",
+                     "limitations": "Selected tasks only", "analysisLevel": "fulltext",
+                     "evidence": [{"sourceId": "arxiv:2106.09685",
+                         "url": "https://arxiv.org/pdf/2106.09685", "locator": "page 3",
+                         "supports": "The base weights are frozen."}]}])
+    return contextual
+
+
+def contextual_result(task):
+    return attach_comparison(result(), task, task["input"]["paperNotes"])
+
+
 def message(state, data=None, *, message_id=None):
     return TaskResult(
         id=message_id or "repository-" + state.value,
@@ -84,21 +107,7 @@ class RepositoryTaskTests(unittest.TestCase):
                 leader.validate_repository_task(task)
 
     def test_contextual_chain_task_requires_one_paper_note_and_repository(self):
-        contextual = deepcopy(TASK)
-        contextual["constraints"]["requirePaperNotes"] = True
-        contextual["input"].update(
-            papers=[{"paperId": "arxiv:2106.09685", "title": "LoRA", "doi": None,
-                     "url": "https://arxiv.org/abs/2106.09685",
-                     "pdfUrl": "https://arxiv.org/pdf/2106.09685",
-                     "repositoryUrls": ["https://github.com/pypa/sampleproject"]}],
-            paperNotes=[{"source": {"paperId": "arxiv:2106.09685", "title": "LoRA", "doi": None,
-                                    "url": "https://arxiv.org/abs/2106.09685",
-                                    "pdfUrl": "https://arxiv.org/pdf/2106.09685",
-                                    "repositoryUrls": ["https://github.com/pypa/sampleproject"]},
-                         "method": "method", "findings": "findings", "limitations": "limitations",
-                         "analysisLevel": "fulltext", "evidence": [{
-                             "sourceId": "arxiv:2106.09685", "url": "https://arxiv.org/pdf/2106.09685",
-                             "locator": "page 3", "supports": "The base weights are frozen."}]}])
+        contextual = contextual_task()
         self.assertEqual(leader.validate_repository_chain_task(contextual), contextual)
         missing = deepcopy(contextual); missing["input"]["paperNotes"] = []
         with self.assertRaises(ValueError):
@@ -142,6 +151,24 @@ class RepositoryConversationTests(unittest.IsolatedAsyncioTestCase):
                 data["items"][0]["data"]["enrichment"] = {"requested": True, "status": "completed"}
             with self.subTest(change=change), self.assertRaisesRegex(ValueError, "INVALID_REPOSITORY_RESULT"):
                 leader.RepositoryConversation.extract(message(TaskState.AwaitingCompletion, data), TASK)
+
+    def test_contextual_result_requires_exact_deterministic_paper_comparison(self):
+        task = contextual_task()
+        valid = contextual_result(task)
+        self.assertEqual(
+            leader.RepositoryConversation.extract(
+                message(TaskState.AwaitingCompletion, valid), task), valid)
+        for change in ("missing", "tampered"):
+            data = deepcopy(valid)
+            comparison = data["items"][0]["data"].get("paperComparison")
+            if change == "missing":
+                data["items"][0]["data"].pop("paperComparison")
+            else:
+                comparison["inputNotesSha256"] = "0" * 64
+            with self.subTest(change=change), \
+                    self.assertRaisesRegex(ValueError, "INVALID_REPOSITORY_RESULT"):
+                leader.RepositoryConversation.extract(
+                    message(TaskState.AwaitingCompletion, data), task)
 
 
 class RepositoryWorkflowTests(unittest.IsolatedAsyncioTestCase):

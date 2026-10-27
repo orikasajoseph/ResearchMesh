@@ -12,7 +12,10 @@ Repository 三个已验收 Group runner。
    `repository_analyze`；
 4. 每阶段使用不同 Group/Session/Task，Result 按 canonical JSON 计算 SHA-256；
 5. 完成阶段不会再次调用 runner；失败或远端状态不确定阶段不会自动重放；
-6. 任一保存文件被修改，续跑会在发送新任务前停止。
+6. 任一保存文件被修改，续跑会在发送新任务前停止；
+7. contextual static S3 必须返回与本轮 paperNote 和仓库 evidence 确定性一致的
+   `paperComparison`；缺失、结构变化或内容篡改均拒绝完成。该字段只证明
+   标识符与词面线索对照，不代表 DeepSeek 关联分析或代码复现。
 
 固定计划见 `examples/platform_three_agent_chain_v02.json`。本地免费验收：
 

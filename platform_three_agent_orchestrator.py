@@ -17,6 +17,7 @@ from business_execution import validate_business_result
 from common.models import BUSINESS_TASK_FIELDS
 from input_binding import bind_task_input
 from planner_contract import validate_plan
+from repository_paper_context import comparison_valid
 
 
 SCOPE = "FORMAL_PLATFORM_THREE_AGENT_ORCHESTRATION_CORE_V1"
@@ -90,6 +91,10 @@ def validate_completed_record(record, payload):
             raise PlatformChainError("FORMAL_STAGE_IDENTITY_MISSING")
     result = deepcopy(record.get("result"))
     validate_business_result(payload, result, repository_analysis_mode="static")
+    if payload["taskType"] == "repository_analyze" \
+            and payload["constraints"].get("requirePaperNotes") is True \
+            and not comparison_valid(result, payload):
+        raise PlatformChainError("FORMAL_REPOSITORY_COMPARISON_INVALID")
     return result
 
 

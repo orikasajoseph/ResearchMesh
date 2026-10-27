@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from platform_three_agent_orchestrator import execute_platform_chain
+from repository_paper_context import attach_comparison
 
 
 ROOT = Path(__file__).resolve().parent
@@ -35,13 +36,14 @@ def stage_result(task):
                     "analysisLevel": "fulltext", "evidence": [{"sourceId": "arxiv:2106.09685",
                         "url": PDF, "locator": "page 3", "supports": "Base weights are frozen."}],
                 }}]}
-    return {**common, "summary": "Offline Repository contract fixture",
+    result = {**common, "summary": "Offline Repository contract fixture",
             "items": [{"kind": "repository", "data": {
                 "url": REPOSITORY, "license": "UNKNOWN", "isMock": False,
                 "relationEvidence": "Repository URL propagated from the selected paper source.",
                 "evidence": [{"sourceId": "E1", "url": REPOSITORY + "/blob/" + "a" * 40 + "/README.md#L1",
                               "locator": "README.md:L1", "supports": "README describes the project."}],
             }}]}
+    return attach_comparison(result, task, task["input"]["paperNotes"])
 
 
 def accepted_record(stage, task):
@@ -72,6 +74,8 @@ def main(argv=None):
     runner = OfflineRunner()
     first = asyncio.run(execute_platform_chain(plan, output, runner))
     second = asyncio.run(execute_platform_chain(plan, output, runner))
+    repository_result = json.loads(
+        (output / "stages/repository_analyze/result.json").read_text(encoding="utf-8"))
     checks = {
         "completed": first["state"] == "completed",
         "dynamicS1ToS2ToS3": [row["stage"] for row in first["stages"]]
@@ -81,6 +85,8 @@ def main(argv=None):
         "noAutomaticRetry": first["automaticRetries"] == 0,
         "resumeSkipsCompleted": len(runner.calls) == 3 and second["state"] == "completed",
         "truthfulOfflineScope": first["formalPlatformExecuted"] is False,
+        "contextualComparisonValidated":
+            repository_result["items"][0]["data"]["paperComparison"]["paperCount"] == 1,
     }
     acceptance = {"passed": all(checks.values()),
                   "scope": "OFFLINE_FORMAL_ORCHESTRATION_CORE_FIXTURES_NO_NETWORK_NO_MODEL",

@@ -8,7 +8,9 @@ import unittest
 
 from platform_three_agent_orchestrator import (
     PlatformChainError, digest, execute_platform_chain, read_json,
+    validate_completed_record,
 )
+from repository_paper_context import attach_comparison
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,13 +42,14 @@ def stage_result(task):
                     "analysisLevel": "fulltext", "evidence": [{"sourceId": "arxiv:2106.09685",
                         "url": PDF, "locator": "page 3", "supports": "Base weights are frozen."}],
                 }}]}
-    return {**common, "summary": "Offline Repository contract fixture",
+    result = {**common, "summary": "Offline Repository contract fixture",
             "items": [{"kind": "repository", "data": {
                 "url": REPOSITORY, "license": "UNKNOWN", "isMock": False,
                 "relationEvidence": "Repository URL propagated from the selected paper source.",
                 "evidence": [{"sourceId": "E1", "url": REPOSITORY + "/blob/" + "a" * 40 + "/README.md#L1",
                               "locator": "README.md:L1", "supports": "README describes the project."}],
             }}]}
+    return attach_comparison(result, task, task["input"]["paperNotes"])
 
 
 def accepted_record(stage, task):
@@ -147,6 +150,30 @@ class PlatformThreeAgentOrchestratorTests(unittest.TestCase):
 
     def test_canonical_hash_is_key_order_independent(self):
         self.assertEqual(digest({"a": 1, "b": 2}), digest({"b": 2, "a": 1}))
+
+    def test_repository_record_rejects_missing_or_tampered_paper_comparison(self):
+        value = plan()
+        search = stage_result(value["tasks"][0])
+        reader_task = deepcopy(value["tasks"][1])
+        reader_task["input"]["papers"] = [paper()]
+        reader = stage_result(reader_task)
+        repository_task = deepcopy(value["tasks"][2])
+        repository_task["input"].update(
+            papers=[paper()],
+            paperNotes=[deepcopy(reader["items"][0]["data"])],
+            repositoryUrls=[REPOSITORY])
+        valid = accepted_record("repository_analyze", repository_task)
+        self.assertEqual(validate_completed_record(valid, repository_task), valid["result"])
+        for change in ("missing", "tampered"):
+            record = deepcopy(valid)
+            comparison = record["result"]["items"][0]["data"].get("paperComparison")
+            if change == "missing":
+                record["result"]["items"][0]["data"].pop("paperComparison")
+            else:
+                comparison["papers"][0]["noteSha256"] = "0" * 64
+            with self.subTest(change=change), self.assertRaisesRegex(
+                    PlatformChainError, "FORMAL_REPOSITORY_COMPARISON_INVALID"):
+                validate_completed_record(record, repository_task)
 
 
 if __name__ == "__main__":

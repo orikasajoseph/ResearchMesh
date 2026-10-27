@@ -24,6 +24,7 @@ from aip_business_partner import validate_local_task
 from business_execution import SAFE_BACKEND_CODES, validate_business_result
 from group_invitation import AUTH_SERVICE_URL, JoinConfirmation, delete_resource, validate
 from platform_mq_check import HOST, PORT, VHOST, CheckError, certificate_context, classify_error
+from repository_paper_context import comparison_valid
 
 
 def validate_literature_task(task):
@@ -247,6 +248,14 @@ class RepositoryConversation(LiteratureConversation):
     """Repository uses the sealed flow with static-result validation."""
 
     invalid_result_code = "INVALID_REPOSITORY_RESULT"
+
+    @classmethod
+    def extract(cls, message, task):
+        result = super().extract(message, task)
+        if task["constraints"].get("requirePaperNotes") is True \
+                and not comparison_valid(result, task):
+            raise CheckError(cls.invalid_result_code)
+        return result
 
 
 async def _run_group_single_task(config, task, *, execute, partner_ready,

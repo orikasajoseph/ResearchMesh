@@ -11,6 +11,8 @@ from copy import deepcopy
 from hashlib import sha256
 import json
 from pathlib import Path
+import re
+from uuid import uuid4
 
 from aip_business_partner import validate_local_task
 from business_execution import validate_business_result
@@ -18,6 +20,7 @@ from common.models import BUSINESS_TASK_FIELDS
 from input_binding import bind_task_input
 from planner_contract import validate_plan
 from repository_paper_context import comparison_valid
+from platform_chain_resources import validate_preparation
 
 
 SCOPE = "FORMAL_PLATFORM_THREE_AGENT_ORCHESTRATION_CORE_V1"
@@ -98,8 +101,66 @@ def validate_completed_record(record, payload):
     return result
 
 
+def stage_directory(output, row):
+    """Fresh local-preflight attempts keep all previous files at their old paths."""
+    if row["stage"] not in ORDER:
+        raise PlatformChainError("INVALID_STAGE_DIRECTORY")
+    base = Path(output) / "stages" / row["stage"]
+    attempt = row.get("attemptDirectory")
+    if attempt is not None:
+        if not isinstance(attempt, str) or not re.fullmatch(r"unstarted-[0-9a-f]{32}", attempt):
+            raise PlatformChainError("INVALID_STAGE_DIRECTORY")
+        base = base / attempt
+    if not base.resolve().is_relative_to(Path(output).resolve()):
+        raise PlatformChainError("INVALID_STAGE_DIRECTORY")
+    return base
+
+
+def stage_payload(output, row, original, results, task):
+    """Restore the frozen derived input without invoking the resource preparer."""
+    if "preparationSha256" not in row:
+        return original
+    if task["taskType"] != "paper_read":
+        raise PlatformChainError("INVALID_RESOURCE_STAGE")
+    bundle = read_json(stage_directory(output, row) / "input_resolution.json")
+    if digest(bundle) != row["preparationSha256"]:
+        raise PlatformChainError("FORMAL_RESOURCE_CHECKPOINT_CHANGED")
+    return validate_preparation(bundle, original, results[task["dependsOn"][0]])
+
+
+def unstarted_preflight(record):
+    """Require affirmative evidence of no external effects, not absent flags."""
+    false_flags = ("networkAttempted", "aclWriteAttempted", "groupCreationAttempted",
+                   "groupCreated", "invitationPublishAttempted", "invitationPublished",
+                   "startAttempted", "startPublished", "protocolCompleted", "remoteStateUnknown")
+    return (isinstance(record, dict)
+            and all(record.get(key) is False for key in false_flags)
+            and type(record.get("taskCommandsSent")) is int and record["taskCommandsSent"] == 0
+            and record.get("result") is None and record.get("offlineChecksPassed") is False
+            and (record.get("error") or {}).get("code") == "READER_REQUIRES_ACCESSIBLE_PDF_URL")
+
+
+def verify_unstarted_stage(output, row, original, results, task):
+    directory = stage_directory(output, row)
+    payload = stage_payload(output, row, original, results, task)
+    saved_task = read_json(directory / "task.json")
+    if saved_task != payload or digest(saved_task) != row["taskSha256"]:
+        raise PlatformChainError("FORMAL_STAGE_TASK_CHANGED")
+    if row.get("runnerAttempted") is False and row["state"] == "blocked_resources":
+        return
+    record = read_json(directory / "record.json")
+    if digest(record) != row.get("recordSha256") or not unstarted_preflight(record):
+        raise PlatformChainError("FORMAL_STAGE_NOT_PROVEN_UNSTARTED")
+    live_path = directory / "live_record.json"
+    if live_path.exists():
+        live = read_json(live_path)
+        if not unstarted_preflight(live) or any(live.get(key) != record.get(key)
+                                               for key in ("groupId", "sessionId", "taskId")):
+            raise PlatformChainError("FORMAL_STAGE_NOT_PROVEN_UNSTARTED")
+
+
 def verify_saved_stage(output, row, payload):
-    directory = output / "stages" / row["stage"]
+    directory = stage_directory(output, row)
     task_path = directory / "task.json"
     record_path, result_path = directory / "record.json", directory / "result.json"
     if not task_path.is_file() or not record_path.is_file() or not result_path.is_file():
@@ -130,12 +191,14 @@ def render_report(state):
     return "\n".join(lines)
 
 
-async def execute_platform_chain(plan, output, runner):
+async def execute_platform_chain(plan, output, runner, *, resource_preparer=None,
+                                 resume_unstarted=False):
     """Execute or safely resume a three-stage chain using an injected runner.
 
     runner(stage_name, seven_field_task) must return the persisted Leader record
     for exactly one fresh formal Group task.  The core never calls a runner for a
-    completed stage and never retries a failed/uncertain stage.
+    completed stage and never retries a remotely started failed/uncertain stage.
+    An explicit resume_unstarted may replace a proven local preflight failure.
     """
     if not callable(runner):
         raise PlatformChainError("FORMAL_STAGE_RUNNER_REQUIRED")
@@ -158,26 +221,48 @@ async def execute_platform_chain(plan, output, runner):
         raise PlatformChainError("FORMAL_CHAIN_PLAN_CHANGED")
 
     results = {}
-    for index, task in enumerate(tasks):
+    for task in tasks:
         payload = bind_business_task(task, results)
         stage = task["taskType"]
         existing = next((row for row in state["stages"] if row["stage"] == stage), None)
         if existing:
-            if existing["state"] != "completed":
+            if existing["state"] == "completed":
+                final_payload = stage_payload(output, existing, payload, results, task)
+                _, result = verify_saved_stage(output, existing, final_payload)
+                results[task["subtaskId"]] = result
+                continue
+            if not resume_unstarted:
                 raise PlatformChainError("FORMAL_STAGE_NOT_SAFE_TO_REPLAY_" + stage.upper())
-            _, result = verify_saved_stage(output, existing, payload)
-            results[task["subtaskId"]] = result
-            continue
+            verify_unstarted_stage(output, existing, payload, results, task)
 
-        directory = output / "stages" / stage
+        row = {"stage": stage, "subtaskId": task["subtaskId"], "state": "preparing",
+               "taskSha256": digest(payload), "attempts": 1, "runnerAttempted": False}
+        if existing:
+            row.update(attemptDirectory="unstarted-" + uuid4().hex,
+                       attempts=existing.get("attempts", 1) + 1)
+            state.setdefault("unstartedHistory", []).append(deepcopy(existing))
+            state["stages"].remove(existing)
+        directory = stage_directory(output, row)
         directory.mkdir(parents=True, exist_ok=False)
         write_json(directory / "task.json", payload)
-        row = {"stage": stage, "subtaskId": task["subtaskId"], "state": "running",
-               "taskSha256": digest(payload), "attempts": 1}
+        write_json(directory / "bound_task.json", payload)
         state["stages"].append(row)
+        state["state"] = "running"
         write_json(state_path, state)
         record = None
         try:
+            if stage == "paper_read" and resource_preparer is not None:
+                bundle = await resource_preparer(deepcopy(payload),
+                    deepcopy(results[task["dependsOn"][0]]), directory)
+                prepared = validate_preparation(bundle, payload, results[task["dependsOn"][0]])
+                write_json(directory / "input_resolution.json", bundle)
+                row["preparationSha256"] = digest(bundle)
+                payload = prepared
+                write_json(directory / "task.json", payload)
+                row["taskSha256"] = digest(payload)
+                write_json(state_path, state)
+            row.update(state="running", runnerAttempted=True)
+            write_json(state_path, state)
             record = await runner(stage, deepcopy(payload))
             if isinstance(record, dict):
                 write_json(directory / "record.json", record)
@@ -194,8 +279,9 @@ async def execute_platform_chain(plan, output, runner):
                 "resultSha256": row["resultSha256"], "items": len(result["items"])}
             write_json(state_path, state)
         except Exception as error:
-            row.update(state="blocked_uncertain", errorType=type(error).__name__)
-            state["state"] = "blocked_uncertain"
+            blocked = "blocked_uncertain" if row["runnerAttempted"] else "blocked_resources"
+            row.update(state=blocked, errorType=type(error).__name__)
+            state["state"] = blocked
             write_json(state_path, state)
             (output / "report.md").write_text(render_report(state), encoding="utf-8")
             raise
@@ -206,7 +292,7 @@ async def execute_platform_chain(plan, output, runner):
         raise PlatformChainError("DISTINCT_FORMAL_GROUP_AND_TASK_IDS_REQUIRED")
     state["state"] = "completed"
     state["formalPlatformExecuted"] = all(
-        read_json(output / "stages" / row["stage"] / "record.json").get("scope", "").startswith("PLATFORM_")
+        read_json(stage_directory(output, row) / "record.json").get("scope", "").startswith("PLATFORM_")
         for row in state["stages"])
     state["automaticRetries"] = 0
     write_json(state_path, state)

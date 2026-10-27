@@ -33,6 +33,13 @@ class PlatformThreeAgentCliTests(unittest.TestCase):
                     patch("builtins.print"):
                 self.assertEqual(cli.main(arguments() + flags), 2)
 
+    def test_missing_pdf_dependency_stops_before_group_creation(self):
+        with patch.object(cli.importlib.util, "find_spec", return_value=None), \
+                patch.object(cli, "execute_platform_chain", side_effect=AssertionError("no Group allowed")), \
+                patch("builtins.print"):
+            self.assertEqual(cli.main(arguments() + ["--execute", "--partners-ready",
+                                                      "--confirm-each-stage"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

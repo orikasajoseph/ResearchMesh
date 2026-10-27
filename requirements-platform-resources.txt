@@ -1,0 +1,4 @@
+# Formal Leader resource preparation. Same PDF parser version verified in the
+# existing Reader runtime; no PaperQA, embedding or model dependencies needed.
+-r requirements-mq-check.txt
+pypdf==6.20.0

@@ -100,6 +100,28 @@ class DynamicReaderTests(unittest.IsolatedAsyncioTestCase):
                     await reader_aip_worker.run(args)
             self.assertTrue(input_path.exists())
 
+    async def test_pdf_preparation_failure_never_creates_provider_or_calls_model(self):
+        from reader_adapter import ReaderAdapterError
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            bound = root / "bound_task.json"
+            bound.write_text(json.dumps(task()), encoding="utf-8")
+            input_path = root / "reader_input.json"
+            args = SimpleNamespace(record_dir=root, bound_task=bound, input=input_path,
+                                   execute=True, reader_root=root)
+            provider = patch("reader_aip_worker.prepare_live_reader")
+            model_call = patch("reader_aip_worker.execute_one")
+            with patch("reader_aip_worker.require_record_directory", return_value=root), \
+                 patch("aip_reader_inputs.prepare_bound_reader_input",
+                       side_effect=ReaderAdapterError("PDF_DOWNLOAD_FAILED")), \
+                 provider as provider_mock, model_call as model_mock:
+                with self.assertRaisesRegex(ReaderAdapterError, "PDF_DOWNLOAD_FAILED"):
+                    await reader_aip_worker.run(args)
+            provider_mock.assert_not_called()
+            model_mock.assert_not_called()
+            self.assertFalse(input_path.exists())
+            self.assertFalse((root / "reader_journal.json").exists())
+
     async def test_bound_pdf_is_verified_and_input_is_written(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

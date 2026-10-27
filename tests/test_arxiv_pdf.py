@@ -34,6 +34,18 @@ class FakePdfReader:
         self.pages = [SimpleNamespace(extract_text=lambda: text)]
 
 
+class ReadTimeoutStream(httpx.AsyncByteStream):
+    def __init__(self, request):
+        self.request = request
+
+    async def __aiter__(self):
+        raise httpx.ReadTimeout("private streamed body and token", request=self.request)
+        yield b""  # pragma: no cover - makes this an async generator
+
+    async def aclose(self):
+        pass
+
+
 def fixtures():
     task = batch_task()
     task["input"]["papers"] = task["input"]["papers"][:1]
@@ -105,6 +117,9 @@ class PdfResolverTests(unittest.IsolatedAsyncioTestCase):
                 resolved, failed = await second.resolve(task, result, previous=events)
                 self.assertIsNone(resolved["input"]["papers"][0]["pdfUrl"])
                 self.assertEqual(failed[0]["reason"], "PDF_CACHE_CONFLICT")
+                self.assertEqual(failed[0]["diagnostics"], {
+                    "exceptionClass": "PdfSourceError", "stage": "pdf_cache", "attempt": 1,
+                    "responseReceived": True, "httpStatus": 200})
                 self.assertEqual(Path(events[0]["cachePath"]).read_bytes(), b"corrupt cached file")
                 self.assertEqual(len(calls), 4)
 
@@ -160,6 +175,66 @@ class PdfResolverTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("private error body", str(events))
         self.assertEqual(calls, [ABS])
 
+    async def test_transport_error_has_allow_listed_diagnostics(self):
+        def handler(request):
+            raise httpx.ConnectTimeout("private host and token details", request=request)
+        _, events = await self.resolve_with(handler)
+        self.assertEqual(events[0]["reason"], "ARXIV_NETWORK_UNAVAILABLE")
+        self.assertEqual(events[0]["diagnostics"], {
+            "exceptionClass": "ConnectTimeout", "stage": "abs_page", "attempt": 1,
+            "responseReceived": False, "httpStatus": None})
+        self.assertNotIn("private host and token details", str(events))
+
+    async def test_pdf_body_transport_error_has_allow_listed_diagnostics(self):
+        _, _, html = fixtures()
+        def handler(request):
+            if str(request.url) == ABS:
+                return httpx.Response(200, content=html)
+            raise httpx.ReadTimeout("private PDF endpoint and token", request=request)
+        _, events = await self.resolve_with(handler)
+        self.assertEqual(events[0]["reason"], "ARXIV_NETWORK_UNAVAILABLE")
+        self.assertEqual(events[0]["diagnostics"], {
+            "exceptionClass": "ReadTimeout", "stage": "pdf_body", "attempt": 1,
+            "responseReceived": False, "httpStatus": None})
+        self.assertNotIn("private PDF endpoint and token", str(events))
+
+    async def test_pdf_body_stream_timeout_preserves_received_status(self):
+        _, _, html = fixtures()
+        def handler(request):
+            if str(request.url) == ABS:
+                return httpx.Response(200, content=html)
+            return httpx.Response(200, stream=ReadTimeoutStream(request))
+        _, events = await self.resolve_with(handler)
+        self.assertEqual(events[0]["reason"], "ARXIV_NETWORK_UNAVAILABLE")
+        self.assertEqual(events[0]["diagnostics"], {
+            "exceptionClass": "ReadTimeout", "stage": "pdf_body", "attempt": 1,
+            "responseReceived": True, "httpStatus": 200})
+        self.assertNotIn("private streamed body and token", str(events))
+
+    async def test_http_status_diagnostics_for_404_429_and_5xx(self):
+        for status in (404, 429, 503):
+            with self.subTest(status=status):
+                def handler(request, status=status):
+                    return httpx.Response(status, content=b"private response body")
+                _, events = await self.resolve_with(handler)
+                self.assertEqual(events[0]["reason"], f"ARXIV_HTTP_{status}")
+                self.assertEqual(events[0]["diagnostics"], {
+                    "exceptionClass": "PdfSourceError", "stage": "abs_page", "attempt": 1,
+                    "responseReceived": True, "httpStatus": status})
+                self.assertNotIn("private response body", str(events))
+
+    async def test_redirect_attempt_is_recorded_without_location(self):
+        calls = []
+        def handler(request):
+            calls.append(str(request.url))
+            if len(calls) == 1:
+                return httpx.Response(302, headers={"location": "/abs/9999.12345"})
+            return httpx.Response(503, content=b"private")
+        _, events = await self.resolve_with(handler)
+        self.assertEqual(events[0]["diagnostics"]["attempt"], 2)
+        self.assertEqual(events[0]["diagnostics"]["httpStatus"], 503)
+        self.assertNotIn("location", str(events[0]["diagnostics"]))
+
     async def test_oversized_response_rejected(self):
         _, _, html = fixtures()
         def handler(request):
@@ -167,6 +242,29 @@ class PdfResolverTests(unittest.IsolatedAsyncioTestCase):
             return httpx.Response(200, content=b"%PDF-", headers={"content-length": str(MAX_PDF + 1)})
         _, events = await self.resolve_with(handler)
         self.assertEqual(events[0]["reason"], "SOURCE_TOO_LARGE")
+
+    async def test_pdf_validation_failure_records_stage(self):
+        _, _, html = fixtures()
+        def handler(request):
+            return httpx.Response(200, content=html if str(request.url) == ABS else b"not a pdf")
+        _, events = await self.resolve_with(handler)
+        self.assertEqual(events[0]["reason"], "INVALID_PDF")
+        self.assertEqual(events[0]["diagnostics"], {
+            "exceptionClass": "PdfSourceError", "stage": "pdf_validation", "attempt": 1,
+            "responseReceived": True, "httpStatus": 200})
+
+    async def test_cache_oserror_records_concrete_class_without_message(self):
+        _, _, html = fixtures()
+        def handler(request):
+            return httpx.Response(200, content=html if str(request.url) == ABS else pdf_bytes())
+        with patch("arxiv_pdf.Path.mkdir",
+                   side_effect=PermissionError("private cache path and credential")):
+            _, events = await self.resolve_with(handler)
+        self.assertEqual(events[0]["reason"], "PDF_CACHE_UNAVAILABLE")
+        self.assertEqual(events[0]["diagnostics"], {
+            "exceptionClass": "PermissionError", "stage": "pdf_cache", "attempt": 1,
+            "responseReceived": True, "httpStatus": 200})
+        self.assertNotIn("private cache path and credential", str(events))
 
     async def test_existing_pdf_not_replaced_or_requested(self):
         def handler(request): self.fail("existing PDF not resolved by this module")

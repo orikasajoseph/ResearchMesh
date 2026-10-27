@@ -24,7 +24,22 @@ ARXIV_ID = r"(?:[0-9]{4}\.[0-9]{4,5}|[a-z][a-z.-]*/[0-9]{7})(?:v[1-9][0-9]*)?"
 
 
 class PdfSourceError(ValueError):
-    pass
+    def __init__(self, code, *, diagnostics=None):
+        self.diagnostics = diagnostics
+        super().__init__(code)
+
+
+def _request_diagnostics(error, *, stage, attempt, response=None):
+    """Return only allow-listed transport facts; never persist exception text or headers."""
+    response = response or getattr(error, "response", None)
+    status = getattr(response, "status_code", None)
+    return {
+        "exceptionClass": type(error).__name__,
+        "stage": stage,
+        "attempt": attempt,
+        "responseReceived": response is not None,
+        "httpStatus": status if isinstance(status, int) else None,
+    }
 
 
 def arxiv_id(url, kind):
@@ -111,30 +126,51 @@ class ArxivPdfResolver:
         """同域有限重定向、流式大小限制、不携带 API Key。"""
         async def request(client):
             target = url
-            for _ in range(4):
+            stage = "abs_page" if kind == "abs" else "pdf_body"
+            last_status = None
+            for attempt in range(1, 5):
                 if not arxiv_id(target, kind) or urlparse(target).scheme != "https":
-                    raise PdfSourceError("UNSAFE_ARXIV_REDIRECT")
+                    raise PdfSourceError("UNSAFE_ARXIV_REDIRECT", diagnostics={
+                        "exceptionClass": "PdfSourceError", "stage": stage,
+                        "attempt": attempt, "responseReceived": last_status is not None,
+                        "httpStatus": last_status})
                 delay = self.request_interval - (time.monotonic() - self.last_request)
                 if delay > 0:
                     await asyncio.sleep(delay)
                 self.last_request = time.monotonic()
-                async with client.stream("GET", target, follow_redirects=False) as response:
-                    if response.status_code in {301, 302, 303, 307, 308}:
-                        target = urljoin(target, response.headers.get("location", ""))
-                        continue
-                    if response.status_code != 200:
-                        raise PdfSourceError("ARXIV_HTTP_" + str(response.status_code))
-                    length = response.headers.get("content-length")
-                    if length and length.isdigit() and int(length) > limit:
-                        raise PdfSourceError("SOURCE_TOO_LARGE")
-                    chunks, count = [], 0
-                    async for chunk in response.aiter_bytes():
-                        count += len(chunk)
-                        if count > limit:
-                            raise PdfSourceError("SOURCE_TOO_LARGE")
-                        chunks.append(chunk)
-                    return b"".join(chunks), target
-            raise PdfSourceError("TOO_MANY_REDIRECTS")
+                current_response = None
+                try:
+                    async with client.stream("GET", target, follow_redirects=False) as response:
+                        current_response = response
+                        diagnostics = _request_diagnostics(
+                            PdfSourceError("HTTP_RESPONSE"), stage=stage,
+                            attempt=attempt, response=response)
+                        last_status = response.status_code
+                        if response.status_code in {301, 302, 303, 307, 308}:
+                            target = urljoin(target, response.headers.get("location", ""))
+                            continue
+                        if response.status_code != 200:
+                            raise PdfSourceError("ARXIV_HTTP_" + str(response.status_code),
+                                                 diagnostics=diagnostics)
+                        length = response.headers.get("content-length")
+                        if length and length.isdigit() and int(length) > limit:
+                            raise PdfSourceError("SOURCE_TOO_LARGE", diagnostics=diagnostics)
+                        chunks, count = [], 0
+                        async for chunk in response.aiter_bytes():
+                            count += len(chunk)
+                            if count > limit:
+                                raise PdfSourceError("SOURCE_TOO_LARGE", diagnostics=diagnostics)
+                            chunks.append(chunk)
+                        return b"".join(chunks), target, diagnostics
+                except PdfSourceError:
+                    raise
+                except httpx.HTTPError as exc:
+                    raise PdfSourceError("ARXIV_NETWORK_UNAVAILABLE", diagnostics=
+                                         _request_diagnostics(exc, stage=stage, attempt=attempt,
+                                                              response=current_response)) from None
+            raise PdfSourceError("TOO_MANY_REDIRECTS", diagnostics={
+                "exceptionClass": "PdfSourceError", "stage": stage,
+                "attempt": 4, "responseReceived": True, "httpStatus": last_status})
         if self.client is not None:
             return await request(self.client)
         async with httpx.AsyncClient(timeout=30, headers={"User-Agent": "ResearchMesh-PDF-Resolver/0.1"}) as client:
@@ -186,25 +222,34 @@ class ArxivPdfResolver:
                 events.append(event)
                 continue
             failure = "NO_KNOWN_ARXIV_SOURCE" if not sources else "PDF_SOURCE_UNVERIFIED"
+            failure_diagnostics = None
             for source in sources[:3]:
                 identity = arxiv_id(source, "abs")
                 canonical = "https://arxiv.org/abs/" + identity
+                latest_request_diagnostics = None
                 try:
-                    html, final_page = await self._download(canonical, kind="abs", limit=512 * 1024)
+                    html, final_page, abs_diagnostics = await self._download(canonical, kind="abs", limit=512 * 1024)
+                    latest_request_diagnostics = abs_diagnostics
                     if arxiv_id(final_page, "abs") != identity:
-                        raise PdfSourceError("SOURCE_ID_MISMATCH")
+                        raise PdfSourceError("SOURCE_ID_MISMATCH", diagnostics=abs_diagnostics)
                     page = ArxivPage()
                     page.feed(html.decode("utf-8", errors="replace"))
                     if not normalize_title(original["title"]) or normalize_title(page.title) != normalize_title(original["title"]):
-                        raise PdfSourceError("SOURCE_TITLE_MISMATCH")
+                        raise PdfSourceError("SOURCE_TITLE_MISMATCH", diagnostics=abs_diagnostics)
                     pdf_url = next((urljoin(final_page, link) for link in page.links
                                     if arxiv_id(urljoin(final_page, link), "pdf") == identity), None)
                     if pdf_url is None:
-                        raise PdfSourceError("NO_VERIFIED_PDF_LINK")
-                    content, final_pdf = await self._download(pdf_url, kind="pdf", limit=MAX_PDF)
+                        raise PdfSourceError("NO_VERIFIED_PDF_LINK", diagnostics=abs_diagnostics)
+                    content, final_pdf, pdf_diagnostics = await self._download(pdf_url, kind="pdf", limit=MAX_PDF)
+                    latest_request_diagnostics = pdf_diagnostics
                     if arxiv_id(final_pdf, "pdf") != identity:
-                        raise PdfSourceError("PDF_ID_MISMATCH")
-                    pages = inspect_pdf(content, original["title"])
+                        raise PdfSourceError("PDF_ID_MISMATCH", diagnostics=pdf_diagnostics)
+                    try:
+                        pages = inspect_pdf(content, original["title"])
+                    except PdfSourceError as exc:
+                        raise PdfSourceError(str(exc), diagnostics={
+                            **pdf_diagnostics, "exceptionClass": type(exc).__name__,
+                            "stage": "pdf_validation"}) from None
                     digest = sha256(content).hexdigest()
                     self.cache_dir.mkdir(parents=True, exist_ok=True)
                     path = self.cache_dir / (digest + ".pdf")
@@ -219,7 +264,9 @@ class ArxivPdfResolver:
                             if temporary is not None:
                                 temporary.unlink(missing_ok=True)
                     elif sha256(path.read_bytes()).hexdigest() != digest:
-                        raise PdfSourceError("PDF_CACHE_CONFLICT")
+                        raise PdfSourceError("PDF_CACHE_CONFLICT", diagnostics={
+                            **pdf_diagnostics, "exceptionClass": "PdfSourceError",
+                            "stage": "pdf_cache"})
                     paper["pdfUrl"] = final_pdf
                     self.verified_bytes[final_pdf] = content
                     events.append({"paperId": paper["paperId"], "paperBefore": original, "state": "verified",
@@ -230,13 +277,21 @@ class ArxivPdfResolver:
                     break
                 except PdfSourceError as exc:
                     failure = str(exc)
-                except httpx.HTTPError:
-                    failure = "ARXIV_NETWORK_UNAVAILABLE"
-                except OSError:
+                    failure_diagnostics = exc.diagnostics
+                except OSError as exc:
                     failure = "PDF_CACHE_UNAVAILABLE"
+                    failure_diagnostics = {
+                        "exceptionClass": type(exc).__name__, "stage": "pdf_cache",
+                        "attempt": ((latest_request_diagnostics or {}).get("attempt")),
+                        "responseReceived": ((latest_request_diagnostics or {}).get(
+                            "responseReceived", False)),
+                        "httpStatus": ((latest_request_diagnostics or {}).get("httpStatus"))}
             else:
-                events.append({"paperId": paper["paperId"], "paperBefore": original,
-                               "state": "unavailable", "reason": failure, "networkAttempted": bool(sources)})
+                event = {"paperId": paper["paperId"], "paperBefore": original,
+                         "state": "unavailable", "reason": failure, "networkAttempted": bool(sources)}
+                if failure_diagnostics is not None:
+                    event["diagnostics"] = failure_diagnostics
+                events.append(event)
         validate_pdf_enrichment(task, resolved)
         return resolved, events
 

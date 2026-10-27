@@ -94,23 +94,35 @@ class PaperQAProvider:
         config: PaperReaderConfig | None = None,
         *,
         pdf_fetcher: PdfFetcher | None = None,
+        initialization_audit=None,
     ) -> None:
         self.config = config or PaperReaderConfig.from_env()
         self._pdf_fetcher = pdf_fetcher
 
-        # Keep PaperQA optional for unit tests that inject a fake provider.
-        from paperqa import Docs, Settings
+        def stage(name, action):
+            if initialization_audit:
+                initialization_audit(name, "started")
+            try:
+                value = action()
+            except BaseException as error:
+                if initialization_audit:
+                    initialization_audit(name, "failed", type(error).__name__)
+                raise
+            if initialization_audit:
+                initialization_audit(name, "completed")
+            return value
 
-        self._docs_type = Docs
+        # Keep PaperQA optional for unit tests that inject a fake provider.
+        def import_dependencies():
+            from paperqa import Docs, Settings
+            return Docs, Settings
+        self._docs_type, settings_type = stage("paperqa_dependencies_import", import_dependencies)
+
         alias = "researchmesh-deepseek"
         router_config = self.router_config(self.config)
-        self.settings = Settings(
-            llm=alias,
-            summary_llm=alias,
-            llm_config=router_config,
-            summary_llm_config=router_config,
-            embedding=self.config.embedding,
-        )
+        self.settings = stage("paperqa_settings_construct", lambda: settings_type(
+            llm=alias, summary_llm=alias, llm_config=router_config,
+            summary_llm_config=router_config, embedding=self.config.embedding))
         self.settings.parsing.multimodal = False
         self.settings.parsing.use_doc_details = False
         self.settings.parsing.defer_embedding = False
@@ -120,7 +132,7 @@ class PaperQAProvider:
         )
 
         load_started = time.perf_counter()
-        self.embedding_model = self.settings.get_embedding_model()
+        self.embedding_model = stage("embedding_model_load", self.settings.get_embedding_model)
         self.embedding_model_load_ms = round(
             (time.perf_counter() - load_started) * 1000, 3
         )

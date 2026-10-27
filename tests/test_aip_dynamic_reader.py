@@ -122,6 +122,44 @@ class DynamicReaderTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(input_path.exists())
             self.assertFalse((root / "reader_journal.json").exists())
 
+    async def test_runtime_failure_persists_last_stage_without_marking_running(self):
+        from reader_adapter import ReaderAdapterError
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_path = root / "reader_input.json"
+            input_path.write_text(json.dumps({"pdf": {"sha256": "a" * 64}}), encoding="utf-8")
+            args = SimpleNamespace(record_dir=root, bound_task=None, input=input_path,
+                                   execute=True, reader_root=root, env_file=root / "safe.env",
+                                   runtime_home=None, resume_journal=None)
+            wrapper = SimpleNamespace(PaperReadTask=SimpleNamespace(model_validate=lambda value: value))
+            def fail_runtime(*args, **kwargs):
+                audit = kwargs["initialization_audit"]
+                audit("prepare_live_reader", "started")
+                audit("paperqa_settings_construct", "started")
+                audit("paperqa_settings_construct", "failed", "ValueError")
+                raise ReaderAdapterError("READER_RUNTIME_PREPARATION_FAILED")
+            with patch("reader_aip_worker.require_record_directory", return_value=root), \
+                 patch("reader_aip_worker.inspect_input", return_value=(task(), b"%PDF-offline")), \
+                 patch("reader_aip_worker.load_reader", return_value=wrapper), \
+                 patch("reader_aip_worker.check_runtime"), \
+                 patch("reader_aip_worker.prepare_live_reader", side_effect=fail_runtime), \
+                 patch("reader_aip_worker.execute_one") as execute:
+                self.assertEqual(await reader_aip_worker.run(args), 1)
+            execute.assert_not_called()
+            journal = json.loads((root / "reader_journal.json").read_text(encoding="utf-8"))
+            self.assertEqual(journal["phase"], "failed")
+            self.assertFalse(journal["modelExecutionAttemptedThisRun"])
+            records = [json.loads(line) for line in
+                       (root / "runtime_initialization.jsonl").read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([(r["stage"], r["event"]) for r in records], [
+                ("prepare_live_reader", "started"),
+                ("paperqa_settings_construct", "started"),
+                ("paperqa_settings_construct", "failed")])
+            self.assertEqual(records[-1]["exceptionClass"], "ValueError")
+            self.assertIn("at", records[-1])
+            self.assertIsInstance(records[-1]["durationMs"], float)
+            self.assertNotIn("safe.env", str(records))
+
     async def test_bound_pdf_is_verified_and_input_is_written(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

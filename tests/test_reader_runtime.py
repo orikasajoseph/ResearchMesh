@@ -84,6 +84,59 @@ class RuntimeTests(unittest.TestCase):
                 prepare_live_reader("wrapper", env_file="main.env", runtime_home=directory, pdf_fetcher=fetch)
                 wrapper.PaperQAProvider.assert_called_once_with(config, pdf_fetcher=fetch)
 
+    def test_provider_failure_audited_and_original_mapping_preserved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "huggingface").mkdir()
+            self.make_embedding_cache(directory)
+            config = SimpleNamespace(provider_model="deepseek/synthetic")
+            wrapper = SimpleNamespace(PaperReaderConfig=Mock(return_value=config),
+                PaperQAProvider=Mock(side_effect=ValueError("private provider detail")),
+                PaperReaderAgent=Mock(), PaperReadTask="model")
+            events = []
+            with patch.dict(os.environ, {}, clear=True), \
+                    patch("reader_runtime.dotenv_values", return_value=self.values), \
+                    patch("reader_runtime.importlib.util.find_spec", return_value=object()), \
+                    patch("reader_runtime.load_reader", return_value=wrapper):
+                with self.assertRaisesRegex(ReaderAdapterError, "READER_RUNTIME_PREPARATION_FAILED"):
+                    prepare_live_reader("wrapper", env_file="main.env", runtime_home=directory,
+                        initialization_audit=lambda *event: events.append(event))
+            self.assertEqual(events, [
+                ("prepare_live_reader", "started"),
+                ("provider_construct", "started"),
+                ("provider_construct", "failed", "ValueError"),
+                ("prepare_live_reader", "failed", "ValueError")])
+            self.assertNotIn("private provider detail", str(events))
+
+    def test_full_success_audit_order_wraps_provider_internal_stages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / "huggingface").mkdir()
+            self.make_embedding_cache(directory)
+            config = SimpleNamespace(provider_model="deepseek/synthetic")
+            class Provider:
+                def __init__(self, config, *, initialization_audit):
+                    for stage in ("paperqa_dependencies_import", "paperqa_settings_construct",
+                                  "embedding_model_load"):
+                        initialization_audit(stage, "started")
+                        initialization_audit(stage, "completed")
+            wrapper = SimpleNamespace(PaperReaderConfig=Mock(return_value=config),
+                PaperQAProvider=Provider, PaperReaderAgent=Mock(return_value="agent"),
+                PaperReadTask="model")
+            events = []
+            with patch.dict(os.environ, {}, clear=True), \
+                    patch("reader_runtime.dotenv_values", return_value=self.values), \
+                    patch("reader_runtime.importlib.util.find_spec", return_value=object()), \
+                    patch("reader_runtime.load_reader", return_value=wrapper):
+                self.assertEqual(prepare_live_reader("wrapper", env_file="main.env", runtime_home=directory,
+                    initialization_audit=lambda *event: events.append(event)), ("agent", "model"))
+            self.assertEqual(events, [
+                ("prepare_live_reader", "started"), ("provider_construct", "started"),
+                ("paperqa_dependencies_import", "started"),
+                ("paperqa_dependencies_import", "completed"),
+                ("paperqa_settings_construct", "started"),
+                ("paperqa_settings_construct", "completed"),
+                ("embedding_model_load", "started"), ("embedding_model_load", "completed"),
+                ("provider_construct", "completed"), ("prepare_live_reader", "completed")])
+
 
 if __name__ == "__main__":
     unittest.main()

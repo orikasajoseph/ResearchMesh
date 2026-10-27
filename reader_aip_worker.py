@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import time
 
 from arxiv_pdf import inspect_pdf, MAX_PDF
 from reader_adapter import ReaderAdapterError, call_reader, load_reader, normalize_reader_result, to_reader_request
@@ -22,6 +23,28 @@ from dotenv import dotenv_values
 from aip_record_paths import require_record_directory
 
 ROOT = Path(__file__).resolve().parent
+
+
+class RuntimeInitializationAudit:
+    """Append-only, secret-free runtime initialization milestones."""
+    def __init__(self, path):
+        self.path = Path(path)
+        self.started = {}
+
+    def __call__(self, stage, event, exception_class=None):
+        now = time.perf_counter()
+        if event == "started":
+            self.started[stage] = now
+        record = {"stage": stage, "event": event,
+                  "at": datetime.now().astimezone().isoformat()}
+        if event in {"completed", "failed"} and stage in self.started:
+            record["durationMs"] = round((now - self.started[stage]) * 1000, 3)
+        if event == "failed" and exception_class:
+            record["exceptionClass"] = exception_class
+        with self.path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(record, ensure_ascii=False) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
 
 
 def inspect_input(data):
@@ -146,7 +169,9 @@ async def run(args):
                 if url != task["input"]["papers"][0]["pdfUrl"]:
                     raise ReaderAdapterError("LOCAL_PDF_SOURCE_MISMATCH")
                 return content
-            prepared = prepare_live_reader(args.reader_root, env_file=env_file, runtime_home=runtime_home, pdf_fetcher=fetch)
+            initialization_audit = RuntimeInitializationAudit(output / "runtime_initialization.jsonl")
+            prepared = prepare_live_reader(args.reader_root, env_file=env_file, runtime_home=runtime_home,
+                                           pdf_fetcher=fetch, initialization_audit=initialization_audit)
             def started():
                 journal.update(phase="running", modelExecutionAttemptedThisRun=True,
                                modelExecutionAttemptedEver=True)

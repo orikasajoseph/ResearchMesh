@@ -29,38 +29,59 @@ def _require_embedding_cache(cache):
     return hub
 
 
-def prepare_live_reader(root, *, env_file, runtime_home=None, pdf_fetcher=None):
-    values = dict(dotenv_values(env_file, encoding="utf-8-sig", interpolate=False))
-    for key in ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL"):
-        if key in os.environ:
-            values[key] = os.environ[key]
-        if not isinstance(values.get(key), str) or not values[key].strip():
-            raise ReaderAdapterError("MISSING_READER_CONFIGURATION")
-    if any(importlib.util.find_spec(name) is None for name in ("paperqa", "sentence_transformers", "torch")):
-        raise ReaderAdapterError("READER_RUNTIME_DEPENDENCIES_MISSING")
-    cache = Path(runtime_home if runtime_home is not None else Path(sys.prefix) / "runtime-cache").resolve()
-    embedding_hub = _require_embedding_cache(cache)
-    # 在导入依赖前关闭自动下载及遥测。此入口要求已准备好的离线 embedding。
-    os.environ.update(HF_HOME=str(cache / "huggingface"), PQA_HOME=str(cache / "paperqa"),
-                      HF_HUB_CACHE=str(embedding_hub), SENTENCE_TRANSFORMERS_HOME=str(embedding_hub),
-                      TIKTOKEN_CACHE_DIR=str(cache / "tiktoken"), HF_HUB_OFFLINE="1",
-                      TRANSFORMERS_OFFLINE="1", HF_HUB_DISABLE_TELEMETRY="1",
-                      HF_HUB_DISABLE_IMPLICIT_TOKEN="1", DO_NOT_TRACK="1",
-                      LITELLM_LOCAL_MODEL_COST_MAP="True")
+def prepare_live_reader(root, *, env_file, runtime_home=None, pdf_fetcher=None,
+                        initialization_audit=None):
+    if initialization_audit:
+        initialization_audit("prepare_live_reader", "started")
     try:
+        values = dict(dotenv_values(env_file, encoding="utf-8-sig", interpolate=False))
+        for key in ("DEEPSEEK_API_KEY", "DEEPSEEK_BASE_URL", "DEEPSEEK_MODEL"):
+            if key in os.environ:
+                values[key] = os.environ[key]
+            if not isinstance(values.get(key), str) or not values[key].strip():
+                raise ReaderAdapterError("MISSING_READER_CONFIGURATION")
+        if any(importlib.util.find_spec(name) is None for name in ("paperqa", "sentence_transformers", "torch")):
+            raise ReaderAdapterError("READER_RUNTIME_DEPENDENCIES_MISSING")
+        cache = Path(runtime_home if runtime_home is not None else Path(sys.prefix) / "runtime-cache").resolve()
+        embedding_hub = _require_embedding_cache(cache)
+        # 在导入依赖前关闭自动下载及遥测。此入口要求已准备好的离线 embedding。
+        os.environ.update(HF_HOME=str(cache / "huggingface"), PQA_HOME=str(cache / "paperqa"),
+                          HF_HUB_CACHE=str(embedding_hub), SENTENCE_TRANSFORMERS_HOME=str(embedding_hub),
+                          TIKTOKEN_CACHE_DIR=str(cache / "tiktoken"), HF_HUB_OFFLINE="1",
+                          TRANSFORMERS_OFFLINE="1", HF_HUB_DISABLE_TELEMETRY="1",
+                          HF_HUB_DISABLE_IMPLICIT_TOKEN="1", DO_NOT_TRACK="1",
+                          LITELLM_LOCAL_MODEL_COST_MAP="True")
         wrapper = load_reader(root)
         config = wrapper.PaperReaderConfig(api_key=values["DEEPSEEK_API_KEY"],
                                           api_base=values["DEEPSEEK_BASE_URL"],
                                           model=values["DEEPSEEK_MODEL"])
         config.provider_model
         # 单篇本地 PDF 验收可显式注入文件读取器；默认网络行为不变。
-        provider = (wrapper.PaperQAProvider(config) if pdf_fetcher is None
-                    else wrapper.PaperQAProvider(config, pdf_fetcher=pdf_fetcher))
-        return wrapper.PaperReaderAgent(provider), wrapper.PaperReadTask
+        if initialization_audit:
+            initialization_audit("provider_construct", "started")
+        try:
+            kwargs = {} if pdf_fetcher is None else {"pdf_fetcher": pdf_fetcher}
+            if initialization_audit:
+                kwargs["initialization_audit"] = initialization_audit
+            provider = wrapper.PaperQAProvider(config, **kwargs)
+        except BaseException as error:
+            if initialization_audit:
+                initialization_audit("provider_construct", "failed", type(error).__name__)
+            raise
+        if initialization_audit:
+            initialization_audit("provider_construct", "completed")
+        prepared = wrapper.PaperReaderAgent(provider), wrapper.PaperReadTask
     except ReaderAdapterError:
+        if initialization_audit:
+            initialization_audit("prepare_live_reader", "failed", "ReaderAdapterError")
         raise
-    except Exception:
+    except Exception as error:
+        if initialization_audit:
+            initialization_audit("prepare_live_reader", "failed", type(error).__name__)
         raise ReaderAdapterError("READER_RUNTIME_PREPARATION_FAILED") from None
+    if initialization_audit:
+        initialization_audit("prepare_live_reader", "completed")
+    return prepared
 
 
 async def execute_reader_task(payload, *, prepared, timeout_seconds=600,

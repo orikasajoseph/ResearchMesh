@@ -1,4 +1,7 @@
 import unittest
+import sys
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from pydantic import ValidationError
 
@@ -222,6 +225,59 @@ class PaperReaderAgentTests(unittest.IsolatedAsyncioTestCase):
 
 
 class PaperQAProviderUtilityTests(unittest.TestCase):
+    config = PaperReaderConfig(api_key="test-key", api_base="https://example.invalid",
+                               model="synthetic-model")
+
+    @staticmethod
+    def fake_settings(*, settings_error=None, embedding_error=None):
+        class Settings:
+            def __init__(self, **kwargs):
+                if settings_error:
+                    raise settings_error
+                self.parsing = SimpleNamespace()
+                self.answer = SimpleNamespace()
+            def get_embedding_model(self):
+                if embedding_error:
+                    raise embedding_error
+                return "embedding"
+        return Settings
+
+    def construct_with(self, *, module):
+        events = []
+        with patch.dict(sys.modules, {"paperqa": module}):
+            provider = PaperQAProvider(self.config, initialization_audit=lambda *event: events.append(event))
+        return provider, events
+
+    def test_initialization_stage_order_matches_real_constructor(self):
+        provider, events = self.construct_with(module=SimpleNamespace(
+            Docs=object, Settings=self.fake_settings()))
+        self.assertEqual(provider.embedding_model, "embedding")
+        self.assertEqual(events, [
+            ("paperqa_dependencies_import", "started"),
+            ("paperqa_dependencies_import", "completed"),
+            ("paperqa_settings_construct", "started"),
+            ("paperqa_settings_construct", "completed"),
+            ("embedding_model_load", "started"),
+            ("embedding_model_load", "completed")])
+
+    def test_each_initialization_failure_is_audited_and_propagated(self):
+        cases = [
+            ("paperqa_dependencies_import", None, ModuleNotFoundError),
+            ("paperqa_settings_construct", SimpleNamespace(
+                Docs=object, Settings=self.fake_settings(settings_error=ValueError("private setting"))), ValueError),
+            ("embedding_model_load", SimpleNamespace(
+                Docs=object, Settings=self.fake_settings(embedding_error=RuntimeError("private embedding"))), RuntimeError),
+        ]
+        for stage, module, error_type in cases:
+            with self.subTest(stage=stage):
+                events = []
+                modules = {"paperqa": module}
+                with patch.dict(sys.modules, modules):
+                    with self.assertRaises(error_type):
+                        PaperQAProvider(self.config, initialization_audit=lambda *event: events.append(event))
+                self.assertEqual(events[-1], (stage, "failed", error_type.__name__))
+                self.assertNotIn("private", str(events))
+
     def test_frozen_paperqa_settings_defaults(self):
         config = PaperReaderConfig(
             api_key="test-key",

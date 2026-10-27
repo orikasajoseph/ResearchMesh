@@ -55,16 +55,27 @@ S2目录的 `resource_attempt.json` 保存资源尝试；成功时另存 `input_
 记录哈希。`task.json` 为真正发送的派生任务；S1的 `result.json` 与 `record.json` 不改动。
 Reader仍独立核验PDF和论文身份。S2论文笔记中的source继续传给S3。
 
-默认 `--resume` 仍拒绝失败阶段。只有显式 `--resume-unstarted` 才允许恢复以下两类本地阻断：
+默认 `--resume` 仍拒绝失败阶段。只有显式 `--resume-unstarted` 才允许恢复以下有证据的情况：
 
 - 新增资源准备失败，且持久记录证明Group runner从未开始；
 - 旧版Reader因 `READER_REQUIRES_ACCESSIBLE_PDF_URL` 预检失败，且记录完整证明
   `networkAttempted=false`、未写ACL/建群/邀请、`startAttempted=false`、命令数为0、远端状态确定。
+- invitation 已发出，但入组超时或人工放行超时/取消；持久记录必须证明未发送 Start、命令数为0，
+  且清理完成：`cleanupSucceeded=true`、`aclDeleted=true`、`groupResourcesDeleted=true`、
+  `connectionClosed=true`、`cleanupErrors=[]`。缺失、失败或不确定均拒绝续跑。
 
 续跑先验证S1检查点及旧阶段文件哈希；只重建未执行阶段。旧文件保持原路径和原内容，新的任务
 与协议记录写入 `stages/paper_read/unstarted-<uuid>/`，旧阶段行保留在 `state.json.unstartedHistory`。
-新runner仍生成新的Group/Session/Task并等待人工放行。已发送Start、发生外部作用或缺少证明的
-阶段即使指定该选项也拒绝恢复。
+新runner仍生成新的Group/Session/Task并等待人工放行。已发送Start或缺少证明的阶段即使指定
+该选项也拒绝恢复。清理失败时保留原记录，请平台负责人核对并处理指定旧Group的ACL、队列和交换机；
+不要手工改写原始记录或声称清理成功。本入口没有补偿清理命令，完成处理后需先提供可验证的
+恢复方案和证据；不能仅凭口头确认绕过校验。
+
+已发送Start的阶段若收到Partner明确 `failed`，只有在确认完整清理、无Result、恰好发送一次
+Start、`remoteStateUnknown=false` 时，才可由操作人明确使用 `--resume-terminal-failed` 创建新
+Group和新Task。重试可能重新调用付费服务，必须先与Partner核对旧Task终态、Worker是否退出和已有
+Result，再确认其在线。该参数不适用于 `TASK_TIMEOUT_REMOTE_STATE_UNKNOWN`：等待Partner提供
+SQLite、Worker及Result证据，并先确定安全的恢复方案，不能用此参数强行重跑。
 
 资源准备失败、缺失仓库或PDF时停止下游，不产生Reader模型费用。完整阶段恢复时不再次解析资源
 或执行S1；资源检查点篡改会在新任务发送前失败。

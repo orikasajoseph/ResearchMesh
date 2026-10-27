@@ -45,10 +45,38 @@ def preflight_record():
     value = {key: False for key in (
         "networkAttempted", "aclWriteAttempted", "groupCreationAttempted", "groupCreated",
         "invitationPublishAttempted", "invitationPublished", "startAttempted", "startPublished",
-        "protocolCompleted", "remoteStateUnknown", "offlineChecksPassed")}
+        "partnerJoinConfirmed", "taskReleaseConfirmed", "protocolCompleted",
+        "remoteStateUnknown", "offlineChecksPassed")}
     value.update(scope="PLATFORM_READER_SINGLE_TASK", task=None, taskCommandsSent=0, result=None,
                  error={"code": "READER_REQUIRES_ACCESSIBLE_PDF_URL"},
                  groupId="old-unsent-group", taskId="old-unsent-task", sessionId="old-unsent-session")
+    return value
+
+
+def invitation_only_record():
+    value = {key: True for key in (
+        "offlineChecksPassed", "networkAttempted", "aclWriteAttempted",
+        "groupCreationAttempted", "groupCreated", "invitationPublishAttempted",
+        "invitationPublished", "partnerJoinConfirmed", "cleanupAttempted",
+        "aclDeleted", "connectionClosed")}
+    value.update(
+        scope="PLATFORM_READER_SINGLE_TASK", taskCommandsSent=0, result=None,
+        startAttempted=False, startPublished=False, protocolCompleted=False,
+        remoteStateUnknown=False, taskReleaseConfirmed=False,
+        completeAttempted=False, completePublished=False, resultValidated=False,
+        providerExecutionVerified=False, cleanupSucceeded=True, groupResourcesDeleted=True,
+        cleanupErrors=[],
+        error={"code": "TASK_RELEASE_TIMEOUT"},
+        groupId="old-invitation-group", taskId="old-invitation-task",
+        sessionId="old-invitation-session")
+    return value
+
+
+def join_timeout_record():
+    value = invitation_only_record()
+    value.update(partnerJoinConfirmed=False, cleanupSucceeded=True,
+                 groupResourcesDeleted=True, cleanupErrors=[],
+                 error={"code": "PARTNER_JOIN_TIMEOUT"})
     return value
 
 
@@ -97,6 +125,42 @@ class IncompleteRunner(FakeRunner):
             record["result"]["items"][0]["data"]["evidence"][0]["sourceId"] = (
                 task["input"]["papers"][0]["paperId"])
         return record
+
+
+class InvitationOnlyRunner(IncompleteRunner):
+    def __init__(self):
+        super().__init__()
+        self.abandon_reader = True
+
+    async def __call__(self, stage, task):
+        if stage == "paper_read" and self.abandon_reader:
+            self.calls.append(stage)
+            self.payloads.append(deepcopy(task))
+            return invitation_only_record()
+        return await super().__call__(stage, task)
+
+
+class TerminalFailedRunner(IncompleteRunner):
+    def __init__(self):
+        super().__init__()
+        self.fail_reader = True
+
+    async def __call__(self, stage, task):
+        if stage == "paper_read" and self.fail_reader:
+            self.calls.append(stage)
+            self.payloads.append(deepcopy(task))
+            return {
+                "task": deepcopy(task), "result": None, "passed": False,
+                "protocolCompleted": False, "resultValidated": False,
+                "remoteStateUnknown": False, "partnerTerminalState": "failed",
+                "startAttempted": True, "startPublished": True, "taskCommandsSent": 1,
+                "cleanupAttempted": True, "cleanupSucceeded": True, "aclDeleted": True,
+                "groupResourcesDeleted": True, "connectionClosed": True,
+                "cleanupErrors": [], "error": {"code": "PARTNER_FAILED"},
+                "groupId": "failed-reader-group", "sessionId": "failed-reader-session",
+                "taskId": "failed-reader-task", "partnerAic": "reader-aic",
+            }
+        return await super().__call__(stage, task)
 
 
 class PlatformChainResourceTests(unittest.IsolatedAsyncioTestCase):
@@ -185,6 +249,110 @@ class PlatformChainResourceTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotEqual(stage_directory(directory, row), old_dir)
             self.assertEqual(row["attempts"], 2)
             self.assertEqual(len(final["unstartedHistory"]), 1)
+
+    async def test_invitation_only_reader_can_use_fresh_group_without_replaying_s1(self):
+        with TemporaryDirectory() as directory:
+            runner = InvitationOnlyRunner()
+            with self.assertRaises(ValueError):
+                await execute_platform_chain(plan(), directory, runner,
+                                             resource_preparer=prepared)
+            old_row = read_json(Path(directory) / "state.json")["stages"][1]
+            old_dir = stage_directory(directory, old_row)
+            old_record = (old_dir / "record.json").read_bytes()
+            old_s1 = (Path(directory) / "stages/literature_search/result.json").read_bytes()
+            runner.abandon_reader = False
+            final = await execute_platform_chain(plan(), directory, runner,
+                resource_preparer=prepared, resume_unstarted=True)
+            self.assertEqual(final["state"], "completed")
+            self.assertEqual(runner.calls.count("literature_search"), 1)
+            self.assertEqual(runner.calls.count("paper_read"), 2)
+            self.assertEqual((old_dir / "record.json").read_bytes(), old_record)
+            self.assertEqual((Path(directory) / "stages/literature_search/result.json").read_bytes(), old_s1)
+            self.assertEqual(final["unstartedHistory"][-1]["recordSha256"], old_row["recordSha256"])
+
+    async def test_conclusive_terminal_failure_requires_separate_manual_retry_flag(self):
+        with TemporaryDirectory() as directory:
+            runner = TerminalFailedRunner()
+            with self.assertRaises(ValueError):
+                await execute_platform_chain(plan(), directory, runner,
+                                             resource_preparer=prepared)
+            count = len(runner.calls)
+            with self.assertRaisesRegex(ValueError, "FORMAL_STAGE_NOT_PROVEN_UNSTARTED"):
+                await execute_platform_chain(plan(), directory, runner,
+                    resource_preparer=prepared, resume_unstarted=True)
+            self.assertEqual(len(runner.calls), count)
+            runner.fail_reader = False
+            final = await execute_platform_chain(plan(), directory, runner,
+                resource_preparer=prepared, resume_terminal_failed=True)
+            self.assertEqual(final["state"], "completed")
+            self.assertEqual(runner.calls.count("literature_search"), 1)
+            self.assertEqual(runner.calls.count("paper_read"), 2)
+
+    async def test_remote_unknown_cannot_use_terminal_failed_retry_flag(self):
+        with TemporaryDirectory() as directory:
+            runner = FakeRunner(fail="paper_read")
+            with self.assertRaises(ValueError):
+                await execute_platform_chain(plan(), directory, runner)
+            count = len(runner.calls)
+            with self.assertRaisesRegex(ValueError, "FORMAL_STAGE_NOT_PROVEN_TERMINAL_FAILED"):
+                await execute_platform_chain(plan(), directory, runner,
+                                             resume_terminal_failed=True)
+            self.assertEqual(len(runner.calls), count)
+
+    def test_invitation_only_resume_requires_complete_no_start_evidence(self):
+        self.assertTrue(unstarted_preflight(invitation_only_record()))
+        for key in ("startAttempted", "startPublished", "taskCommandsSent", "result",
+                    "remoteStateUnknown", "partnerJoinConfirmed", "aclDeleted"):
+            value = invitation_only_record()
+            value[key] = (1 if key == "taskCommandsSent" else
+                          {"unexpected": True} if key == "result" else
+                          True if key in ("startAttempted", "startPublished", "remoteStateUnknown")
+                          else False)
+            with self.subTest(key=key):
+                self.assertFalse(unstarted_preflight(value))
+
+    async def test_invitation_cleanup_failure_blocks_new_runner_and_preserves_evidence(self):
+        with TemporaryDirectory() as directory:
+            runner = InvitationOnlyRunner()
+            incomplete = invitation_only_record()
+            incomplete.update(cleanupSucceeded=False, groupResourcesDeleted=False,
+                              cleanupErrors=[{"step": "delete_group_resources"}])
+            with patch(__name__ + ".invitation_only_record") as fixture:
+                fixture.return_value = incomplete
+                with self.assertRaises(ValueError):
+                    await execute_platform_chain(plan(), directory, runner, resource_preparer=prepared)
+            state_path = Path(directory) / "state.json"
+            state_before = state_path.read_bytes()
+            count = len(runner.calls)
+            with self.assertRaisesRegex(ValueError, "FORMAL_STAGE_NOT_PROVEN_UNSTARTED"):
+                await execute_platform_chain(plan(), directory, runner,
+                                             resource_preparer=prepared, resume_unstarted=True)
+            self.assertEqual(runner.calls.count("literature_search"), 1)
+            self.assertEqual(len(runner.calls), count)
+            self.assertEqual(state_path.read_bytes(), state_before)
+
+    def test_invitation_resume_requires_all_cleanup_evidence(self):
+        for key in ("cleanupSucceeded", "aclDeleted", "groupResourcesDeleted", "connectionClosed"):
+            for value in (False, None):
+                record = invitation_only_record()
+                record[key] = value
+                with self.subTest(key=key, value=value):
+                    self.assertFalse(unstarted_preflight(record))
+        record = invitation_only_record()
+        record["cleanupErrors"] = [{"step": "disband"}]
+        self.assertFalse(unstarted_preflight(record))
+
+    def test_clean_join_timeout_is_replayable_but_incomplete_cleanup_is_not(self):
+        self.assertTrue(unstarted_preflight(join_timeout_record()))
+        for key in ("cleanupSucceeded", "aclDeleted", "groupResourcesDeleted",
+                    "connectionClosed"):
+            value = join_timeout_record()
+            value[key] = False
+            with self.subTest(key=key):
+                self.assertFalse(unstarted_preflight(value))
+        value = join_timeout_record()
+        value["cleanupErrors"] = [{"step": "delete_group_resources"}]
+        self.assertFalse(unstarted_preflight(value))
 
     async def test_failed_preparation_stops_before_reader_and_can_be_resumed_explicitly(self):
         async def unavailable(*args):

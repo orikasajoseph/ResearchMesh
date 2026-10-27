@@ -129,15 +129,60 @@ def stage_payload(output, row, original, results, task):
 
 
 def unstarted_preflight(record):
-    """Require affirmative evidence of no external effects, not absent flags."""
+    """Accept only records proving that no business Start was ever published.
+
+    This covers both a local preflight failure and an invitation-only attempt that
+    was deliberately abandoned before task release.  Group side effects may have
+    occurred in the latter case, but a fresh Group is safe because the immutable
+    evidence proves that no Partner business execution could have been requested.
+    """
+    if not isinstance(record, dict):
+        return False
+    no_start = (record.get("startAttempted") is False
+                and record.get("startPublished") is False
+                and type(record.get("taskCommandsSent")) is int
+                and record["taskCommandsSent"] == 0
+                and record.get("result") is None
+                and record.get("protocolCompleted") is False
+                and record.get("remoteStateUnknown") is False)
+    if not no_start:
+        return False
     false_flags = ("networkAttempted", "aclWriteAttempted", "groupCreationAttempted",
                    "groupCreated", "invitationPublishAttempted", "invitationPublished",
-                   "startAttempted", "startPublished", "protocolCompleted", "remoteStateUnknown")
-    return (isinstance(record, dict)
-            and all(record.get(key) is False for key in false_flags)
-            and type(record.get("taskCommandsSent")) is int and record["taskCommandsSent"] == 0
-            and record.get("result") is None and record.get("offlineChecksPassed") is False
-            and (record.get("error") or {}).get("code") == "READER_REQUIRES_ACCESSIBLE_PDF_URL")
+                   "partnerJoinConfirmed", "taskReleaseConfirmed")
+    local_preflight = (all(record.get(key) is False for key in false_flags)
+                       and record.get("offlineChecksPassed") is False
+                       and (record.get("error") or {}).get("code")
+                       == "READER_REQUIRES_ACCESSIBLE_PDF_URL")
+    invitation_only = (
+        all(record.get(key) is True for key in (
+            "offlineChecksPassed", "networkAttempted", "aclWriteAttempted",
+            "groupCreationAttempted", "groupCreated", "invitationPublishAttempted",
+            "invitationPublished", "partnerJoinConfirmed", "cleanupAttempted",
+            "cleanupSucceeded", "aclDeleted", "groupResourcesDeleted", "connectionClosed"))
+        and record.get("cleanupErrors") == []
+        and record.get("taskReleaseConfirmed") is False
+        and record.get("completeAttempted") is False
+        and record.get("completePublished") is False
+        and record.get("resultValidated") is False
+        and record.get("providerExecutionVerified") is False
+        and (record.get("error") or {}).get("code") in (
+            "TASK_RELEASE_TIMEOUT", "TASK_RELEASE_CANCELED"))
+    join_timeout = (
+        all(record.get(key) is True for key in (
+            "offlineChecksPassed", "networkAttempted", "aclWriteAttempted",
+            "groupCreationAttempted", "groupCreated", "invitationPublishAttempted",
+            "invitationPublished", "cleanupAttempted", "cleanupSucceeded",
+            "aclDeleted", "groupResourcesDeleted", "connectionClosed"))
+        and record.get("partnerJoinConfirmed") is False
+        and record.get("taskReleaseConfirmed") is False
+        and record.get("completeAttempted") is False
+        and record.get("completePublished") is False
+        and record.get("resultValidated") is False
+        and record.get("providerExecutionVerified") is False
+        and record.get("cleanupErrors") == []
+        and (record.get("error") or {}).get("code") == "PARTNER_JOIN_TIMEOUT")
+    return local_preflight or invitation_only or join_timeout
 
 
 def verify_unstarted_stage(output, row, original, results, task):
@@ -157,6 +202,45 @@ def verify_unstarted_stage(output, row, original, results, task):
         if not unstarted_preflight(live) or any(live.get(key) != record.get(key)
                                                for key in ("groupId", "sessionId", "taskId")):
             raise PlatformChainError("FORMAL_STAGE_NOT_PROVEN_UNSTARTED")
+
+
+def terminal_failed(record):
+    """Require a conclusive Partner failure and complete cleanup before retry."""
+    return (isinstance(record, dict)
+            and record.get("partnerTerminalState") == "failed"
+            and record.get("startAttempted") is True
+            and record.get("startPublished") is True
+            and type(record.get("taskCommandsSent")) is int
+            and record["taskCommandsSent"] == 1
+            and record.get("result") is None
+            and record.get("resultValidated") is False
+            and record.get("protocolCompleted") is False
+            and record.get("remoteStateUnknown") is False
+            and record.get("passed") is False
+            and record.get("cleanupAttempted") is True
+            and record.get("cleanupSucceeded") is True
+            and record.get("aclDeleted") is True
+            and record.get("groupResourcesDeleted") is True
+            and record.get("connectionClosed") is True
+            and record.get("cleanupErrors") == []
+            and (record.get("error") or {}).get("code") == "PARTNER_FAILED")
+
+
+def verify_terminal_failed_stage(output, row, original, results, task):
+    directory = stage_directory(output, row)
+    payload = stage_payload(output, row, original, results, task)
+    saved_task = read_json(directory / "task.json")
+    if saved_task != payload or digest(saved_task) != row["taskSha256"]:
+        raise PlatformChainError("FORMAL_STAGE_TASK_CHANGED")
+    record = read_json(directory / "record.json")
+    if digest(record) != row.get("recordSha256") or not terminal_failed(record):
+        raise PlatformChainError("FORMAL_STAGE_NOT_PROVEN_TERMINAL_FAILED")
+    live_path = directory / "live_record.json"
+    if live_path.exists():
+        live = read_json(live_path)
+        if not terminal_failed(live) or any(live.get(key) != record.get(key)
+                                             for key in ("groupId", "sessionId", "taskId")):
+            raise PlatformChainError("FORMAL_STAGE_NOT_PROVEN_TERMINAL_FAILED")
 
 
 def verify_saved_stage(output, row, payload):
@@ -192,13 +276,16 @@ def render_report(state):
 
 
 async def execute_platform_chain(plan, output, runner, *, resource_preparer=None,
-                                 resume_unstarted=False):
+                                 resume_unstarted=False, resume_terminal_failed=False):
     """Execute or safely resume a three-stage chain using an injected runner.
 
     runner(stage_name, seven_field_task) must return the persisted Leader record
     for exactly one fresh formal Group task.  The core never calls a runner for a
     completed stage and never retries a remotely started failed/uncertain stage.
-    An explicit resume_unstarted may replace a proven local preflight failure.
+    An explicit resume_unstarted may replace a proven local preflight failure or
+    an invitation-only attempt for which no business Start was ever published.
+    An explicit resume_terminal_failed may replace only a conclusive Partner
+    terminal failure after complete cleanup; unknown remote states stay blocked.
     """
     if not callable(runner):
         raise PlatformChainError("FORMAL_STAGE_RUNNER_REQUIRED")
@@ -231,9 +318,17 @@ async def execute_platform_chain(plan, output, runner, *, resource_preparer=None
                 _, result = verify_saved_stage(output, existing, final_payload)
                 results[task["subtaskId"]] = result
                 continue
-            if not resume_unstarted:
+            if not resume_unstarted and not resume_terminal_failed:
                 raise PlatformChainError("FORMAL_STAGE_NOT_SAFE_TO_REPLAY_" + stage.upper())
-            verify_unstarted_stage(output, existing, payload, results, task)
+            if resume_terminal_failed:
+                try:
+                    verify_terminal_failed_stage(output, existing, payload, results, task)
+                except PlatformChainError:
+                    if not resume_unstarted:
+                        raise
+                    verify_unstarted_stage(output, existing, payload, results, task)
+            else:
+                verify_unstarted_stage(output, existing, payload, results, task)
 
         row = {"stage": stage, "subtaskId": task["subtaskId"], "state": "preparing",
                "taskSha256": digest(payload), "attempts": 1, "runnerAttempted": False}

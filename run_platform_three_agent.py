@@ -43,7 +43,9 @@ def main(argv=None):
     parser.add_argument("--confirm-each-stage", action="store_true")
     parser.add_argument("--resume", type=Path)
     parser.add_argument("--resume-unstarted", action="store_true",
-                        help="仅恢复有完整证据证明未联网、未发送Start的本地预检失败；保留旧记录")
+                        help="仅恢复有完整证据证明未发送Start的阶段；保留旧记录")
+    parser.add_argument("--resume-terminal-failed", action="store_true",
+                        help="人工恢复已明确failed且完整清理的阶段；远端状态未知时拒绝")
     parser.add_argument("--resource-proof", type=Path,
                         help="复用与本轮S1绑定的已核验资源记录；再次检查PDF缓存，不新增资源请求")
     parser.add_argument("--join-timeout", type=float, default=90)
@@ -112,7 +114,8 @@ def main(argv=None):
     print("记录：", output)
     try:
         state = asyncio.run(execute_platform_chain(plan, output, runner,
-            resource_preparer=prepare_resources, resume_unstarted=args.resume_unstarted))
+            resource_preparer=prepare_resources, resume_unstarted=args.resume_unstarted,
+            resume_terminal_failed=args.resume_terminal_failed))
     except KeyboardInterrupt:
         print("已中断；检查 state.json 与当前 Partner SQLite，禁止直接重发未确认阶段。")
         return 130

@@ -99,3 +99,29 @@ SQLite、Worker及Result证据，并先确定安全的恢复方案，不能用�
 ```
 
 2026-10-27上述独立真实资源核验已通过；这只证明保存的LoRA资源可交接，不代表S2/S3已执行。
+
+## 独立 Reader 结果交接至 contextual S3
+
+当连续链中的旧 S2 状态未知，而另一次独立正式 Reader 已成功完成时，不能覆盖旧记录或将其伪装为
+同一次不中断的连续链。Repository CLI 可以通过 `--context-chain`、`--context-reader` 和
+`--context-proof` 三项输入，重新核验 S1 checkpoint、S2 正式任务与结果、资源证据及派生任务，
+再绑定 contextual static S3。单独 Reader 的模型请求次数需由 Partner 审计核实；记录业务成功
+不等于请求次数已获证实。
+
+离线检查示例（不带 `--execute`，不会连接平台或运行仓库分析）：
+
+```powershell
+.\.venv-mq-check\Scripts\python.exe -X utf8 run_platform_repository.py `
+  --leader-aic "<Leader AIC>" --partner-aic "<Repository AIC>" `
+  --credentials-dir "<Leader 证书目录>" `
+  --context-chain "<已完成 S1 的连续链目录>" `
+  --context-reader "<已完成的正式 Reader 目录>" `
+  --context-proof "<S1 绑定的 input_resolution.json>"
+```
+
+在双方明确同意使用当前 Reader 验收口径、Repository Partner 确认在线且版本明确后，正式运行还需
+指定 `--execute --partner-ready --confirm-after-join --partner-commit <完整commit>`。入组后
+必须等对方确认同一 Group 的唯一 `GROUP_JOINED` 才人工输入 `SEND`。发生失败或远端状态未知时
+保留记录，不自动重发。contextual static 结果必须包含可验证的 `paperComparison`；它只是论文与
+代码的标识符和词面线索对照，不代表 DeepSeek 增强或已完成复现。交接与结果记录保存在新建的
+`outputs/platform-repository/...` 下，不更改旧 S1/S2 输出。

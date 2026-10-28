@@ -8,13 +8,15 @@ from pathlib import Path
 from uuid import uuid4
 
 from group_invitation import InviteConfig
-from group_literature_leader import run_group_repository, validate_repository_task
+from group_literature_leader import run_group_repository, run_group_repository_chain, validate_repository_task
+from platform_contextual_handoff import build_contextual_handoff
 from platform_mq_check import ROOT
 from run_platform_literature import confirm_task_release
 
 
 def report_text(record):
-    live = record["scope"] == "PLATFORM_REPOSITORY_SINGLE_TASK"
+    live = record["scope"] in ("PLATFORM_REPOSITORY_SINGLE_TASK", "PLATFORM_REPOSITORY_CHAIN_TASK")
+    contextual = record["scope"] in ("PLATFORM_REPOSITORY_CHAIN_TASK", "OFFLINE_PLATFORM_REPOSITORY_CHAIN_PREFLIGHT")
     lines = ["# ResearchMesh 正式平台 Repository 单任务检查", "",
              "执行范围：" + ("正式 Group 单任务" if live else "离线预检，未发送任务"), "",
              f"Group ID：{record['groupId']}", f"Task ID：{record['taskId']}",
@@ -22,7 +24,8 @@ def report_text(record):
              f"完成确认：{record['protocolCompleted']}；业务结果可用：{record['businessReady']}；"
              f"清理成功：{record['cleanupSucceeded']}；本轮通过：{record['passed']}", "",
              "Partner 由明确 Repository AIC 指定，本轮未使用 ADP 自动发现。Leader 不调用模型。",
-             "首轮只允许指定 GitHub 仓库的 static 分析；禁止搜索仓库、执行目标代码或要求论文上下文。",
+             ("论文上下文 static 对照；标识符与词面线索不代表模型关联分析或代码复现。"
+              if contextual else "指定 GitHub 仓库的 static 分析；禁止搜索仓库、执行目标代码。"),
              "真实 clone/CodeWiki 次数、SQLite 去重及实际执行版本需与吴侧 formal 审计对应核验。", ""]
     if record["error"]:
         lines.extend(["错误：" + record["error"]["code"], ""])
@@ -63,6 +66,9 @@ def main(argv=None):
     parser.add_argument("--partner-aic", required=True)
     parser.add_argument("--credentials-dir", type=Path, required=True)
     parser.add_argument("--task", type=Path, default=ROOT / "examples/group_repository_single_task_v02.json")
+    parser.add_argument("--context-chain", type=Path, help="已完成 S1 的连续链记录目录")
+    parser.add_argument("--context-reader", type=Path, help="已完成的正式 Reader 单任务记录目录")
+    parser.add_argument("--context-proof", type=Path, help="与 S1 绑定的 PDF/仓库来源证据")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--partner-ready", action="store_true")
     parser.add_argument("--partner-commit", help="Confirmed running Partner commit, recorded but not remotely verified")
@@ -74,10 +80,20 @@ def main(argv=None):
     parser.add_argument("--release-timeout", type=float, default=1200)
     args = parser.parse_args(argv)
     logging.disable(logging.CRITICAL)
+    contextual = any((args.context_chain, args.context_reader, args.context_proof))
+    if contextual and not all((args.context_chain, args.context_reader, args.context_proof)):
+        print("论文上下文交接必须同时指定 --context-chain、--context-reader 和 --context-proof。")
+        return 2
+    if contextual and args.execute and not args.confirm_after_join:
+        print("论文上下文正式任务必须指定 --confirm-after-join。")
+        return 2
     try:
-        task = validate_repository_task(json.loads(args.task.read_text(encoding="utf-8-sig")))
+        if contextual:
+            task, handoff = build_contextual_handoff(args.context_chain, args.context_reader, args.context_proof)
+        else:
+            task = validate_repository_task(json.loads(args.task.read_text(encoding="utf-8-sig")))
     except (OSError, ValueError, TypeError, KeyError):
-        print("任务文件无效：需要七字段 Repository v0.2 Task、一个明确 GitHub URL 和纯 static 约束。")
+        print("任务或上游交接证据无效；未连接平台，未发送任务。")
         return 2
     if args.confirm_after_join and not args.execute:
         print("--confirm-after-join 仅用于 --execute 正式运行。")
@@ -90,6 +106,9 @@ def main(argv=None):
         return 2
     directory = ROOT / "outputs/platform-repository" / f"{datetime.now():%Y%m%d-%H%M%S}-{uuid4().hex[:8]}"
     directory.mkdir(parents=True, exist_ok=False)
+    if contextual:
+        (directory / "handoff.json").write_text(json.dumps(handoff, ensure_ascii=False, indent=2), encoding="utf-8")
+        (directory / "task.json").write_text(json.dumps(task, ensure_ascii=False, indent=2), encoding="utf-8")
     config = InviteConfig(args.leader_aic, args.partner_aic, args.credentials_dir,
                           timeout=args.timeout, join_timeout=args.join_timeout, hold_seconds=0)
     last_event_count = 0
@@ -110,7 +129,8 @@ def main(argv=None):
     try:
         task_release = ((lambda record: confirm_task_release(record, args.release_timeout))
                         if args.confirm_after_join else None)
-        record = asyncio.run(run_group_repository(config, task, execute=args.execute,
+        runner = run_group_repository_chain if contextual else run_group_repository
+        record = asyncio.run(runner(config, task, execute=args.execute,
             partner_ready=args.partner_ready, partner_commit=args.partner_commit,
             task_timeout=args.task_timeout, checkpoint=checkpoint,
             task_release=task_release))

@@ -10,7 +10,12 @@ import litellm
 from lmi.llms import LiteLLMModel
 from openai import AsyncOpenAI
 
-from model_http_audit import AuditedAsyncHttpClient, AuditedLiteLLMHTTPHandler, ModelHttpAudit
+from model_http_audit import (
+    AuditedAsyncHttpClient,
+    AuditedLiteLLMHTTPHandler,
+    ModelHttpAudit,
+    ModelRequestBudgetExceeded,
+)
 
 
 IDENTITY = {
@@ -71,21 +76,53 @@ class ModelHttpAuditTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(started["logicalCallSequence"])
         self.assertIsNone(started["operation"])
 
-    async def test_multiple_requests_have_unique_ids_and_monotonic_sequences(self):
+    async def test_second_request_is_rejected_before_transport(self):
+        transport_calls = 0
+        def respond(request):
+            nonlocal transport_calls
+            transport_calls += 1
+            return httpx.Response(200)
         client = AuditedAsyncHttpClient(
-            self.audit, transport=httpx.MockTransport(lambda request: httpx.Response(200))
+            self.audit, transport=httpx.MockTransport(respond)
         )
         try:
             await client.get("https://provider.invalid/one")
-            await client.get("https://provider.invalid/two")
+            with self.assertRaises(ModelRequestBudgetExceeded):
+                await client.get("https://provider.invalid/two")
         finally:
             await client.aclose()
         starts = [event for event in self.events() if event["event"] == "MODEL_HTTP_STARTED"]
-        self.assertEqual([event["requestSequence"] for event in starts], [1, 2])
-        self.assertEqual(len({event["requestId"] for event in starts}), 2)
-        self.assertEqual(self.audit.request_count, 2)
+        rejected = [event for event in self.events() if event["event"] == "MODEL_HTTP_REJECTED"]
+        self.assertEqual([event["requestSequence"] for event in starts], [1])
+        self.assertEqual(len(rejected), 1)
+        self.assertEqual(rejected[0]["sentRequestCount"], 1)
+        self.assertEqual(transport_calls, 1)
+        self.assertEqual(self.audit.request_count, 1)
+        self.assertEqual(self.audit.rejected_count, 1)
+
+    async def test_concurrent_clients_share_one_atomic_budget(self):
+        transport_calls = 0
+        def respond(request):
+            nonlocal transport_calls
+            transport_calls += 1
+            return httpx.Response(200)
+        transport = httpx.MockTransport(respond)
+        first = AuditedAsyncHttpClient(self.audit, transport=transport)
+        second = AuditedAsyncHttpClient(self.audit, transport=transport)
+        try:
+            results = await asyncio.gather(
+                first.get("https://provider.invalid/summary"),
+                second.get("https://provider.invalid/answer"),
+                return_exceptions=True,
+            )
+        finally:
+            await first.aclose(); await second.aclose()
+        self.assertEqual(transport_calls, 1)
+        self.assertEqual(sum(isinstance(r, httpx.Response) for r in results), 1)
+        self.assertEqual(sum(isinstance(r, ModelRequestBudgetExceeded) for r in results), 1)
 
     async def test_http_errors_retain_actual_status(self):
+        self.audit.max_requests = 4
         for status in (404, 429, 500, 503):
             with self.subTest(status=status):
                 await self.request(lambda request, code=status: httpx.Response(code, text="private body"))
@@ -201,7 +238,7 @@ class ModelHttpAuditTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.audit.audit_complete)
         self.assertIsNone(self.audit.request_count)
 
-    async def test_redirects_are_counted_as_physical_requests(self):
+    async def test_redirect_second_physical_send_is_blocked(self):
         calls = 0
         def redirect(request):
             nonlocal calls
@@ -209,16 +246,17 @@ class ModelHttpAuditTests(unittest.IsolatedAsyncioTestCase):
             if calls == 1:
                 return httpx.Response(302, headers={"location": "/final"})
             return httpx.Response(200)
-        response = await self.request(redirect, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(self.audit.request_count, 2)
+        with self.assertRaises(ModelRequestBudgetExceeded):
+            await self.request(redirect, follow_redirects=True)
+        self.assertEqual(calls, 1)
+        self.assertEqual(self.audit.request_count, 1)
         self.assertEqual(
             [event["httpStatus"] for event in self.events()
              if event["event"] == "MODEL_HTTP_FINISHED"],
-            [302, 200],
+            [302],
         )
 
-    async def test_openai_sdk_retry_is_counted_per_transport_attempt(self):
+    async def test_openai_sdk_retry_cannot_bypass_budget(self):
         calls = 0
         def retry(request):
             nonlocal calls
@@ -239,17 +277,18 @@ class ModelHttpAuditTests(unittest.IsolatedAsyncioTestCase):
             max_retries=1, http_client=http_client,
         )
         try:
-            result = await client.chat.completions.create(
-                model="synthetic", messages=[{"role": "user", "content": "private prompt"}]
-            )
+            with self.assertRaises(Exception):
+                await client.chat.completions.create(
+                    model="synthetic", messages=[{"role": "user", "content": "private prompt"}]
+                )
         finally:
             await client.close()
-        self.assertEqual(result.choices[0].message.content, "ok")
-        self.assertEqual(self.audit.request_count, 2)
+        self.assertEqual(calls, 1)
+        self.assertEqual(self.audit.request_count, 1)
         self.assertEqual(
             [event["responseReceived"] for event in self.events()
              if event["event"] == "MODEL_HTTP_FINISHED"],
-            [False, True],
+            [False],
         )
 
     async def test_litellm_deepseek_call_uses_injected_http_handler(self):
@@ -380,7 +419,7 @@ class ModelHttpAuditTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await handler.close()
 
-    async def test_deepseek_handler_connection_retry_counts_each_physical_attempt(self):
+    async def test_litellm_connection_retry_cannot_bypass_budget(self):
         calls = 0
         def respond(request):
             nonlocal calls
@@ -397,21 +436,22 @@ class ModelHttpAuditTests(unittest.IsolatedAsyncioTestCase):
             self.audit, transport=httpx.MockTransport(respond)
         )
         try:
-            response = await asyncio.wait_for(
-                litellm.acompletion(
-                    model="deepseek/synthetic", api_key="test-key",
-                    api_base="https://provider.invalid/v1", client=handler,
-                    messages=[{"role": "user", "content": "private prompt"}],
-                ),
-                timeout=5,
-            )
+            with self.assertRaises(Exception):
+                await asyncio.wait_for(
+                    litellm.acompletion(
+                        model="deepseek/synthetic", api_key="test-key",
+                        api_base="https://provider.invalid/v1", client=handler,
+                        messages=[{"role": "user", "content": "private prompt"}],
+                    ),
+                    timeout=5,
+                )
         finally:
             await handler.close()
-        self.assertEqual(response.choices[0].message.content, "ok")
-        self.assertEqual(self.audit.request_count, 2)
+        self.assertEqual(calls, 1)
+        self.assertEqual(self.audit.request_count, 1)
         finishes = [event for event in self.events()
                     if event["event"] == "MODEL_HTTP_FINISHED"]
-        self.assertEqual([event["responseReceived"] for event in finishes], [False, True])
+        self.assertEqual([event["responseReceived"] for event in finishes], [False])
         self.assertNotIn("private", self.path.read_text(encoding="utf-8"))
 
     async def test_response_stream_failure_keeps_status_and_exception_class(self):

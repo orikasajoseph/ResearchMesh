@@ -119,6 +119,18 @@ class ReaderCallTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(out["diagnostics"]["exceptionSummary"],
                          "Reader agent raised before producing a response")
 
+    async def test_request_budget_failure_never_claims_business_completion(self):
+        from model_http_audit import ModelRequestBudgetExceeded
+        async def run(payload):
+            raise ModelRequestBudgetExceeded("TASK_MODEL_HTTP_REQUEST_BUDGET_EXHAUSTED")
+        out = await call_reader(task(), SimpleNamespace(run=run), self.model)
+        self.assertEqual(out["error"]["code"], "READER_CALL_FAILED")
+        self.assertIsNone(out["result"])
+        self.assertFalse(out["diagnostics"]["businessCompleted"])
+        self.assertEqual(out["diagnostics"]["outcome"], "failed")
+        self.assertEqual(out["diagnostics"]["exceptionClass"],
+                         "ModelRequestBudgetExceeded")
+
     async def test_timeout(self):
         async def run(payload): await asyncio.sleep(10)
         out = await call_reader(task(), SimpleNamespace(run=run), self.model, timeout_seconds=0.01)

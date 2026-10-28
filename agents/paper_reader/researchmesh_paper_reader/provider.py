@@ -15,7 +15,7 @@ from .schemas import PaperRef
 
 ANALYSIS_QUESTION = """
 Analyze this paper once using only the supplied paper evidence. Return exactly four
-sections with these English labels, and cite the supporting PaperQA contexts in every
+sections with these English labels, and cite the supporting evidence locators in every
 section:
 
 RESEARCH_PROBLEM: the problem or research question addressed by the paper.
@@ -25,6 +25,11 @@ LIMITATIONS: limitations, threats, open questions, or challenges stated by the a
 
 Do not add unsupported background knowledge. Do not omit any of the four sections.
 """.strip()
+
+SINGLE_CALL_SYSTEM_PROMPT = (
+    "You are a careful scientific paper reader. Use only the supplied extracted "
+    "paper passages. Never invent results or limitations."
+)
 
 PQAC_PATTERN = re.compile(r"\bpqac-[0-9a-f]{8}\b", re.IGNORECASE)
 
@@ -135,17 +140,12 @@ class PaperQAProvider:
         self.settings.answer.max_concurrent_requests = (
             self.config.max_concurrent_requests
         )
-        self._llm_model = None
-        self._summary_llm_model = None
+        # The live path uses one answer model call. PaperQA remains responsible
+        # only for local PDF parsing, embedding, and evidence retrieval.
+        self._llm_model = self.settings.get_llm()
         if self._model_http_client is not None:
-            # PaperQA hashes Settings at query start. Runtime HTTP clients are
-            # deliberately attached after constructing the serializable
-            # Settings model and passed explicitly to Docs.aquery().
-            self._llm_model = self.settings.get_llm()
-            self._summary_llm_model = self.settings.get_summary_llm()
-            for model in (self._llm_model, self._summary_llm_model):
-                for spec in model.llm_config.models:
-                    spec.extra_params["client"] = self._model_http_client
+            for spec in self._llm_model.llm_config.models:
+                spec.extra_params["client"] = self._model_http_client
 
         load_started = time.perf_counter()
         self.embedding_model = stage("embedding_model_load", self.settings.get_embedding_model)
@@ -188,38 +188,52 @@ class PaperQAProvider:
                 raise FullTextUnavailableError("PaperQA did not add the downloaded PDF")
 
             query_started = time.perf_counter()
-            query_kwargs = {}
-            if self._llm_model is not None:
-                query_kwargs.update(
-                    llm_model=self._llm_model,
-                    summary_llm_model=self._summary_llm_model,
-                )
-            session = await docs.aquery(
+            matches = await docs.retrieve_texts(
                 ANALYSIS_QUESTION,
+                k=self.settings.answer.evidence_k,
                 settings=self.settings,
                 embedding_model=self.embedding_model,
-                **query_kwargs,
             )
-            query_finished = time.perf_counter()
+            if not matches:
+                raise StructuredAnalysisError("PaperQA returned no evidence contexts")
 
             contexts = [
                 ProviderContext(
-                    context_id=context.id,
-                    locator=context.text.name,
-                    raw_text=context.text.text,
-                    summary=context.context,
-                    score=context.score,
-                    source=context.text.doc.formatted_citation,
+                    context_id=f"evidence-{index}",
+                    locator=text.name,
+                    raw_text=text.text,
+                    summary=text.text,
+                    score=None,
+                    source=text.doc.formatted_citation,
                 )
-                for context in session.contexts
+                for index, text in enumerate(matches, start=1)
             ]
-            if not contexts:
-                raise StructuredAnalysisError("PaperQA returned no evidence contexts")
+            evidence_block = "\n\n".join(
+                f"[{context.context_id}] LOCATOR: {context.locator}\n"
+                f"SOURCE: {context.source}\nPASSAGE:\n{context.raw_text}"
+                for context in contexts
+            )
+            from aviary.core import Message
+            answer_result = await self._llm_model.call_single(
+                messages=[
+                    Message(role="system", content=SINGLE_CALL_SYSTEM_PROMPT),
+                    Message(
+                        role="user",
+                        content=f"{ANALYSIS_QUESTION}\n\nPAPER EVIDENCE:\n{evidence_block}",
+                    ),
+                ],
+                name="single_paper_analysis",
+            )
+            query_finished = time.perf_counter()
 
-            raw_answer = session.raw_answer or session.answer
-            display_answer = session.answer or session.formatted_answer or raw_answer
+            raw_answer = str(answer_result.text or "")
+            display_answer = raw_answer
             citation_incomplete = bool(PQAC_PATTERN.search(display_answer))
             clean_answer = self.sanitize_answer(display_answer)
+            references = "\n".join(
+                f"{context.context_id}: {context.locator}: {context.source}"
+                for context in contexts
+            )
             parser = self.settings.parsing.parse_pdf
             parser_name = (
                 f"{getattr(parser, '__module__', type(parser).__module__)}."
@@ -228,7 +242,7 @@ class PaperQAProvider:
             return ProviderAnalysis(
                 answer=clean_answer,
                 contexts=contexts,
-                references=session.references,
+                references=references,
                 timings={
                     "downloadMs": round(
                         (download_finished - download_started) * 1000, 3
@@ -236,23 +250,24 @@ class PaperQAProvider:
                     "parseChunkEmbedMs": round(
                         (add_finished - add_started) * 1000, 3
                     ),
-                    "retrieveSummarizeAnswerMs": round(
+                    "retrieveAndSingleAnswerMs": round(
                         (query_finished - query_started) * 1000, 3
                     ),
                     "totalMs": round((query_finished - total_started) * 1000, 3),
                 },
                 diagnostics={
                     "rawAnswer": raw_answer,
-                    "formattedAnswer": session.formatted_answer,
+                    "formattedAnswer": raw_answer,
                     "citationFormattingIncomplete": citation_incomplete,
-                    "referencesEmpty": not bool(session.references.strip()),
+                    "referencesEmpty": not bool(references.strip()),
                     "evidenceCount": len(contexts),
                     "parser": parser_name,
                     "embedding": self.config.embedding,
                     "generationModel": self.config.model,
-                    "summaryModel": self.config.model,
+                    "summaryModel": None,
                     "evidenceK": self.settings.answer.evidence_k,
-                    "summaryConcurrency": self.settings.answer.max_concurrent_requests,
+                    "modelCallPlan": "single_answer_call",
+                    "maximumPhysicalModelRequests": 1,
                     "automaticRetries": 0,
                 },
             )

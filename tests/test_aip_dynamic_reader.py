@@ -43,11 +43,10 @@ class DynamicReaderTests(unittest.IsolatedAsyncioTestCase):
                 return (object(), object())
             async def execute(*args, save_started, **kwargs):
                 save_started()
-                for status in (200, 429):
-                    attempt = captured["audit"].started()
-                    captured["audit"].finished(
-                        attempt, response_received=True, http_status=status
-                    )
+                attempt = captured["audit"].started()
+                captured["audit"].finished(
+                    attempt, response_received=True, http_status=200
+                )
                 return {"result": {"schemaVersion": "0.2", "subtaskId": "S2",
                     "taskType": "paper_read", "summary": "offline", "items": [],
                     "warnings": []}, "error": None,
@@ -61,12 +60,13 @@ class DynamicReaderTests(unittest.IsolatedAsyncioTestCase):
                  patch("reader_aip_worker.execute_one", side_effect=execute):
                 self.assertEqual(await reader_aip_worker.run(args), 0)
             journal = json.loads((root / "reader_journal.json").read_text(encoding="utf-8"))
-            self.assertEqual(journal["modelRequestCount"], 2)
+            self.assertEqual(journal["modelRequestCount"], 1)
+            self.assertEqual(journal["modelRequestRejectedCount"], 0)
             self.assertTrue(journal["modelRequestAuditComplete"])
             self.assertEqual(journal["modelRequestAuditFailureStages"], [])
             events = [json.loads(line) for line in
                       (root / "model_requests.jsonl").read_text(encoding="utf-8").splitlines()]
-            self.assertEqual(len([e for e in events if e["event"] == "MODEL_HTTP_STARTED"]), 2)
+            self.assertEqual(len([e for e in events if e["event"] == "MODEL_HTTP_STARTED"]), 1)
             self.assertTrue(all(e["groupId"] == "group-audit" for e in events))
             self.assertTrue(all(e["workerRunId"] == "run-audit" for e in events))
 

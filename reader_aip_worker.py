@@ -151,6 +151,7 @@ async def run(args):
     journal = {"scope": "LIVE_READER_LOCAL_PDF_WORKER", "phase": "preparing", "task": task,
                "pdf": data["pdf"], "modelExecutionAttemptedThisRun": False,
                "modelExecutionAttemptedEver": False, "modelRequestCount": None,
+               "modelRequestRejectedCount": None,
                "readerResultReused": False, "automaticRetries": 0, "outcome": None}
     path = output / "reader_journal.json"
     audit_values = (getattr(args, "group_id", None), getattr(args, "session_id", None),
@@ -200,6 +201,7 @@ async def run(args):
         logging.disable(previous_logging)
         if model_http_audit is not None:
             journal["modelRequestCount"] = model_http_audit.request_count
+            journal["modelRequestRejectedCount"] = model_http_audit.rejected_count
             journal["modelRequestAuditComplete"] = model_http_audit.audit_complete
             journal["modelRequestAuditFailureStages"] = model_http_audit.failure_stages
         save()

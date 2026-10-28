@@ -31,6 +31,10 @@ _PROVIDER_REQUEST_ID_HEADERS = (
 _SAFE_REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{1,200}$")
 
 
+class ModelRequestBudgetExceeded(RuntimeError):
+    """Raised before transport when one Worker exhausts its physical request budget."""
+
+
 def _provider_request_id(headers):
     for name in _PROVIDER_REQUEST_ID_HEADERS:
         value = headers.get(name)
@@ -43,7 +47,7 @@ class ModelHttpAudit:
     """Append-only model transport audit owned by one Worker run."""
 
     def __init__(self, path, *, group_id, session_id, task_id, worker_run_id,
-                 provider="deepseek-openai-compatible"):
+                 provider="deepseek-openai-compatible", max_requests=1):
         values = (group_id, session_id, task_id, worker_run_id, provider)
         if any(not isinstance(value, str) or not value.strip() for value in values):
             raise ValueError("MODEL_HTTP_AUDIT_IDENTITY_REQUIRED")
@@ -55,8 +59,12 @@ class ModelHttpAudit:
             "workerRunId": worker_run_id,
         }
         self.provider = provider
+        if isinstance(max_requests, bool) or not isinstance(max_requests, int) or max_requests < 1:
+            raise ValueError("MODEL_HTTP_REQUEST_BUDGET_INVALID")
+        self.max_requests = max_requests
         self._lock = threading.RLock()
         self._sequence = 0
+        self._rejected_count = 0
         self._audit_complete = True
         self._failure_stages = []
         self._disabled = False
@@ -74,6 +82,11 @@ class ModelHttpAudit:
             return self._sequence if self._audit_complete else None
 
     @property
+    def rejected_count(self):
+        with self._lock:
+            return self._rejected_count if self._audit_complete else None
+
+    @property
     def audit_complete(self):
         with self._lock:
             return self._audit_complete
@@ -85,6 +98,21 @@ class ModelHttpAudit:
 
     def started(self):
         with self._lock:
+            if self._sequence >= self.max_requests:
+                self._rejected_count += 1
+                self._safe_write({
+                    "event": "MODEL_HTTP_REJECTED",
+                    "at": datetime.now().astimezone().isoformat(),
+                    **self.identity,
+                    "attemptedSequence": self._sequence + self._rejected_count,
+                    "sentRequestCount": self._sequence,
+                    "requestBudget": self.max_requests,
+                    "reason": "TASK_MODEL_HTTP_REQUEST_BUDGET_EXHAUSTED",
+                    "provider": self.provider,
+                }, stage="rejected")
+                raise ModelRequestBudgetExceeded(
+                    "TASK_MODEL_HTTP_REQUEST_BUDGET_EXHAUSTED"
+                )
             self._sequence += 1
             attempt = _Attempt(
                 audit=self,
@@ -200,7 +228,7 @@ class _AuditedResponseStream(httpx.AsyncByteStream):
 
 
 class AuditedAsyncHttpClient(httpx.AsyncClient):
-    """HTTPX client that adds audit hooks without changing request behavior."""
+    """HTTPX client that audits and enforces a shared pre-transport request budget."""
 
     def __init__(self, audit, **kwargs):
         self._model_audit = audit

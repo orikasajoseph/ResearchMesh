@@ -230,14 +230,25 @@ class PaperQAProviderUtilityTests(unittest.TestCase):
 
     @staticmethod
     def fake_settings(*, settings_error=None, embedding_error=None):
+        class Model:
+            def __init__(self):
+                self.llm_config = SimpleNamespace(
+                    models=[SimpleNamespace(extra_params={})]
+                )
+            async def call_single(self, **kwargs):
+                return SimpleNamespace(text=(
+                    "RESEARCH_PROBLEM: A problem [evidence-1].\n"
+                    "METHOD: A method [evidence-1].\n"
+                    "FINDINGS: A finding [evidence-1].\n"
+                    "LIMITATIONS: A limitation [evidence-1]."
+                ))
         def model():
-            spec = SimpleNamespace(extra_params={})
-            return SimpleNamespace(llm_config=SimpleNamespace(models=[spec]))
+            return Model()
         class Settings:
             def __init__(self, **kwargs):
                 if settings_error:
                     raise settings_error
-                self.parsing = SimpleNamespace()
+                self.parsing = SimpleNamespace(parse_pdf=lambda value: value)
                 self.answer = SimpleNamespace()
                 self.kwargs = kwargs
             def get_embedding_model(self):
@@ -312,7 +323,7 @@ class PaperQAProviderUtilityTests(unittest.TestCase):
             router["model_list"][0]["litellm_params"]["max_retries"], 0
         )
 
-    def test_http_client_is_runtime_only_not_part_of_serialized_settings(self):
+    def test_http_client_is_runtime_only_on_single_answer_model(self):
         module = SimpleNamespace(Docs=object, Settings=self.fake_settings())
         client = object()
         with patch.dict(sys.modules, {"paperqa": module}), \
@@ -322,17 +333,24 @@ class PaperQAProviderUtilityTests(unittest.TestCase):
         for key in ("llm_config", "summary_llm_config"):
             params = provider.settings.kwargs[key]["model_list"][0]["litellm_params"]
             self.assertNotIn("client", params)
-        for model in (provider._llm_model, provider._summary_llm_model):
-            self.assertIs(model.llm_config.models[0].extra_params["client"], client)
+        self.assertIs(
+            provider._llm_model.llm_config.models[0].extra_params["client"], client
+        )
 
-    def test_query_receives_runtime_audited_models_explicitly(self):
+    def test_single_call_path_retrieves_evidence_without_aquery(self):
         captured = {}
         class Docs:
             async def aadd(self, *args, **kwargs):
                 return "doc"
+            async def retrieve_texts(self, *args, **kwargs):
+                captured["retrieve"] = kwargs
+                return [SimpleNamespace(
+                    name="PaperOne pages 3-5",
+                    text="The method works, with a stated limitation.",
+                    doc=SimpleNamespace(formatted_citation="A Real Paper"),
+                )]
             async def aquery(self, *args, **kwargs):
-                captured.update(kwargs)
-                raise RuntimeError("probe-stop")
+                raise AssertionError("Docs.aquery must not be used")
         module = SimpleNamespace(Docs=Docs, Settings=self.fake_settings())
         client = object()
         async def fetch(_):
@@ -341,11 +359,19 @@ class PaperQAProviderUtilityTests(unittest.TestCase):
              patch("model_http_audit.AuditedLiteLLMHTTPHandler", return_value=client):
             provider = PaperQAProvider(self.config, pdf_fetcher=fetch,
                                        model_http_audit=object())
-        with self.assertRaisesRegex(RuntimeError, "probe-stop"):
-            import asyncio
-            asyncio.run(provider.analyze(PaperRef.model_validate(valid_paper())))
-        self.assertIs(captured["llm_model"], provider._llm_model)
-        self.assertIs(captured["summary_llm_model"], provider._summary_llm_model)
+        import asyncio
+        agent = PaperReaderAgent(provider)
+        result = asyncio.run(agent.run(valid_task()))
+        analysis = agent.last_provider_analysis
+        self.assertIsNotNone(analysis)
+        self.assertIn("RESEARCH_PROBLEM", analysis.answer)
+        self.assertEqual(analysis.contexts[0].locator, "PaperOne pages 3-5")
+        self.assertEqual(analysis.diagnostics["modelCallPlan"], "single_answer_call")
+        self.assertEqual(analysis.diagnostics["maximumPhysicalModelRequests"], 1)
+        self.assertIn("embedding_model", captured["retrieve"])
+        self.assertEqual(result.items[0].kind, "paper_note")
+        self.assertEqual(result.items[0].data.analysisLevel, "fulltext")
+        self.assertTrue(result.items[0].data.evidence)
 
     def test_pqac_ids_are_removed_from_display_answer(self):
         answer = "METHOD: supported (pqac-deadbeef). FINDINGS: pqac-1234abcd."

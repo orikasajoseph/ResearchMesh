@@ -284,6 +284,26 @@ class ModelHttpAuditTests(unittest.IsolatedAsyncioTestCase):
             [200],
         )
 
+    def test_paperqa_settings_remain_json_serializable_without_runtime_client(self):
+        from paperqa import Settings
+        from agents.paper_reader.researchmesh_paper_reader import (
+            PaperQAProvider, PaperReaderConfig,
+        )
+        config = PaperReaderConfig(
+            api_key="test-key", api_base="https://provider.invalid/v1",
+            model="synthetic",
+        )
+        router = PaperQAProvider.router_config(config)
+        settings = Settings(
+            llm="researchmesh-deepseek",
+            summary_llm="researchmesh-deepseek",
+            llm_config=router,
+            summary_llm_config=router,
+            embedding=config.embedding,
+        )
+        self.assertIsInstance(settings.md5, str)
+        self.assertNotIn("client", settings.model_dump_json())
+
     def test_litellm_client_construction_preserves_original_parameters(self):
         handler = AuditedLiteLLMHTTPHandler.__new__(AuditedLiteLLMHTTPHandler)
         handler._model_audit = self.audit

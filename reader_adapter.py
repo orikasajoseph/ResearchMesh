@@ -96,18 +96,25 @@ async def call_reader(payload, agent, task_model, *, timeout_seconds=45):
         raw = response.model_dump(mode="json")
     except asyncio.TimeoutError:
         return _failed(request, "READER_TIMEOUT")
-    except Exception:
-        return _failed(request, "READER_CALL_FAILED")
+    except Exception as exc:
+        return _failed(request, "READER_CALL_FAILED", exception=exc,
+                       failure_stage="reader_agent_run")
     try:
         return normalize_reader_result(request, raw)
     except ReaderAdapterError as exc:
         return _failed(request, exc.code)
 
 
-def _failed(request, code):
-    return {"result": None, "error": {"code": code},
-            "diagnostics": {"paperId": request["input"]["papers"][0]["paperId"],
-                            "businessCompleted": False, "outcome": "failed"}}
+def _failed(request, code, *, exception=None, failure_stage=None):
+    diagnostics = {"paperId": request["input"]["papers"][0]["paperId"],
+                   "businessCompleted": False, "outcome": "failed"}
+    if exception is not None:
+        diagnostics.update(
+            failureStage=failure_stage,
+            exceptionClass=type(exception).__name__,
+            exceptionSummary="Reader agent raised before producing a response",
+        )
+    return {"result": None, "error": {"code": code}, "diagnostics": diagnostics}
 
 
 def load_reader(root):

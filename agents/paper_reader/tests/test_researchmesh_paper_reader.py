@@ -230,16 +230,24 @@ class PaperQAProviderUtilityTests(unittest.TestCase):
 
     @staticmethod
     def fake_settings(*, settings_error=None, embedding_error=None):
+        def model():
+            spec = SimpleNamespace(extra_params={})
+            return SimpleNamespace(llm_config=SimpleNamespace(models=[spec]))
         class Settings:
             def __init__(self, **kwargs):
                 if settings_error:
                     raise settings_error
                 self.parsing = SimpleNamespace()
                 self.answer = SimpleNamespace()
+                self.kwargs = kwargs
             def get_embedding_model(self):
                 if embedding_error:
                     raise embedding_error
                 return "embedding"
+            def get_llm(self):
+                return model()
+            def get_summary_llm(self):
+                return model()
         return Settings
 
     def construct_with(self, *, module):
@@ -303,6 +311,41 @@ class PaperQAProviderUtilityTests(unittest.TestCase):
         self.assertEqual(
             router["model_list"][0]["litellm_params"]["max_retries"], 0
         )
+
+    def test_http_client_is_runtime_only_not_part_of_serialized_settings(self):
+        module = SimpleNamespace(Docs=object, Settings=self.fake_settings())
+        client = object()
+        with patch.dict(sys.modules, {"paperqa": module}), \
+             patch("model_http_audit.AuditedLiteLLMHTTPHandler", return_value=client):
+            provider = PaperQAProvider(self.config, model_http_audit=object())
+
+        for key in ("llm_config", "summary_llm_config"):
+            params = provider.settings.kwargs[key]["model_list"][0]["litellm_params"]
+            self.assertNotIn("client", params)
+        for model in (provider._llm_model, provider._summary_llm_model):
+            self.assertIs(model.llm_config.models[0].extra_params["client"], client)
+
+    def test_query_receives_runtime_audited_models_explicitly(self):
+        captured = {}
+        class Docs:
+            async def aadd(self, *args, **kwargs):
+                return "doc"
+            async def aquery(self, *args, **kwargs):
+                captured.update(kwargs)
+                raise RuntimeError("probe-stop")
+        module = SimpleNamespace(Docs=Docs, Settings=self.fake_settings())
+        client = object()
+        async def fetch(_):
+            return b"%PDF-offline"
+        with patch.dict(sys.modules, {"paperqa": module}), \
+             patch("model_http_audit.AuditedLiteLLMHTTPHandler", return_value=client):
+            provider = PaperQAProvider(self.config, pdf_fetcher=fetch,
+                                       model_http_audit=object())
+        with self.assertRaisesRegex(RuntimeError, "probe-stop"):
+            import asyncio
+            asyncio.run(provider.analyze(PaperRef.model_validate(valid_paper())))
+        self.assertIs(captured["llm_model"], provider._llm_model)
+        self.assertIs(captured["summary_llm_model"], provider._summary_llm_model)
 
     def test_pqac_ids_are_removed_from_display_answer(self):
         answer = "METHOD: supported (pqac-deadbeef). FINDINGS: pqac-1234abcd."

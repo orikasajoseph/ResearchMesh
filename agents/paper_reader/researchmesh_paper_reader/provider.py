@@ -67,7 +67,7 @@ class PaperQAProvider:
     """Long-lived PaperQA provider with one in-memory embedding model instance."""
 
     @staticmethod
-    def router_config(config: PaperReaderConfig, *, client=None) -> dict[str, Any]:
+    def router_config(config: PaperReaderConfig) -> dict[str, Any]:
         """Build the shared generation/summary Router with retries disabled."""
         alias = "researchmesh-deepseek"
         return {
@@ -81,7 +81,6 @@ class PaperQAProvider:
                         "temperature": 0,
                         # LMI converts this legacy field to ModelSpec.max_retries.
                         "max_retries": 0,
-                        **({"client": client} if client is not None else {}),
                     },
                 }
             ],
@@ -122,12 +121,10 @@ class PaperQAProvider:
 
         alias = "researchmesh-deepseek"
         self._model_http_client = None
-        model_client = None
         if model_http_audit is not None:
             from model_http_audit import AuditedLiteLLMHTTPHandler
             self._model_http_client = AuditedLiteLLMHTTPHandler(model_http_audit)
-            model_client = self._model_http_client
-        router_config = self.router_config(self.config, client=model_client)
+        router_config = self.router_config(self.config)
         self.settings = stage("paperqa_settings_construct", lambda: settings_type(
             llm=alias, summary_llm=alias, llm_config=router_config,
             summary_llm_config=router_config, embedding=self.config.embedding))
@@ -138,6 +135,17 @@ class PaperQAProvider:
         self.settings.answer.max_concurrent_requests = (
             self.config.max_concurrent_requests
         )
+        self._llm_model = None
+        self._summary_llm_model = None
+        if self._model_http_client is not None:
+            # PaperQA hashes Settings at query start. Runtime HTTP clients are
+            # deliberately attached after constructing the serializable
+            # Settings model and passed explicitly to Docs.aquery().
+            self._llm_model = self.settings.get_llm()
+            self._summary_llm_model = self.settings.get_summary_llm()
+            for model in (self._llm_model, self._summary_llm_model):
+                for spec in model.llm_config.models:
+                    spec.extra_params["client"] = self._model_http_client
 
         load_started = time.perf_counter()
         self.embedding_model = stage("embedding_model_load", self.settings.get_embedding_model)
@@ -180,10 +188,17 @@ class PaperQAProvider:
                 raise FullTextUnavailableError("PaperQA did not add the downloaded PDF")
 
             query_started = time.perf_counter()
+            query_kwargs = {}
+            if self._llm_model is not None:
+                query_kwargs.update(
+                    llm_model=self._llm_model,
+                    summary_llm_model=self._summary_llm_model,
+                )
             session = await docs.aquery(
                 ANALYSIS_QUESTION,
                 settings=self.settings,
                 embedding_model=self.embedding_model,
+                **query_kwargs,
             )
             query_finished = time.perf_counter()
 

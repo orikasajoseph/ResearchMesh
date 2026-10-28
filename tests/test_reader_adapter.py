@@ -114,6 +114,10 @@ class ReaderCallTests(unittest.IsolatedAsyncioTestCase):
         out = await call_reader(task(), SimpleNamespace(run=run), self.model)
         self.assertEqual(out["error"]["code"], "READER_CALL_FAILED")
         self.assertIsNone(out["result"]); self.assertNotIn("private credential", str(out))
+        self.assertEqual(out["diagnostics"]["failureStage"], "reader_agent_run")
+        self.assertEqual(out["diagnostics"]["exceptionClass"], "RuntimeError")
+        self.assertEqual(out["diagnostics"]["exceptionSummary"],
+                         "Reader agent raised before producing a response")
 
     async def test_timeout(self):
         async def run(payload): await asyncio.sleep(10)

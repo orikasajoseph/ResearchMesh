@@ -56,6 +56,7 @@ class RepositoryAgent:
         )
         self.enricher = enricher
         self.enrichment_enabled = enrichment_enabled
+        self.git_diagnostics: list[dict] = []
 
     def analyze(
         self, request: RepositoryAnalyzeRequest | dict[str, Any]
@@ -82,9 +83,12 @@ class RepositoryAgent:
 
         try:
             with self.fetcher.fetch(selected_url) as fetched:
-                return self._analyze_repository(task, fetched, warnings, started)
+                result = self._analyze_repository(task, fetched, warnings, started)
         except RepositoryCloneError as exc:
+            self.git_diagnostics = list(getattr(self.fetcher, "git_diagnostics", exc.diagnostics))
             return self._failure(task, "REPOSITORY_CLONE_FAILED", str(exc))
+        self.git_diagnostics = list(getattr(self.fetcher, "git_diagnostics", []))
+        return result
 
     def analyze_local(
         self,

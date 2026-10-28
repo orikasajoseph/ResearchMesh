@@ -68,6 +68,7 @@ def run(args):
                 with patch.object(wrapper.RepositoryEnricher, 'enrich', side_effect=forbidden_enrichment):
                     agent = wrapper.RepositoryAgent(enrichment_enabled=False)
                     raw = agent.analyze(native)
+                observations['gitStages'] = list(getattr(agent, 'git_diagnostics', []))
                 if not raw.items:
                     codes = ('REPOSITORY_CLONE_FAILED', 'STATIC_ANALYSIS_FAILED', 'INVALID_REPOSITORY_URL', 'REPOSITORY_UNAVAILABLE')
                     raise ValueError(next((code for code in codes if any(w.startswith(code) for w in raw.warnings)), 'REPOSITORY_EMPTY_RESULT'))

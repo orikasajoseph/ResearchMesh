@@ -121,6 +121,38 @@ class RepositoryEntryTests(unittest.TestCase):
             self.assertNotIn('TEST_SECRET', text)
             self.assertIn('REPOSITORY_WORKER_FAILED', text)
 
+    def test_worker_persists_safe_git_stage_diagnostics_without_false_result(self):
+        diagnostic = {'stage': 'clone', 'returncode': 128, 'timedOut': False,
+                      'stderr': 'fatal: proxy unavailable', 'durationMs': 12.5,
+                      'repositoryUrl': 'https://github.com/pypa/sampleproject',
+                      'resolvedCommit': None}
+
+        class Request:
+            @staticmethod
+            def model_validate(value): return value
+
+        class Enricher:
+            def enrich(self): pass
+
+        class Agent:
+            def __init__(self, **kwargs): self.git_diagnostics = [diagnostic]
+            def analyze(self, request):
+                return SimpleNamespace(items=[], warnings=['REPOSITORY_CLONE_FAILED: redacted'])
+
+        wrapper = SimpleNamespace(RepositoryAnalyzeRequest=Request,
+                                  RepositoryEnricher=Enricher, RepositoryAgent=Agent)
+        with TemporaryDirectory() as directory:
+            folder = Path(directory)
+            (folder / 'repository_input.json').write_text(json.dumps(bound_payload()), encoding='utf-8')
+            args = SimpleNamespace(record_dir=folder, wrapper_root=folder, execute=True)
+            with patch('repository_aip_worker.require_record_directory', return_value=folder), \
+                    patch('repository_aip_worker.runtime_check', return_value=wrapper):
+                self.assertEqual(worker_run(args), 1)
+            record = json.loads((folder / 'backend_outcome.json').read_text(encoding='utf-8'))
+        self.assertEqual(record['error']['code'], 'REPOSITORY_CLONE_FAILED')
+        self.assertEqual(record['diagnostics']['gitStages'], [diagnostic])
+        self.assertIsNone(record['result'])
+
 
 class RepositoryLeaderChainTests(unittest.IsolatedAsyncioTestCase):
     async def test_existing_leader_resolves_skill_and_sends_seven_fields(self):

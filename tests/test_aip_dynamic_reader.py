@@ -26,6 +26,87 @@ def task():
 
 
 class DynamicReaderTests(unittest.IsolatedAsyncioTestCase):
+    async def test_worker_model_request_count_comes_from_physical_audit_starts(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_path = root / "reader_input.json"
+            input_path.write_text(json.dumps({"pdf": {"sha256": "a" * 64}}), encoding="utf-8")
+            args = SimpleNamespace(
+                record_dir=root, bound_task=None, input=input_path, execute=True,
+                reader_root=root, env_file=root / "safe.env", runtime_home=None,
+                resume_journal=None, group_id="group-audit", session_id="session-audit",
+                task_id="task-audit", worker_run_id="run-audit",
+            )
+            captured = {}
+            def prepare(*args, **kwargs):
+                captured["audit"] = kwargs["model_http_audit"]
+                return (object(), object())
+            async def execute(*args, save_started, **kwargs):
+                save_started()
+                for status in (200, 429):
+                    attempt = captured["audit"].started()
+                    captured["audit"].finished(
+                        attempt, response_received=True, http_status=status
+                    )
+                return {"result": {"schemaVersion": "0.2", "subtaskId": "S2",
+                    "taskType": "paper_read", "summary": "offline", "items": [],
+                    "warnings": []}, "error": None,
+                    "diagnostics": {"analysisLevel": "fulltext"}}
+            wrapper = SimpleNamespace(PaperReadTask=SimpleNamespace(model_validate=lambda value: value))
+            with patch("reader_aip_worker.require_record_directory", return_value=root), \
+                 patch("reader_aip_worker.inspect_input", return_value=(task(), b"%PDF-offline")), \
+                 patch("reader_aip_worker.load_reader", return_value=wrapper), \
+                 patch("reader_aip_worker.check_runtime"), \
+                 patch("reader_aip_worker.prepare_live_reader", side_effect=prepare), \
+                 patch("reader_aip_worker.execute_one", side_effect=execute):
+                self.assertEqual(await reader_aip_worker.run(args), 0)
+            journal = json.loads((root / "reader_journal.json").read_text(encoding="utf-8"))
+            self.assertEqual(journal["modelRequestCount"], 2)
+            self.assertTrue(journal["modelRequestAuditComplete"])
+            self.assertEqual(journal["modelRequestAuditFailureStages"], [])
+            events = [json.loads(line) for line in
+                      (root / "model_requests.jsonl").read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len([e for e in events if e["event"] == "MODEL_HTTP_STARTED"]), 2)
+            self.assertTrue(all(e["groupId"] == "group-audit" for e in events))
+            self.assertTrue(all(e["workerRunId"] == "run-audit" for e in events))
+
+    async def test_worker_does_not_publish_request_count_when_audit_is_incomplete(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            input_path = root / "reader_input.json"
+            input_path.write_text(json.dumps({"pdf": {"sha256": "a" * 64}}), encoding="utf-8")
+            args = SimpleNamespace(
+                record_dir=root, bound_task=None, input=input_path, execute=True,
+                reader_root=root, env_file=root / "safe.env", runtime_home=None,
+                resume_journal=None, group_id="group-audit", session_id="session-audit",
+                task_id="task-audit", worker_run_id="run-audit",
+            )
+            captured = {}
+            def prepare(*args, **kwargs):
+                captured["audit"] = kwargs["model_http_audit"]
+                return (object(), object())
+            async def execute(*args, save_started, **kwargs):
+                save_started()
+                audit = captured["audit"]
+                with patch.object(audit, "_write", side_effect=OSError("private audit failure")):
+                    audit.started()
+                return {"result": {"schemaVersion": "0.2", "subtaskId": "S2",
+                    "taskType": "paper_read", "summary": "offline", "items": [],
+                    "warnings": []}, "error": None,
+                    "diagnostics": {"analysisLevel": "fulltext"}}
+            wrapper = SimpleNamespace(PaperReadTask=SimpleNamespace(model_validate=lambda value: value))
+            with patch("reader_aip_worker.require_record_directory", return_value=root), \
+                 patch("reader_aip_worker.inspect_input", return_value=(task(), b"%PDF-offline")), \
+                 patch("reader_aip_worker.load_reader", return_value=wrapper), \
+                 patch("reader_aip_worker.check_runtime"), \
+                 patch("reader_aip_worker.prepare_live_reader", side_effect=prepare), \
+                 patch("reader_aip_worker.execute_one", side_effect=execute):
+                self.assertEqual(await reader_aip_worker.run(args), 0)
+            journal = json.loads((root / "reader_journal.json").read_text(encoding="utf-8"))
+            self.assertIsNone(journal["modelRequestCount"])
+            self.assertFalse(journal["modelRequestAuditComplete"])
+            self.assertEqual(journal["modelRequestAuditFailureStages"], ["started"])
+
     async def test_current_task_crosses_business_entry_and_official_aip_without_fixed_input(self):
         from aip_business_partner import create_local_business_app
         from business_execution import execute_business_task

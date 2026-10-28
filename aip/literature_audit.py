@@ -126,3 +126,9 @@ def task_event(event, **fields):
     if context:
         journal, identity = context
         return journal.emit(event, **identity, **fields)
+
+
+def current_task_identity():
+    """Return a copy of the trusted protocol identity in the current task scope."""
+    context = CURRENT.get()
+    return dict(context[1]) if context else None

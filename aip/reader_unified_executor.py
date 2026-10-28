@@ -3,6 +3,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from aip_reader_partner import create_reader_business_executor
+from aip.literature_audit import current_task_identity
 from business_execution import execute_business_task
 from reader_adapter import to_reader_request
 
@@ -33,10 +34,17 @@ class ReaderExecutor:
             raise ValueError("VERIFIED_PDF_URL_REQUIRED")
         self.validate_runtime_paths()
         # The backend's path boundary permits only project-owned unique outputs.
-        output = ROOT / "outputs" / ("reader-group-" + uuid4().hex)
+        worker_run_id = uuid4().hex
+        output = ROOT / "outputs" / ("reader-group-" + worker_run_id)
         output.mkdir(parents=True, exist_ok=False)
+        identity = current_task_identity()
+        audit_kwargs = {}
+        if identity is not None:
+            if any(not identity.get(key) for key in ("groupId", "sessionId", "taskId")):
+                raise ValueError("READER_TASK_IDENTITY_INVALID")
+            audit_kwargs = {"audit_identity": identity, "worker_run_id": worker_run_id}
         backend = create_reader_business_executor(record_dir=output, reader_python=self.python,
             reader_root=self.reader_root, dynamic=True, env_file=self.env_file,
-            runtime_home=self.runtime_home, resume_journal=None)
+            runtime_home=self.runtime_home, resume_journal=None, **audit_kwargs)
         return await execute_business_task(checked, skill="paper.analyze", backend=backend,
                                            allow_execution=True, timeout_seconds=660)

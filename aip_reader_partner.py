@@ -46,7 +46,8 @@ def make_reader_executor(worker_call, expected_task=None, *, prepare_task=None):
 
 
 def create_reader_business_executor(*, record_dir, reader_python, reader_root, dynamic=True,
-                                    env_file=None, runtime_home=None, resume_journal=None):
+                                    env_file=None, runtime_home=None, resume_journal=None,
+                                    audit_identity=None, worker_run_id=None):
     """Per-task business executor for local AIP or Wu's platform adapter.
 
     No RPC/AMQP, Provider or model is started by construction. The platform must
@@ -75,6 +76,15 @@ def create_reader_business_executor(*, record_dir, reader_python, reader_root, d
             args.extend(["--resume-journal", resume])
         if dynamic:
             args.extend(["--bound-task", str(output / "bound_task.json")])
+        if audit_identity is not None or worker_run_id is not None:
+            if (not isinstance(audit_identity, dict) or
+                    any(not audit_identity.get(key) for key in ("groupId", "sessionId", "taskId")) or
+                    not isinstance(worker_run_id, str) or not worker_run_id):
+                raise ValueError("READER_AUDIT_IDENTITY_INVALID")
+            args.extend(["--group-id", audit_identity["groupId"],
+                         "--session-id", audit_identity["sessionId"],
+                         "--task-id", audit_identity["taskId"],
+                         "--worker-run-id", worker_run_id])
         # Popen polling avoids Windows selector-loop subprocess incompatibilities.
         with (output / "reader_worker.log").open("w", encoding="utf-8") as log:
             process = subprocess.Popen(args, cwd=str(ROOT), stdout=log, stderr=subprocess.STDOUT,

@@ -19,6 +19,7 @@ import time
 from arxiv_pdf import inspect_pdf, MAX_PDF
 from reader_adapter import ReaderAdapterError, call_reader, load_reader, normalize_reader_result, to_reader_request
 from reader_runtime import prepare_live_reader, _require_embedding_cache
+from model_http_audit import ModelHttpAudit
 from dotenv import dotenv_values
 from aip_record_paths import require_record_directory
 
@@ -152,6 +153,14 @@ async def run(args):
                "modelExecutionAttemptedEver": False, "modelRequestCount": None,
                "readerResultReused": False, "automaticRetries": 0, "outcome": None}
     path = output / "reader_journal.json"
+    audit_values = (getattr(args, "group_id", None), getattr(args, "session_id", None),
+                    getattr(args, "task_id", None), getattr(args, "worker_run_id", None))
+    if any(audit_values) and not all(audit_values):
+        raise ReaderAdapterError("MODEL_HTTP_AUDIT_IDENTITY_INCOMPLETE")
+    model_http_audit = (ModelHttpAudit(output / "model_requests.jsonl",
+                                      group_id=audit_values[0], session_id=audit_values[1],
+                                      task_id=audit_values[2], worker_run_id=audit_values[3])
+                        if all(audit_values) else None)
     def save():
         journal["updatedAt"] = datetime.now().astimezone().isoformat()
         temporary = output / "reader_journal.json.tmp"
@@ -171,7 +180,8 @@ async def run(args):
                 return content
             initialization_audit = RuntimeInitializationAudit(output / "runtime_initialization.jsonl")
             prepared = prepare_live_reader(args.reader_root, env_file=env_file, runtime_home=runtime_home,
-                                           pdf_fetcher=fetch, initialization_audit=initialization_audit)
+                                           pdf_fetcher=fetch, initialization_audit=initialization_audit,
+                                           model_http_audit=model_http_audit)
             def started():
                 journal.update(phase="running", modelExecutionAttemptedThisRun=True,
                                modelExecutionAttemptedEver=True)
@@ -188,6 +198,10 @@ async def run(args):
         journal.update(phase="failed", outcome={"result": None, "error": {"code": code}, "diagnostics": {}})
     finally:
         logging.disable(previous_logging)
+        if model_http_audit is not None:
+            journal["modelRequestCount"] = model_http_audit.request_count
+            journal["modelRequestAuditComplete"] = model_http_audit.audit_complete
+            journal["modelRequestAuditFailureStages"] = model_http_audit.failure_stages
         save()
     return 0 if journal["phase"] == "completed" else 1
 
@@ -202,6 +216,10 @@ def main(argv=None):
     parser.add_argument("--record-dir", required=True)
     parser.add_argument("--resume-journal")
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--group-id")
+    parser.add_argument("--session-id")
+    parser.add_argument("--task-id")
+    parser.add_argument("--worker-run-id")
     args = parser.parse_args(argv)
     try:
         return asyncio.run(run(args))

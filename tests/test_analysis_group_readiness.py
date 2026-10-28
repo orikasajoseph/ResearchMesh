@@ -19,7 +19,7 @@ from aip.group_analysis_partner import serve_analysis
 from aip.group_reader_handler import ReaderGroupHandler
 from aip.group_repository_handler import RepositoryGroupHandler
 from aip.group_task_store import DurableTaskStore
-from aip.literature_audit import AuditJournal, read_events
+from aip.literature_audit import AuditJournal, read_events, task_scope
 from aip.reader_unified_executor import ReaderExecutor
 from aip.repository_unified_executor import RepositoryStaticExecutor
 from common.models import BusinessTask
@@ -296,6 +296,30 @@ class AnalysisTests(unittest.IsolatedAsyncioTestCase):
             task = fixture_task(); task["subtaskId"] = "S2-new"
             await executor(BusinessTask.model_validate(task))
         self.assertEqual(len(set(calls)), 2)
+
+    async def test_reader_executor_passes_protocol_identity_and_worker_run_id(self):
+        python = self.root / "python.exe"; python.touch()
+        wrapper = self.root / "reader" / "researchmesh_paper_reader"; wrapper.mkdir(parents=True)
+        (wrapper / "__init__.py").touch()
+        captured = {}
+        def factory(**kwargs):
+            captured.update(kwargs)
+            async def backend(task):
+                result = note_result(task); result["subtaskId"] = task["subtaskId"]
+                return result
+            return backend
+        identity = {"groupId": GROUP, "sessionId": SESSION, "taskId": TASK,
+                    "agentAic": PARTNER}
+        with patch("aip.reader_unified_executor.ROOT", self.root), \
+             patch("aip_reader_partner.ROOT", self.root), \
+             patch("aip.reader_unified_executor.create_reader_business_executor", side_effect=factory):
+            executor = ReaderExecutor(reader_python=python, reader_root=wrapper.parent)
+            with task_scope(self.audit, identity):
+                await executor(BusinessTask.model_validate(fixture_task()))
+        self.assertEqual(captured["audit_identity"], identity)
+        self.assertRegex(captured["worker_run_id"], r"^[0-9a-f]{32}$")
+        self.assertEqual(captured["record_dir"].name,
+                         "reader-group-" + captured["worker_run_id"])
 
     async def test_real_sdk_simulated_lifecycle_for_both_agents(self):
         for agent_type in ("paper_read", "repository_analyze"):

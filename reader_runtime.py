@@ -30,7 +30,7 @@ def _require_embedding_cache(cache):
 
 
 def prepare_live_reader(root, *, env_file, runtime_home=None, pdf_fetcher=None,
-                        initialization_audit=None):
+                        initialization_audit=None, model_http_audit=None):
     if initialization_audit:
         initialization_audit("prepare_live_reader", "started")
     try:
@@ -61,6 +61,8 @@ def prepare_live_reader(root, *, env_file, runtime_home=None, pdf_fetcher=None,
             initialization_audit("provider_construct", "started")
         try:
             kwargs = {} if pdf_fetcher is None else {"pdf_fetcher": pdf_fetcher}
+            if model_http_audit is not None:
+                kwargs["model_http_audit"] = model_http_audit
             if initialization_audit:
                 kwargs["initialization_audit"] = initialization_audit
             provider = wrapper.PaperQAProvider(config, **kwargs)

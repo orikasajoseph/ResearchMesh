@@ -67,7 +67,7 @@ class PaperQAProvider:
     """Long-lived PaperQA provider with one in-memory embedding model instance."""
 
     @staticmethod
-    def router_config(config: PaperReaderConfig) -> dict[str, Any]:
+    def router_config(config: PaperReaderConfig, *, client=None) -> dict[str, Any]:
         """Build the shared generation/summary Router with retries disabled."""
         alias = "researchmesh-deepseek"
         return {
@@ -81,6 +81,7 @@ class PaperQAProvider:
                         "temperature": 0,
                         # LMI converts this legacy field to ModelSpec.max_retries.
                         "max_retries": 0,
+                        **({"client": client} if client is not None else {}),
                     },
                 }
             ],
@@ -95,6 +96,7 @@ class PaperQAProvider:
         *,
         pdf_fetcher: PdfFetcher | None = None,
         initialization_audit=None,
+        model_http_audit=None,
     ) -> None:
         self.config = config or PaperReaderConfig.from_env()
         self._pdf_fetcher = pdf_fetcher
@@ -119,7 +121,13 @@ class PaperQAProvider:
         self._docs_type, settings_type = stage("paperqa_dependencies_import", import_dependencies)
 
         alias = "researchmesh-deepseek"
-        router_config = self.router_config(self.config)
+        self._model_http_client = None
+        model_client = None
+        if model_http_audit is not None:
+            from model_http_audit import AuditedLiteLLMHTTPHandler
+            self._model_http_client = AuditedLiteLLMHTTPHandler(model_http_audit)
+            model_client = self._model_http_client
+        router_config = self.router_config(self.config, client=model_client)
         self.settings = stage("paperqa_settings_construct", lambda: settings_type(
             llm=alias, summary_llm=alias, llm_config=router_config,
             summary_llm_config=router_config, embedding=self.config.embedding))

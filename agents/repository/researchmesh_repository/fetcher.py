@@ -78,8 +78,10 @@ class RepositoryFetcher:
         try:
             clone = _run_git_stage(
                 _git_command(
+                    "-c", "protocol.version=2",
                     "-c", f"core.hooksPath={disabled_hooks}", "clone",
-                    "--depth", "1", "--no-tags", "--no-checkout",
+                    "--depth", "1", "--single-branch", "--no-tags",
+                    "--filter=blob:none", "--no-checkout", "--progress",
                     safe_url, str(repository_path),
                 ),
                 timeout=self.config.clone_timeout_seconds,
@@ -98,7 +100,9 @@ class RepositoryFetcher:
                 )
 
             checkout = _run_git_stage(
-                _git_command("-C", str(repository_path), "checkout", "--detach", "HEAD"),
+                _git_command("-c", f"core.hooksPath={disabled_hooks}",
+                             "-C", str(repository_path), "checkout",
+                             "--detach", "--progress", "HEAD"),
                 timeout=self.config.checkout_timeout_seconds,
             )
             self.git_diagnostics.append(_diagnostic(
@@ -193,7 +197,8 @@ def _git_environment() -> dict[str, str]:
         "http_proxy", "https_proxy", "all_proxy", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
     }
     environment = {key: value for key, value in os.environ.items() if key not in proxy_names}
-    environment.update(GIT_TERMINAL_PROMPT="0", NO_PROXY="github.com", no_proxy="github.com")
+    environment.update(GIT_TERMINAL_PROMPT="0", GIT_LFS_SKIP_SMUDGE="1",
+                       NO_PROXY="github.com", no_proxy="github.com")
     return environment
 
 

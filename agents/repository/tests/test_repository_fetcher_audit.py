@@ -56,11 +56,19 @@ class RepositoryFetcherAuditTests(unittest.TestCase):
         self.assertEqual(fetcher.git_diagnostics[3]["resolvedCommit"], COMMIT)
         command = popen.call_args_list[0].args[0]
         self.assertIn("--no-checkout", command)
+        self.assertIn("--filter=blob:none", command)
+        self.assertIn("--single-branch", command)
+        self.assertIn("--progress", command)
+        self.assertIn("protocol.version=2", command)
         self.assertEqual(command[1:5], ["-c", "http.proxy=", "-c", "https.proxy="])
         environment = popen.call_args_list[0].kwargs["env"]
         for name in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"):
             self.assertNotIn(name, environment)
         self.assertEqual(environment["UNRELATED_VALUE"], "preserved")
+        self.assertEqual(environment["GIT_LFS_SKIP_SMUDGE"], "1")
+        checkout_command = popen.call_args_list[1].args[0]
+        self.assertIn("--progress", checkout_command)
+        self.assertTrue(any(str(value).startswith("core.hooksPath=") for value in checkout_command))
 
     def test_nonzero_clone_records_bounded_redacted_stderr_and_stops(self):
         secret = "https://user:password@github.com/microsoft/LoRA"
@@ -75,6 +83,16 @@ class RepositoryFetcherAuditTests(unittest.TestCase):
         self.assertEqual(record["returncode"], 128); self.assertFalse(record["timedOut"])
         self.assertNotIn("password", record["stderr"]); self.assertNotIn("abc", record["stderr"])
         self.assertNotIn(URL, record["stderr"]); self.assertLessEqual(len(record["stderr"]), 1000)
+
+    def test_server_filter_warning_is_preserved_not_treated_as_capability_proof(self):
+        processes = self.success_processes()
+        processes[0]._output = ("", "warning: filtering not recognized by server, ignoring")
+        with patch("researchmesh_repository.fetcher.subprocess.Popen", side_effect=processes), \
+                patch("researchmesh_repository.fetcher._remove_temp_root"):
+            fetcher = RepositoryFetcher()
+            with fetcher.fetch(URL): pass
+        self.assertIn("filtering not recognized", fetcher.git_diagnostics[0]["stderr"])
+        self.assertEqual(fetcher.git_diagnostics[0]["returncode"], 0)
 
     def test_checkout_100_percent_then_hangs_kills_owned_tree_and_stops(self):
         checkout = FakeProcess(returncode=1, timeout=True,

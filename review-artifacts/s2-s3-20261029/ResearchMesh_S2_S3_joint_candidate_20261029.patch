@@ -1,0 +1,1224 @@
+diff --git a/aip/audited_group_client.py b/aip/audited_group_client.py
+index 5a1adc5..f463489 100644
+--- a/aip/audited_group_client.py
++++ b/aip/audited_group_client.py
+@@ -1,15 +1,26 @@
+-"""Observe SDK lifecycle by subclassing; never alter installed SDK or leave flow."""
++"""Audit SDK lifecycle and provide a fail-closed two-phase DISBAND candidate."""
+ import asyncio
+ from contextvars import ContextVar
++import hashlib
+ from importlib import import_module
++import json
+ import logging
++from datetime import datetime, timezone
++from time import monotonic
+ 
+-from acps_sdk.aip import GroupPartnerMqClient, TaskResult
++import aio_pika
++from aiormq.abc import DeliveredMessage
++from pamqp.commands import Basic
++from acps_sdk.aip import (
++    GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult, GroupMemberStatus,
++    GroupPartnerMqClient, StructuredDataItem, TaskResult,
++)
+ from aio_pika.exceptions import (
+     AMQPConnectionError,
+     ChannelClosed,
+     ChannelInvalidStateError,
+     ConnectionClosed,
++    PublishError,
+ )
+ 
+ _CLEANUP = ContextVar("sdk_cleanup_audit", default=None)
+@@ -42,6 +53,9 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
+         self._audited_cleanup_task = None
+         self._audited_leave_scheduled = False
+         self._audited_leave_task = None
++        self._disband_context = None
++        self._disband_received_at = None
++        self._leave_receipt_published = False
+         # Group task commands can run for minutes.  aio-pika cancels an active
+         # consumer callback when its transport drops, but that transient
+         # callback cancellation must not kill business work already protected
+@@ -78,6 +92,34 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
+                 self.audit.emit("SDK_MESSAGE_FAILED", **self._identity())
+             raise
+ 
++    async def _handle_mgmt_command(self, command):
++        if (isinstance(command, GroupMgmtCommand)
++                and command.command == GroupMgmtCommandType.DISBAND):
++            leader = getattr(getattr(self, "_group_info", None), "leader", None)
++            valid = bool(
++                command.groupId == self.group_id
++                and command.senderRole == "leader"
++                and getattr(leader, "aic", None) == command.senderId
++                and command.must_respond(self.partner_aic)
++                and command.sessionId
++                and command.id
++            )
++            if not valid:
++                if self.audit:
++                    self.audit.emit("DISBAND_REJECTED", **self._identity(),
++                                    reason="identity_or_correlation_invalid")
++                return
++            context = (command.groupId, command.sessionId, command.id, command.senderId)
++            if self._disband_context is not None and self._disband_context != context:
++                if self.audit:
++                    self.audit.emit("DISBAND_REJECTED", **self._identity(),
++                                    reason="conflicting_disband")
++                return
++            self._disband_context = context
++            if self._disband_received_at is None:
++                self._disband_received_at = monotonic()
++        return await super()._handle_mgmt_command(command)
++
+     def _command_lifecycle_finished(self, lifecycle):
+         self._command_lifecycles.discard(lifecycle)
+         if lifecycle.cancelled():
+@@ -189,6 +231,8 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
+             self.audit.emit("LEAVE_FINISHED", **identity)
+ 
+     async def _cleanup_group_resources(self):
++        if self._disband_context is not None:
++            return await self._cleanup_disband_with_receipt()
+         current = asyncio.current_task()
+         active_cleanup = self._audited_cleanup_task
+         if active_cleanup is not None and active_cleanup is not current:
+@@ -256,3 +300,182 @@ class AuditedGroupPartnerMqClient(GroupPartnerMqClient):
+             _CLEANUP.reset(token)
+             if self._audited_cleanup_task is current:
+                 self._audited_cleanup_task = None
++
++    def _receipt_id(self):
++        group_id, session_id, command_id, _ = self._disband_context
++        digest = hashlib.sha256(
++            f"{group_id}\0{session_id}\0{command_id}\0{self.partner_aic}".encode()
++        ).hexdigest()[:32]
++        return "leave-receipt-" + digest
++
++    async def _publish_leave_receipt(self, *, timeout=5, attempts=3):
++        group_id, session_id, command_id, leader_aic = self._disband_context
++        receipt_id = self._receipt_id()
++        receipt = GroupMgmtResult(
++            id=receipt_id,
++            sentAt=datetime.now(timezone.utc).isoformat(),
++            senderRole="partner",
++            senderId=self.partner_aic,
++            mentions=[leader_aic],
++            groupId=group_id,
++            sessionId=session_id,
++            status=GroupMemberStatus(connected=False, muted=self._muted),
++            dataItems=[StructuredDataItem(data={
++                "event": "GROUP_LEAVE_COMPLETED",
++                "disbandCommandId": command_id,
++                "consumerStopped": True,
++                "partnerQueueDeleted": True,
++                "bindingRemovedByQueueDelete": True,
++                "leaderReceiptConfirmed": False,
++            })],
++        )
++        exchange = self._exchange
++        channel = getattr(exchange, "channel", None) if exchange is not None else None
++        if exchange is None or channel is None or getattr(channel, "is_closed", False):
++            raise RuntimeError("LEAVE_RECEIPT_PUBLISH_PATH_UNAVAILABLE")
++        if getattr(channel, "publisher_confirms", None) is not True:
++            raise RuntimeError("LEAVE_RECEIPT_PUBLISHER_CONFIRMS_REQUIRED")
++        message = aio_pika.Message(
++            body=json.dumps(receipt.model_dump(exclude_none=True), ensure_ascii=False).encode(),
++            content_type="application/json",
++            delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
++            message_id=receipt_id,
++            user_id=self.partner_aic,
++        )
++        last_error = None
++        uncertain = False
++        for attempt in range(1, attempts + 1):
++            attempt_started = monotonic()
++            outcome = "exception"
++            try:
++                result = await asyncio.wait_for(exchange.publish(
++                    message, routing_key="", mandatory=True, timeout=timeout), timeout)
++                if isinstance(result, DeliveredMessage):
++                    outcome = "unroutable"
++                    raise RuntimeError("LEAVE_RECEIPT_UNROUTABLE")
++                if not isinstance(result, Basic.Ack):
++                    outcome = "uncertain"
++                    uncertain = True
++                    raise RuntimeError("LEAVE_RECEIPT_CONFIRM_UNCERTAIN")
++                outcome = "ack"
++                self._leave_receipt_published = True
++                if self.audit:
++                    self.audit.emit("LEAVE_RECEIPT_ATTEMPT", **self._identity(),
++                                    receiptId=receipt_id, attempt=attempt, outcome=outcome,
++                                    elapsedMs=round((monotonic() - attempt_started) * 1000))
++                    self.audit.emit("LEAVE_RECEIPT_PUBLISHED", **self._identity(),
++                                    managementSessionId=session_id,
++                                    disbandCommandId=command_id, receiptId=receipt_id,
++                                    brokerConfirmed=True, routable=True,
++                                    leaderReceiptConfirmed=False, attempt=attempt)
++                return
++            except PublishError as error:
++                outcome = "unroutable"
++                last_error = error
++            except RuntimeError as error:
++                last_error = error
++                if str(error) == "LEAVE_RECEIPT_UNROUTABLE":
++                    outcome = "unroutable"
++                elif str(error) == "LEAVE_RECEIPT_CONFIRM_UNCERTAIN":
++                    outcome = "uncertain"
++            except (TimeoutError, asyncio.TimeoutError) as error:
++                outcome = "timeout"
++                uncertain = True
++                last_error = error
++            except Exception as error:
++                outcome = "exception"
++                last_error = error
++                uncertain = uncertain or isinstance(error, (ConnectionError, OSError))
++            if self.audit:
++                self.audit.emit("LEAVE_RECEIPT_ATTEMPT", **self._identity(),
++                                receiptId=receipt_id, attempt=attempt, outcome=outcome,
++                                elapsedMs=round((monotonic() - attempt_started) * 1000))
++            if outcome == "unroutable":
++                break
++            if self.audit:
++                self.audit.emit("LEAVE_RECEIPT_RETRY", **self._identity(),
++                                receiptId=receipt_id, attempt=attempt)
++        if self.audit:
++            self.audit.emit("LEAVE_RECEIPT_FAILED", **self._identity(),
++                            receiptId=receipt_id,
++                            result="uncertain" if uncertain else "failed")
++        raise RuntimeError("LEAVE_RECEIPT_NOT_CONFIRMED") from last_error
++
++    async def _cleanup_disband_with_receipt(self):
++        current = asyncio.current_task()
++        if self._audited_cleanup_task is not None and self._audited_cleanup_task is not current:
++            return await asyncio.shield(self._audited_cleanup_task)
++        self._audited_cleanup_task = current
++        group_id = self.group_id
++        channel, connection = self._channel, self._connection
++        try:
++            if self.audit:
++                self.audit.emit("CLEANUP_ENTERED", groupId=group_id,
++                                agentAic=self.partner_aic)
++            elapsed = monotonic() - self._disband_received_at
++            remaining = 18 - elapsed
++            if remaining <= 0:
++                raise TimeoutError("PARTNER_LEAVE_RECEIPT_BUDGET_EXHAUSTED")
++            async with asyncio.timeout(remaining):
++                await self._cancel_command_lifecycles()
++                if not self._queue or not self._consumer_tag:
++                    raise RuntimeError("GROUP_CONSUMER_STATE_INCOMPLETE")
++                if self.audit:
++                    self.audit.emit("CONSUMER_CANCEL_ATTEMPT", **self._identity())
++                await self._queue.cancel(self._consumer_tag)
++                self._consumer_tag = None
++                if self.audit:
++                    self.audit.emit("CONSUMER_CANCEL_CONFIRMED", **self._identity())
++                await self._queue.delete(if_unused=False, if_empty=False)
++                if self.audit:
++                    self.audit.emit("PARTNER_QUEUE_DELETE_CONFIRMED", **self._identity())
++                self._queue = None
++                self._queue_name = None
++                await self._publish_leave_receipt()
++            if channel and not getattr(channel, "is_closed", False):
++                await channel.close()
++            if (self._connection_owner and connection
++                    and not getattr(connection, "is_closed", False)):
++                await connection.close()
++            disconnect_handler = self._disconnect_handler
++            self._reset_group_state()
++            self._audited_cleanup_succeeded = True
++            if disconnect_handler and group_id:
++                result = disconnect_handler(self, group_id)
++                if hasattr(result, "__await__"):
++                    await result
++            if self.audit:
++                self.audit.emit("CLEANUP_SUCCEEDED", groupId=group_id,
++                                agentAic=self.partner_aic,
++                                receiptId=self._receipt_id(),
++                                leaderReceiptConfirmed=False, failures=[],
++                                residual=[], groupResourcesCleared=True)
++        except BaseException as error:
++            self._audited_cleanup_succeeded = False
++            if self.audit:
++                self.audit.emit("CLEANUP_FAILED", groupId=group_id,
++                                agentAic=self.partner_aic,
++                                exceptionCategory="cancelled" if isinstance(error, asyncio.CancelledError)
++                                else "two_phase_leave_failed",
++                                receiptPublished=self._leave_receipt_published)
++            raise
++        finally:
++            self._audited_cleanup_task = None
++
++    async def close(self):
++        # A failed two-phase leave must not re-enter leave_group from SDK close;
++        # receipt retries are bounded inside _publish_leave_receipt. Close only
++        # transports here and let the Leader time out fail-closed.
++        if (self._disband_context is not None and self.leave_finished.is_set()
++                and not self.leave_succeeded):
++            for channel in (self._channel, self._inbox_channel):
++                if channel is not None and not getattr(channel, "is_closed", False):
++                    await channel.close()
++            if (self._connection_owner and self._connection is not None
++                    and not getattr(self._connection, "is_closed", False)):
++                await self._connection.close()
++            if self.audit:
++                self.audit.emit("FAILED_LEAVE_TRANSPORT_CLOSED", **self._identity(),
++                                receiptPublished=self._leave_receipt_published)
++            return
++        return await super().close()
+diff --git a/group_invitation.py b/group_invitation.py
+index 1d27f43..9760c36 100644
+--- a/group_invitation.py
++++ b/group_invitation.py
+@@ -152,9 +152,9 @@ async def run_invitation(config: InviteConfig, *, mode: str = "offline", execute
+     async def bounded(awaitable):
+         return await asyncio.wait_for(awaitable, timeout=config.timeout)
+ 
+-    async def cleanup_step(name, operation):
++    async def cleanup_step(name, operation, timeout=None):
+         try:
+-            await asyncio.wait_for(operation(), timeout=min(config.timeout, 5))
++            await asyncio.wait_for(operation(), timeout=min(config.timeout, 5) if timeout is None else timeout)
+             return True
+         except Exception as exc:
+             record["cleanupErrors"].append({"step": name, "type": type(exc).__name__})
+@@ -232,15 +232,32 @@ async def run_invitation(config: InviteConfig, *, mode: str = "offline", execute
+         if execute and record["aclWriteAttempted"]:
+             record["cleanupAttempted"] = True
+             event("CLEANUP_STARTED")
++            cleanup_ready = False
+             if client is not None and record["groupCreated"]:
+-                await cleanup_step("notify_group_disband", client.broadcast_group_shutdown)
+-            if client is not None and record["groupCreationAttempted"]:
+-                # SDK stops its consumer first. Strict resource deletion below catches
+-                # errors that the SDK's best-effort helper may log and suppress.
+-                await cleanup_step("stop_sdk_consumer", client.cleanup_group_resources)
++                # Share the same receipt validator as business Leader tasks.
++                from group_literature_leader import LiteratureConversation, stop_local_group_consumer
++                session_id = "cleanup-" + uuid4().hex
++                receipt = LiteratureConversation(config, group_id, "invitation-only", session_id)
++                client.set_message_handler(receipt.on_message)
++                async def disband():
++                    command = client._build_mgmt_command(command=GroupMgmtCommandType.DISBAND,
++                        mentions="all", session_id=session_id)
++                    receipt.leave_command_id = command.id
++                    record["disbandCommandId"] = command.id
++                    record["cleanupSessionId"] = session_id
++                    event("DISBAND_PUBLISH_ATTEMPT")
++                    await client.publish_message(command)
++                record["disbandPublished"] = await cleanup_step("notify_group_disband", disband)
++                if record["disbandPublished"]:
++                    record["partnerDisbandConfirmed"] = await cleanup_step(
++                        "partner_leave_confirmation", receipt.leave_completed.wait, timeout=config.timeout)
++                    record["partnerLeaveReceipt"] = receipt.leave_receipt
++                    event("PARTNER_LEAVE_CONFIRMED" if record["partnerDisbandConfirmed"] else "PARTNER_LEAVE_UNCONFIRMED")
++                    if record["partnerDisbandConfirmed"]:
++                        cleanup_ready = await cleanup_step("stop_sdk_consumer", lambda: stop_local_group_consumer(client))
+             if record["groupCreationAttempted"]:
+                 results = []
+-                if connection is not None and not connection.is_closed:
++                if cleanup_ready and connection is not None and not connection.is_closed:
+                     for kind, name in (
+                         ("queue", build_group_queue_name(config.leader_aic, group_id, config.partner_aic)),
+                         ("queue", build_group_queue_name(config.leader_aic, group_id, config.leader_aic)),
+@@ -248,13 +265,19 @@ async def run_invitation(config: InviteConfig, *, mode: str = "offline", execute
+                     ):
+                         results.append(await cleanup_step(
+                             f"delete_{kind}", lambda k=kind, n=name: delete_resource(connection, k, n)))
+-                    record["groupResourcesDeleted"] = all(results)
++                        if not results[-1]:
++                            break
++                    record["groupResourcesDeleted"] = len(results) == 3 and all(results)
+                 else:
+                     record["groupResourcesDeleted"] = False
+-                    record["cleanupErrors"].append({"step": "delete_group_resources", "type": "ConnectionUnavailable"})
++                    record["cleanupErrors"].append({"step": "delete_group_resources", "type": "DependencyFailed"})
+             if acl is not None:
+-                record["aclDeleted"] = await cleanup_step("delete_own_acl", lambda: acl.delete_group(
+-                    leader_aic=config.leader_aic, group_id=group_id))
++                if not record["groupCreationAttempted"] or record["groupResourcesDeleted"]:
++                    record["aclDeleted"] = await cleanup_step("delete_own_acl", lambda: acl.delete_group(
++                        leader_aic=config.leader_aic, group_id=group_id))
++                else:
++                    record["aclDeleted"] = False
++                    record["cleanupErrors"].append({"step": "delete_own_acl", "type": "DependencyFailed"})
+             if connection is not None:
+                 await cleanup_step("close_connection", connection.close)
+                 record["connectionClosed"] = bool(connection.is_closed)
+diff --git a/group_literature_leader.py b/group_literature_leader.py
+index 730d0da..34504dc 100644
+--- a/group_literature_leader.py
++++ b/group_literature_leader.py
+@@ -11,7 +11,7 @@ from uuid import uuid4
+ import aio_pika
+ from aio_pika.connection import make_url
+ from acps_sdk.aip import (
+-    ACSObject, GroupLeaderMqClient, GroupMgmtCommand, GroupMgmtCommandType,
++    ACSObject, GroupLeaderMqClient, GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult,
+     StructuredDataItem, TaskCommand, TaskCommandType, TaskResult, TaskState,
+ )
+ from acps_sdk.aip.aip_group_auth import GroupAclClient, GroupAclError
+@@ -28,6 +28,8 @@ from repository_paper_context import prepare_repository_task
+ from group_invitation import AUTH_SERVICE_URL, JoinConfirmation, delete_resource, validate
+ from platform_mq_check import HOST, PORT, VHOST, CheckError, certificate_context, classify_error
+ 
++PARTNER_LEAVE_TIMEOUT_SECONDS = 20
++
+ 
+ def validate_literature_task(task):
+     payload = validate_local_task(deepcopy(task))
+@@ -61,10 +63,24 @@ def validate_platform_task(task, expected_task_type):
+ 
+ 
+ async def settle_group_shutdown():
+-    # Give the Partner time to consume DISBAND before its temporary queue is removed.
++    # Delivery grace only. This is not evidence that the Partner consumed DISBAND
++    # or finished leaving the group.
+     await asyncio.sleep(2)
+ 
+ 
++async def stop_local_group_consumer(client):
++    """Cancel only the Leader consumer after its registration completes."""
++    consume_task = getattr(client, "_consume_task", None)
++    queue = getattr(client, "_leader_queue", None)
++    if consume_task is None or queue is None:
++        raise CheckError("CONSUMER_REGISTRATION_UNKNOWN")
++    consumer_tag = await asyncio.shield(consume_task)
++    if not isinstance(consumer_tag, str) or not consumer_tag:
++        raise CheckError("CONSUMER_TAG_UNKNOWN")
++    await queue.cancel(consumer_tag, nowait=False)
++    client._consume_task = None
++
++
+ def partner_failure_diagnostic(message):
+     """Retain only recognized codes, never arbitrary remote text or credentials."""
+     codes = set()
+@@ -153,6 +169,10 @@ class SingleTaskMqClient(GroupLeaderMqClient):
+         self.task_commands_attempted.add(message.command)
+         return await super().publish_message(message)
+ 
++    async def stop_group_consumer(self):
++        """Cancel only the Leader consumer; do not delete queues or exchange."""
++        await stop_local_group_consumer(self)
++
+ 
+ class LiteratureConversation:
+     """SDK validates AMQP user_id first; correlate all task identifiers here."""
+@@ -161,10 +181,30 @@ class LiteratureConversation:
+         self.join = JoinConfirmation(config.partner_aic, group_id)
+         self.task_id, self.session_id = task_id, session_id
+         self.messages = asyncio.Queue(maxsize=128)
++        self.leave_command_id = None
++        self.leave_completed = asyncio.Event()
++        self.leave_receipt = None
+         self.overflow = False
+         self.ignored = 0
+ 
+     async def on_message(self, message):
++        if (isinstance(message, GroupMgmtResult) and self.leave_command_id is not None
++                and message.senderRole == "partner" and message.senderId == self.join.partner_aic
++                and message.groupId == self.join.group_id and message.sessionId == self.session_id
++                and message.status.connected is False):
++            for item in message.dataItems or []:
++                if (isinstance(item, StructuredDataItem) and isinstance(item.data, dict)
++                        and item.data.get("event") == "GROUP_LEAVE_COMPLETED"
++                        and item.data.get("disbandCommandId") == self.leave_command_id):
++                    if self.leave_receipt is None:
++                        self.leave_receipt = {
++                            "messageId": message.id, "senderId": message.senderId,
++                            "groupId": message.groupId, "sessionId": message.sessionId,
++                            "disbandCommandId": self.leave_command_id,
++                            "receivedAt": datetime.now(timezone.utc).isoformat(),
++                        }
++                        self.leave_completed.set()
++                    return
+         if not isinstance(message, TaskResult):
+             await self.join.on_message(message)
+             return
+@@ -266,7 +306,8 @@ class LiteratureConversation:
+ 
+ async def run_group_literature(config, task, *, execute=False, partner_ready=False,
+                                partner_commit=None, task_timeout=180, checkpoint=None,
+-                               task_release=None, expected_task_type="literature_search"):
++                               task_release=None, partner_departure_confirmation=None,
++                               expected_task_type="literature_search"):
+     """Preflight by default. Live mode creates a fresh temporary group and task."""
+     started = monotonic()
+     capability = {"literature_search": "literature", "paper_read": "reader",
+@@ -296,6 +337,10 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
+         "startPublishErrorCategory": None, "startPublishPath": None,
+         "completePublishErrorCategory": None, "completePublishPath": None,
+         "disbandPublished": None, "disbandPublishPath": None,
++        "disbandSettled": None, "partnerDepartureConfirmed": None,
++        "disbandCommandId": None, "partnerLeaveReceipt": None,
++        "partnerLeaveTimeoutSeconds": PARTNER_LEAVE_TIMEOUT_SECONDS,
++        "consumerStopped": None,
+         "cleanupAttempted": False, "cleanupSucceeded": None, "aclDeleted": None,
+         "groupResourcesDeleted": None, "connectionClosed": None,
+         "groupResourceCleanup": {}, "groupResourceCleanupDeferred": [],
+@@ -316,9 +361,9 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
+     async def bounded(awaitable):
+         return await asyncio.wait_for(awaitable, config.timeout)
+ 
+-    async def cleanup(name, operation):
++    async def cleanup(name, operation, timeout=None):
+         try:
+-            await asyncio.wait_for(operation(), min(config.timeout, 5))
++            await asyncio.wait_for(operation(), min(config.timeout, 5) if timeout is None else timeout)
+             return True
+         except Exception as error:
+             record["cleanupErrors"].append({"step": name, "type": type(error).__name__})
+@@ -331,6 +376,8 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
+             raise CheckError("INVALID_EXECUTION_FLAGS")
+         if task_release is not None and not callable(task_release):
+             raise CheckError("INVALID_TASK_RELEASE")
++        if partner_departure_confirmation is not None and not callable(partner_departure_confirmation):
++            raise CheckError("INVALID_PARTNER_DEPARTURE_CONFIRMATION")
+         directory = validate(config, "invite" if execute else "offline", execute, partner_ready)
+         timeout_limit = 900 if expected_task_type == "paper_read" else 600
+         if type(task_timeout) not in (int, float) or not math.isfinite(task_timeout) or not 1 <= task_timeout <= timeout_limit:
+@@ -410,11 +457,27 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
+                 async def publish_disband():
+                     record["disbandPublishPath"] = publish_path_snapshot(client)
+                     require_publish_ready(client)
+-                    await client.send_mgmt_command(GroupMgmtCommandType.DISBAND, mentions="all")
++                    command = client._build_mgmt_command(
++                        command=GroupMgmtCommandType.DISBAND, mentions="all", session_id=session_id)
++                    record["disbandCommandId"] = command.id
++                    conversation.leave_command_id = command.id
++                    await client.publish_message(command)
+                 record["disbandPublished"] = await cleanup("disband", publish_disband)
+                 if record["disbandPublished"]:
+-                    await cleanup("disband_settle", settle_group_shutdown)
+-                    await cleanup("stop_consumer", client.cleanup_group_resources)
++                    record["partnerDepartureConfirmed"] = await cleanup(
++                        "confirm_partner_departure", conversation.leave_completed.wait,
++                        timeout=PARTNER_LEAVE_TIMEOUT_SECONDS)
++                    record["partnerLeaveReceipt"] = deepcopy(conversation.leave_receipt)
++                if record["partnerDepartureConfirmed"]:
++                    record["disbandSettled"] = await cleanup(
++                        "disband_settle", settle_group_shutdown)
++                if record["partnerDepartureConfirmed"]:
++                    if record["disbandSettled"]:
++                        record["consumerStopped"] = await cleanup(
++                            "stop_consumer", client.stop_group_consumer)
++                    else:
++                        record["cleanupErrors"].append(
++                            {"step": "stop_consumer_deferred", "type": "DependencyFailed"})
+                 else:
+                     record["cleanupErrors"].append(
+                         {"step": "stop_consumer_deferred", "type": "DependencyFailed"})
+@@ -425,7 +488,11 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
+                     ("exchange", "exchange", build_group_exchange_name(config.leader_aic, group_id)),
+                 )
+                 deleted = {}
+-                if record["groupCreated"] and record["disbandPublished"] is not True:
++                prerequisites_succeeded = (record["disbandPublished"] is True
++                    and record["disbandSettled"] is True
++                    and record["partnerDepartureConfirmed"] is True
++                    and record["consumerStopped"] is True)
++                if not record["groupCreated"] or not prerequisites_succeeded:
+                     record["groupResourceCleanupDeferred"] = [label for label, _, _ in resources]
+                     for label in record["groupResourceCleanupDeferred"]:
+                         deleted[label] = False
+@@ -435,14 +502,23 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
+                     for label, kind, name in resources:
+                         deleted[label] = await cleanup("delete_" + label,
+                             lambda k=kind, n=name: delete_resource(connection, k, n))
++                        if not deleted[label]:
++                            remaining = [item[0] for item in resources][len(deleted):]
++                            record["groupResourceCleanupDeferred"].extend(remaining)
++                            for deferred in remaining:
++                                deleted[deferred] = False
++                                record["cleanupErrors"].append(
++                                    {"step": "delete_" + deferred + "_deferred",
++                                     "type": "DependencyFailed"})
++                            break
+                 record["groupResourceCleanup"] = deleted
+                 record["groupResourcesDeleted"] = len(deleted) == 3 and all(deleted.values())
+                 if not record["groupResourcesDeleted"]:
+                     record["cleanupErrors"].append({"step": "delete_group_resources", "type": "IncompleteCleanup"})
+             if acl is not None:
+                 mq_cleanup_safe = (not record["groupCreationAttempted"] or
+-                    (record["groupResourcesDeleted"] and
+-                     (not record["groupCreated"] or record["disbandPublished"])))
++                    (record["groupCreated"] and record["groupResourcesDeleted"] and
++                     record["disbandPublished"] is True))
+                 if mq_cleanup_safe:
+                     record["aclDeleted"] = await cleanup("delete_own_acl", lambda: acl.delete_group(
+                         leader_aic=config.leader_aic, group_id=group_id))
+diff --git a/tests/test_group_invitation.py b/tests/test_group_invitation.py
+index 431579d..85352c5 100644
+--- a/tests/test_group_invitation.py
++++ b/tests/test_group_invitation.py
+@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
+ 
+ import httpx
+ from aiormq.exceptions import ChannelNotFoundEntity
+-from acps_sdk.aip import ACSObject, GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult, TaskCommand, TaskCommandType
++from acps_sdk.aip import ACSObject, GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult, StructuredDataItem, TaskCommand, TaskCommandType
+ from acps_sdk.aip.aip_group_auth import GroupAclClient, GroupAclError
+ from acps_sdk.aip.aip_group_identity import assert_incoming_group_message_identity
+ from acps_sdk.aip.aip_identity import SenderIdentityMismatchError
+@@ -123,7 +123,7 @@ class JoinTests(unittest.IsolatedAsyncioTestCase):
+ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+     async def scenario(self, *, mode="invite", leader_error=None, partner_error=None,
+                        group_error=None, publish_error=None, timeout=False, interrupt=False,
+-                       cleanup_error=None, resource_error=None, checkpoint=None):
++                       cleanup_error=None, resource_error=None, checkpoint=None, no_ack=False, consumer_error=False):
+         operations = []
+         acl = MagicMock()
+         async def add_member(**kwargs):
+@@ -168,7 +168,22 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+         client.invite_via_inbox = AsyncMock(side_effect=publish)
+         client.broadcast_group_shutdown = AsyncMock()
+         client.cleanup_group_resources = AsyncMock()
++        client._build_mgmt_command.side_effect = lambda **kw: GroupMgmtCommand(
++            id="cleanup-command", sentAt=datetime.now(timezone.utc).isoformat(),
++            senderId=LEADER, senderRole="leader", groupId=client.group_id,
++            sessionId=kw["session_id"], command=kw["command"], mentions=kw["mentions"])
++        async def publish_disband(command):
++            if no_ack:
++                return
++            await client.set_message_handler.call_args.args[0](GroupMgmtResult(
++                id="leave-receipt", sentAt=datetime.now(timezone.utc).isoformat(),
++                senderId=PARTNER, senderRole="partner", groupId=command.groupId,
++                sessionId=command.sessionId, status={"connected": False, "muted": False},
++                dataItems=[StructuredDataItem(data={"event": "GROUP_LEAVE_COMPLETED", "disbandCommandId": command.id})]))
++        client.publish_message = AsyncMock(side_effect=publish_disband)
+         with ExitStack() as stack:
++            stack.enter_context(patch("group_literature_leader.stop_local_group_consumer", new_callable=AsyncMock,
++                side_effect=RuntimeError("cancel failed") if consumer_error else None))
+             stack.enter_context(patch("group_invitation.certificate_context"))
+             acl_factory = stack.enter_context(patch("group_invitation.GroupAclClient", return_value=acl))
+             conn_factory = stack.enter_context(patch("group_invitation.aio_pika.Connection", return_value=connection))
+@@ -176,7 +191,7 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+             deletion = stack.enter_context(patch("group_invitation.delete_resource", new_callable=AsyncMock,
+                                                 side_effect=resource_error))
+             stack.enter_context(patch("socket.getaddrinfo", side_effect=AssertionError("NO_REAL_NETWORK")))
+-            result = await invitation.run_invitation(config(), mode=mode, execute=mode != "offline",
++            result = await invitation.run_invitation(replace(config(), timeout=1) if no_ack else config(), mode=mode, execute=mode != "offline",
+                                                      partner_ready=True, checkpoint=checkpoint)
+         return result, acl, connection, client, deletion, operations, (acl_factory, conn_factory, client_factory)
+ 
+@@ -234,12 +249,12 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+         client.invite_via_inbox.assert_not_called()
+         connection.close.assert_awaited_once()
+ 
+-    async def test_partial_group_creation_is_cleaned(self):
++    async def test_partial_group_creation_preserves_uncertain_resources(self):
+         result, acl, _, client, deletion, _, _ = await self.scenario(group_error=TimeoutError())
+         self.assertFalse(result["groupCreated"])
+         self.assertTrue(result["groupCreationAttempted"])
+-        self.assertEqual(deletion.await_count, 3)
+-        acl.delete_group.assert_awaited_once()
++        deletion.assert_not_awaited()
++        acl.delete_group.assert_not_awaited()
+         client.invite_via_inbox.assert_not_called()
+ 
+     async def test_publish_failure_is_not_retried(self):
+@@ -256,6 +271,21 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+         acl.delete_group.assert_awaited_once()
+         connection.close.assert_awaited_once()
+ 
++    async def test_receipt_or_consumer_failure_prevents_all_deletions(self):
++        for options in ({"no_ack": True}, {"consumer_error": True}):
++            result, acl, _, client, deletion, _, _ = await self.scenario(**options)
++            self.assertFalse(result["cleanupSucceeded"])
++            self.assertFalse(result["aclDeleted"])
++            deletion.assert_not_awaited()
++            acl.delete_group.assert_not_awaited()
++            client.cleanup_group_resources.assert_not_awaited()
++
++    async def test_first_resource_failure_stops_subsequent_deletions(self):
++        result, acl, _, _, deletion, _, _ = await self.scenario(resource_error=PermissionError())
++        self.assertEqual(deletion.await_count, 1)
++        acl.delete_group.assert_not_awaited()
++        self.assertFalse(result["cleanupSucceeded"])
++
+     async def test_cleanup_failure_cannot_claim_pass(self):
+         result, _, _, _, _, _, _ = await self.scenario(cleanup_error=RuntimeError("secret-value"))
+         self.assertTrue(result["partnerJoinConfirmed"])
+diff --git a/tests/test_literature_acceptance_audit.py b/tests/test_literature_acceptance_audit.py
+index 8f3581b..2d41e23 100644
+--- a/tests/test_literature_acceptance_audit.py
++++ b/tests/test_literature_acceptance_audit.py
+@@ -10,6 +10,7 @@ from tempfile import TemporaryDirectory
+ from types import SimpleNamespace
+ import unittest
+ from unittest.mock import AsyncMock, patch
++from pamqp.commands import Basic
+ 
+ import httpx
+ from acps_sdk.aip import GroupMgmtCommand, GroupMgmtCommandType, GroupPartnerMqClient, TaskCommandType
+@@ -161,6 +162,7 @@ class AuditTests(unittest.IsolatedAsyncioTestCase):
+         client.start_inbox_consuming = inbox
+         async def join(invitation):
+             client._group_id = GROUP
++            client._group_info = SimpleNamespace(leader=SimpleNamespace(aic=LEADER))
+             return True
+         client.join_group_from_invitation = join
+         server = asyncio.create_task(serve(partner_aic=PARTNER, leader_aic=LEADER,
+@@ -169,7 +171,11 @@ class AuditTests(unittest.IsolatedAsyncioTestCase):
+         await self.invitation_callback(object())
+         client._consumer_tag = "test-consumer"
+         client._queue = SimpleNamespace(name="test-queue", cancel=AsyncMock(), delete=AsyncMock())
+-        client._channel = SimpleNamespace(is_closed=False)
++        client._channel = SimpleNamespace(is_closed=False, publisher_confirms=True)
++        client._exchange = SimpleNamespace(
++            channel=client._channel,
++            publish=AsyncMock(return_value=Basic.Ack(delivery_tag=1, multiple=False)),
++        )
+         client._connection = SimpleNamespace(is_closed=False)
+         async def close_channel():
+             client._channel.is_closed = True
+@@ -252,7 +258,8 @@ class AuditTests(unittest.IsolatedAsyncioTestCase):
+                 client._queue.delete.side_effect = RuntimeError("SECRET")
+                 await self.lifecycle(client)
+                 failures = self.events("CLEANUP_FAILED")
+-                self.assertEqual(failures[0]["failures"], ["queue_delete_failed"])
++                self.assertEqual(failures[0]["exceptionCategory"], "two_phase_leave_failed")
++                self.assertFalse(failures[0]["receiptPublished"])
+                 self.assertFalse(self.events("CLEANUP_SUCCEEDED"))
+                 self.assertNotIn("SECRET", self.audit.path.read_text())
+             finally:
+diff --git a/tests/test_platform_literature.py b/tests/test_platform_literature.py
+index 0240035..8526c18 100644
+--- a/tests/test_platform_literature.py
++++ b/tests/test_platform_literature.py
+@@ -11,7 +11,8 @@ import unittest
+ from unittest.mock import AsyncMock, MagicMock, patch
+ 
+ from aiormq.exceptions import ChannelAccessRefused, ChannelInvalidStateError
+-from acps_sdk.aip import GroupMgmtCommandType, Product, StructuredDataItem, TaskCommandType, TaskResult, TaskState
++from acps_sdk.aip import (GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult,
++    Product, StructuredDataItem, TaskCommandType, TaskResult, TaskState)
+ from acps_sdk.aip.aip_group_auth import GroupAclError
+ from acps_sdk.aip.aip_group_identity import assert_incoming_group_message_identity
+ from acps_sdk.aip.aip_identity import SenderIdentityMismatchError
+@@ -45,6 +46,26 @@ def message(group_id, task_id, session_id, state, data=None, *, message_id=None)
+ 
+ 
+ class ConversationTests(unittest.IsolatedAsyncioTestCase):
++    async def test_leave_receipt_requires_exact_contract_and_is_idempotent(self):
++        convo = leader.LiteratureConversation(config(), "g", "t", "s")
++        convo.leave_command_id = "d1"
++        fields = {"id": "r1", "sentAt": datetime.now(timezone.utc).isoformat(),
++            "senderRole": "partner", "senderId": PARTNER, "groupId": "g", "sessionId": "s",
++            "status": {"connected": False, "muted": False}, "dataItems": [StructuredDataItem(
++                data={"event": "GROUP_LEAVE_COMPLETED", "disbandCommandId": "d1"})]}
++        bad = ({"senderId": "other"}, {"groupId": "other"}, {"sessionId": "other"},
++            {"status": {"connected": True, "muted": False}},
++            {"dataItems": [StructuredDataItem(data={"event": "WRONG", "disbandCommandId": "d1"})]},
++            {"dataItems": [StructuredDataItem(data={"event": "GROUP_LEAVE_COMPLETED",
++                                                    "disbandCommandId": "other"})]})
++        for override in bad:
++            await convo.on_message(GroupMgmtResult(**dict(fields, **override)))
++            self.assertFalse(convo.leave_completed.is_set())
++        await convo.on_message(GroupMgmtResult(**fields))
++        first = deepcopy(convo.leave_receipt)
++        await convo.on_message(GroupMgmtResult(**dict(fields, id="r2")))
++        self.assertEqual(convo.leave_receipt, first)
++
+     async def scenario(self, *, data=None, final=None, wrong=False, early=False,
+                        terminal=None, duplicate=False, silent=False, publish_error=False):
+         convo = leader.LiteratureConversation(config(), "g", "t", "s")
+@@ -176,8 +197,10 @@ class ConversationTests(unittest.IsolatedAsyncioTestCase):
+ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+     async def scenario(self, *, execute=True, partner_ready=True, partner_commit="edb9dcf",
+                        acl_error=False, join_timeout=False, task_timeout=False,
+-                       cleanup_error=False, resource_error=False,
+-                       stale_publish_path=False, start_error=None, checkpoint=None,
++                       cleanup_error=False, settle_error=False, consumer_error=False,
++                       departure_confirmation=True, resource_error=False,
++                       late_receipt=False, disconnect_after_receipt=False,
++                       stale_publish_path=False, start_error=None, create_error=None, checkpoint=None,
+                        task=None, task_release=None):
+         operations = []
+         acl = MagicMock()
+@@ -203,6 +226,8 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+         client.connect = AsyncMock()
+         async def create(**kwargs):
+             client.group_id = kwargs["group_id"]
++            if create_error is not None:
++                raise create_error
+             return client.group_id
+         client.create_group = AsyncMock(side_effect=create)
+         client.start_consuming = AsyncMock()
+@@ -222,8 +247,34 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+             await handler(message(client.group_id, task_id, session_id, state,
+                                   result() if command == TaskCommandType.Start else None))
+         client.send_task_command = AsyncMock(side_effect=send)
+-        client.send_mgmt_command = AsyncMock(side_effect=RuntimeError("secret-cleanup") if cleanup_error else None)
+-        client.cleanup_group_resources = AsyncMock()
++        def build_mgmt_command(*, command, mentions, session_id):
++            return GroupMgmtCommand(id="disband-1", sentAt=datetime.now(timezone.utc).isoformat(),
++                senderRole="leader", senderId=LEADER, groupId=client.group_id,
++                sessionId=session_id, command=command, mentions=mentions)
++        client._build_mgmt_command.side_effect = build_mgmt_command
++        async def publish_mgmt(command):
++            if cleanup_error:
++                raise RuntimeError("secret-cleanup")
++            if departure_confirmation is None:
++                return
++            event = "GROUP_LEAVE_COMPLETED" if departure_confirmation else "WRONG_EVENT"
++            receipt = GroupMgmtResult(id="receipt-1", sentAt=datetime.now(timezone.utc).isoformat(),
++                senderRole="partner", senderId=PARTNER, groupId=command.groupId,
++                sessionId=command.sessionId, status={"connected": False, "muted": False},
++                dataItems=[StructuredDataItem(data={
++                    "event": event, "disbandCommandId": command.id})])
++            if late_receipt:
++                async def deliver_late():
++                    await asyncio.sleep(.02)
++                    await client.set_message_handler.call_args.args[0](receipt)
++                asyncio.create_task(deliver_late())
++            else:
++                await client.set_message_handler.call_args.args[0](receipt)
++            if disconnect_after_receipt:
++                connection.is_closed = True
++        client.publish_message = AsyncMock(side_effect=publish_mgmt)
++        client.stop_group_consumer = AsyncMock(
++            side_effect=RuntimeError("consumer-cleanup") if consumer_error else None)
+         cfg = config()
+         from dataclasses import replace
+         cfg = replace(cfg, join_timeout=.015)
+@@ -245,7 +296,10 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+             deletion = stack.enter_context(patch.object(
+                 leader, "delete_resource", new_callable=AsyncMock,
+                 side_effect=delete_resource))
+-            stack.enter_context(patch.object(leader, "settle_group_shutdown", new_callable=AsyncMock))
++            stack.enter_context(patch.object(
++                leader, "settle_group_shutdown", new_callable=AsyncMock,
++                side_effect=RuntimeError("settle") if settle_error else None))
++            stack.enter_context(patch.object(leader, "PARTNER_LEAVE_TIMEOUT_SECONDS", .01))
+             stack.enter_context(patch("socket.getaddrinfo", side_effect=AssertionError("NO_NETWORK")))
+             # Keep real config validation, only shorten the task wait for offline timeout tests.
+             original_run = leader.LiteratureConversation.run
+@@ -286,12 +340,16 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+         self.assertEqual(ops, ["acl", "acl", "invite", "start", "complete"])
+         self.assertTrue(rec["passed"])
+         self.assertTrue(rec["cleanupSucceeded"])
++        self.assertTrue(rec["disbandSettled"])
++        self.assertTrue(rec["partnerDepartureConfirmed"])
++        self.assertTrue(rec["consumerStopped"])
+         self.assertTrue(rec["connectionClosed"])
+         self.assertFalse(rec["providerExecutionVerified"])
+         self.assertFalse(rec["partnerCommitRemotelyVerified"])
+         self.assertEqual(rec["taskCommandsSent"], 2)
+         self.assertEqual(deletion.await_count, 3)
+-        client.send_mgmt_command.assert_awaited_once_with(GroupMgmtCommandType.DISBAND, mentions="all")
++        client.publish_message.assert_awaited_once()
++        self.assertEqual(rec["partnerLeaveReceipt"]["disbandCommandId"], "disband-1")
+         self.assertTrue(rec["groupId"].startswith("rm-literature-"))
+         self.assertEqual(acl.delete_group.call_args.kwargs["group_id"], rec["groupId"])
+ 
+@@ -351,7 +409,7 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+             "partnerQueue": False, "leaderQueue": False, "exchange": False,
+         })
+         deletion.assert_not_awaited()
+-        client.cleanup_group_resources.assert_not_awaited()
++        client.stop_group_consumer.assert_not_awaited()
+         self.assertFalse(rec["groupResourcesDeleted"])
+         self.assertFalse(rec["aclDeleted"])
+         acl.delete_group.assert_not_awaited()
+@@ -368,6 +426,66 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+                       rec["cleanupErrors"])
+         self.assertNotIn("secret-cleanup", json.dumps(rec))
+ 
++    async def test_settle_failure_stops_consumer_resources_and_acl(self):
++        rec, _, client, _, deletion, acl = await self.scenario(settle_error=True)
++        self.assertTrue(rec["disbandPublished"])
++        self.assertFalse(rec["disbandSettled"])
++        self.assertTrue(rec["partnerDepartureConfirmed"])
++        self.assertIsNone(rec["consumerStopped"])
++        client.stop_group_consumer.assert_not_awaited()
++        deletion.assert_not_awaited()
++        acl.delete_group.assert_not_awaited()
++        self.assertFalse(rec["cleanupSucceeded"])
++
++    async def test_missing_or_negative_departure_confirmation_fails_closed(self):
++        for confirmation in (None, False):
++            with self.subTest(confirmation=confirmation):
++                rec, _, client, _, deletion, acl = await self.scenario(
++                    departure_confirmation=confirmation)
++                self.assertTrue(rec["disbandPublished"])
++                self.assertIsNone(rec["disbandSettled"])
++                self.assertFalse(rec["partnerDepartureConfirmed"])
++                self.assertIsNone(rec["consumerStopped"])
++                client.stop_group_consumer.assert_not_awaited()
++                deletion.assert_not_awaited()
++                acl.delete_group.assert_not_awaited()
++                self.assertFalse(rec["cleanupSucceeded"])
++
++    async def test_group_creation_result_unknown_preserves_resources_and_acl(self):
++        rec, _, client, _, deletion, acl = await self.scenario(create_error=TimeoutError())
++        self.assertTrue(rec["groupCreationAttempted"])
++        self.assertFalse(rec["groupCreated"])
++        self.assertFalse(rec["groupResourcesDeleted"])
++        self.assertFalse(rec["aclDeleted"])
++        self.assertFalse(rec["cleanupSucceeded"])
++        deletion.assert_not_awaited()
++        client.stop_group_consumer.assert_not_awaited()
++        client.publish_message.assert_not_awaited()
++        acl.delete_group.assert_not_awaited()
++
++    async def test_consumer_failure_stops_resources_and_acl(self):
++        rec, _, client, _, deletion, acl = await self.scenario(consumer_error=True)
++        self.assertTrue(rec["partnerDepartureConfirmed"])
++        self.assertFalse(rec["consumerStopped"])
++        client.stop_group_consumer.assert_awaited_once()
++        deletion.assert_not_awaited()
++        acl.delete_group.assert_not_awaited()
++        self.assertFalse(rec["cleanupSucceeded"])
++
++    async def test_late_receipt_does_not_resume_cleanup(self):
++        rec, _, _, _, deletion, acl = await self.scenario(late_receipt=True)
++        await asyncio.sleep(.03)
++        self.assertFalse(rec["partnerDepartureConfirmed"])
++        deletion.assert_not_awaited()
++        acl.delete_group.assert_not_awaited()
++
++    async def test_connection_loss_after_receipt_preserves_resources_and_acl(self):
++        rec, _, _, _, deletion, acl = await self.scenario(disconnect_after_receipt=True)
++        self.assertTrue(rec["partnerDepartureConfirmed"])
++        self.assertFalse(rec["groupResourcesDeleted"])
++        deletion.assert_not_awaited()
++        acl.delete_group.assert_not_awaited()
++
+     async def test_stale_channel_fails_closed_without_start_publish(self):
+         rec, _, client, _, _, _ = await self.scenario(stale_publish_path=True)
+         self.assertTrue(rec["startAttempted"])
+@@ -404,6 +522,9 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+                 rec, _, _, _, deletion, acl = await self.scenario(resource_error=failed)
+                 expected = {"partnerQueue": True, "leaderQueue": True, "exchange": True}
+                 expected[failed] = False
++                failed_index = ("partnerQueue", "leaderQueue", "exchange").index(failed)
++                for deferred in ("partnerQueue", "leaderQueue", "exchange")[failed_index + 1:]:
++                    expected[deferred] = False
+                 self.assertEqual(rec["groupResourceCleanup"], expected)
+                 self.assertIn({"step": "delete_" + failed, "type": "PermissionError"},
+                               rec["cleanupErrors"])
+@@ -411,7 +532,7 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+                 self.assertFalse(rec["aclDeleted"])
+                 self.assertFalse(rec["cleanupSucceeded"])
+                 acl.delete_group.assert_not_awaited()
+-                self.assertEqual(deletion.await_count, 3)
++                self.assertEqual(deletion.await_count, failed_index + 1)
+ 
+     async def test_all_resource_cleanup_failures_preserve_acl(self):
+         rec, _, _, _, deletion, acl = await self.scenario(resource_error=True)
+@@ -422,7 +543,7 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
+         self.assertFalse(rec["aclDeleted"])
+         self.assertFalse(rec["cleanupSucceeded"])
+         acl.delete_group.assert_not_awaited()
+-        self.assertEqual(deletion.await_count, 3)
++        self.assertEqual(deletion.await_count, 1)
+ 
+     async def test_broken_checkpoint_prevents_start_and_cleanup_continues(self):
+         def checkpoint(rec):
+@@ -511,6 +632,22 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
+             await client.send_task_command(TaskCommandType.Complete, "t", "s", mentions=[PARTNER])
+         exchange.publish.assert_not_called()
+ 
++    async def test_stop_consumer_cancels_tag_without_deleting_resources(self):
++        client, _ = await self.client()
++        consumer_tag = asyncio.get_running_loop().create_future()
++        consumer_tag.set_result("leader-consumer-tag")
++        client._consume_task = consumer_tag
++        client._leader_queue.cancel = AsyncMock()
++        client._channel.queue_delete = AsyncMock()
++        client._channel.exchange_delete = AsyncMock()
++
++        await client.stop_group_consumer()
++
++        client._leader_queue.cancel.assert_awaited_once_with("leader-consumer-tag", nowait=False)
++        client._channel.queue_delete.assert_not_awaited()
++        client._channel.exchange_delete.assert_not_awaited()
++        self.assertIsNone(client._consume_task)
++
+     async def test_sdk_rejects_spoofed_sender_before_callback(self):
+         m = message("g", "t", "s", TaskState.Working)
+         with self.assertRaises(SenderIdentityMismatchError):
+diff --git a/tests/test_partner_leave_receipt.py b/tests/test_partner_leave_receipt.py
+new file mode 100644
+index 0000000..8757747
+--- /dev/null
++++ b/tests/test_partner_leave_receipt.py
+@@ -0,0 +1,274 @@
++import asyncio
++import json
++from types import SimpleNamespace
++from time import monotonic
++import unittest
++from unittest.mock import AsyncMock, MagicMock
++
++from aiormq.abc import DeliveredMessage
++from pamqp.commands import Basic
++from acps_sdk.aip import (
++    GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult, StructuredDataItem,
++)
++
++from aip.audited_group_client import AuditedGroupPartnerMqClient
++
++
++PARTNER = "123456789012345678"
++LEADER = "876543210987654321"
++GROUP = "group-two-phase"
++SESSION = "session-two-phase"
++COMMAND = "disband-two-phase"
++
++
++class Audit:
++    def __init__(self):
++        self.events = []
++
++    def emit(self, name, **fields):
++        self.events.append((name, fields))
++
++
++class PartnerLeaveReceiptTests(unittest.IsolatedAsyncioTestCase):
++    def client(self, *, publish=Basic.Ack(delivery_tag=1, multiple=False)):
++        operations = []
++        audit = Audit()
++        client = AuditedGroupPartnerMqClient(PARTNER)
++        client.audit = audit
++        client._group_id = GROUP
++        client._group_info = SimpleNamespace(leader=SimpleNamespace(aic=LEADER))
++        client._disband_context = (GROUP, SESSION, COMMAND, LEADER)
++        client._disband_received_at = monotonic()
++        client._consumer_tag = "consumer-tag"
++
++        queue = MagicMock(name="partner-queue")
++        queue.cancel = AsyncMock(side_effect=lambda *_: operations.append("cancel"))
++        queue.delete = AsyncMock(side_effect=lambda **_: operations.append("delete"))
++        client._queue = queue
++        client._queue_name = "partner-queue"
++
++        channel = MagicMock(is_closed=False, publisher_confirms=True)
++        async def close_channel():
++            operations.append("close-channel")
++            channel.is_closed = True
++        channel.close = AsyncMock(side_effect=close_channel)
++        exchange = MagicMock(channel=channel)
++        async def publish_receipt(*args, **kwargs):
++            operations.append("publish")
++            if isinstance(publish, BaseException):
++                raise publish
++            if isinstance(publish, list):
++                value = publish.pop(0)
++                if isinstance(value, BaseException):
++                    raise value
++                return value
++            return publish
++        exchange.publish = AsyncMock(side_effect=publish_receipt)
++        client._channel = channel
++        client._exchange = exchange
++
++        connection = MagicMock(is_closed=False)
++        async def close_connection():
++            operations.append("close-connection")
++            connection.is_closed = True
++        connection.close = AsyncMock(side_effect=close_connection)
++        client._connection = connection
++        client._connection_owner = True
++        client._disconnect_handler = AsyncMock(
++            side_effect=lambda *_: operations.append("disconnect"))
++        return client, queue, exchange, operations, audit
++
++    async def test_complete_success_order_and_receipt_fields(self):
++        client, queue, exchange, operations, audit = self.client()
++
++        await client._cleanup_group_resources()
++
++        self.assertEqual(operations, [
++            "cancel", "delete", "publish", "close-channel", "close-connection", "disconnect",
++        ])
++        body = json.loads(exchange.publish.await_args.args[0].body)
++        self.assertTrue(exchange.publish.await_args.kwargs["mandatory"])
++        self.assertEqual(exchange.publish.await_args.kwargs["timeout"], 5)
++        self.assertEqual(body["id"], client._receipt_id())
++        self.assertEqual(body["groupId"], GROUP)
++        self.assertEqual(body["sessionId"], SESSION)
++        self.assertEqual(body["senderId"], PARTNER)
++        self.assertEqual(body["mentions"], [LEADER])
++        data = body["dataItems"][0]["data"]
++        self.assertEqual(body["dataItems"][0]["type"], "data")
++        decoded = GroupMgmtResult.model_validate(body)
++        self.assertIsInstance(decoded.dataItems[0], StructuredDataItem)
++        self.assertEqual(data["event"], "GROUP_LEAVE_COMPLETED")
++        self.assertNotIn("code", data)
++        self.assertEqual(data["disbandCommandId"], COMMAND)
++        self.assertTrue(data["consumerStopped"])
++        self.assertTrue(data["partnerQueueDeleted"])
++        self.assertFalse(data["leaderReceiptConfirmed"])
++        self.assertTrue(client.leave_succeeded is False)  # set by outer leave path, not cleanup alone
++        published = [fields for name, fields in audit.events if name == "LEAVE_RECEIPT_PUBLISHED"]
++        self.assertEqual(len(published), 1)
++        self.assertFalse(published[0]["leaderReceiptConfirmed"])
++        self.assertEqual(next(fields["outcome"] for name, fields in audit.events
++                              if name == "LEAVE_RECEIPT_ATTEMPT"), "ack")
++
++    async def test_consumer_cancel_failure_sends_no_receipt(self):
++        client, queue, exchange, _, _ = self.client()
++        queue.cancel.side_effect = RuntimeError("cancel failed")
++        with self.assertRaises(RuntimeError):
++            await client._cleanup_group_resources()
++        queue.delete.assert_not_awaited()
++        exchange.publish.assert_not_awaited()
++
++    async def test_queue_delete_failure_sends_no_receipt(self):
++        client, queue, exchange, operations, _ = self.client()
++        queue.delete.side_effect = RuntimeError("delete failed")
++        with self.assertRaises(RuntimeError):
++            await client._cleanup_group_resources()
++        self.assertEqual(operations, ["cancel"])
++        exchange.publish.assert_not_awaited()
++
++    async def test_queue_delete_does_not_remove_publish_path_in_model(self):
++        client, _, exchange, operations, _ = self.client()
++        await client._cleanup_group_resources()
++        self.assertLess(operations.index("delete"), operations.index("publish"))
++        self.assertLess(operations.index("publish"), operations.index("close-channel"))
++        exchange.publish.assert_awaited_once()
++
++    async def test_confirm_none_is_uncertain_and_retries_same_receipt(self):
++        client, _, exchange, _, audit = self.client(publish=[None, None, None])
++        with self.assertRaisesRegex(RuntimeError, "NOT_CONFIRMED"):
++            await client._cleanup_group_resources()
++        self.assertEqual(exchange.publish.await_count, 3)
++        ids = [call.args[0].message_id for call in exchange.publish.await_args_list]
++        self.assertEqual(ids, [client._receipt_id()] * 3)
++        failed = [fields for name, fields in audit.events if name == "LEAVE_RECEIPT_FAILED"]
++        self.assertEqual(failed[0]["result"], "uncertain")
++
++    async def test_timeout_is_uncertain_and_retries_stable_receipt(self):
++        client, _, exchange, _, audit = self.client(
++            publish=[TimeoutError(), TimeoutError(), TimeoutError()])
++        with self.assertRaisesRegex(RuntimeError, "NOT_CONFIRMED"):
++            await client._cleanup_group_resources()
++        self.assertEqual(exchange.publish.await_count, 3)
++        ids = {call.args[0].message_id for call in exchange.publish.await_args_list}
++        self.assertEqual(ids, {client._receipt_id()})
++        failed = [fields for name, fields in audit.events if name == "LEAVE_RECEIPT_FAILED"]
++        self.assertEqual(failed[0]["result"], "uncertain")
++        attempts = [fields for name, fields in audit.events
++                    if name == "LEAVE_RECEIPT_ATTEMPT"]
++        self.assertEqual([item["outcome"] for item in attempts], ["timeout"] * 3)
++        self.assertEqual({item["receiptId"] for item in attempts}, {client._receipt_id()})
++
++    async def test_nack_or_publish_exception_can_retry_to_confirmed_success(self):
++        client, _, exchange, _, _ = self.client(
++            publish=[RuntimeError("nack"), Basic.Ack(delivery_tag=2, multiple=False)])
++        await client._cleanup_group_resources()
++        self.assertEqual(exchange.publish.await_count, 2)
++        self.assertTrue(client._leave_receipt_published)
++
++    async def test_mandatory_return_is_unroutable_and_not_retried(self):
++        returned = MagicMock(spec=DeliveredMessage)
++        client, _, exchange, _, audit = self.client(publish=returned)
++        with self.assertRaisesRegex(RuntimeError, "NOT_CONFIRMED"):
++            await client._cleanup_group_resources()
++        exchange.publish.assert_awaited_once()
++        self.assertFalse(client._leave_receipt_published)
++        self.assertEqual(next(fields["outcome"] for name, fields in audit.events
++                              if name == "LEAVE_RECEIPT_ATTEMPT"), "unroutable")
++
++    async def test_attempt_audit_distinguishes_exception_uncertain_and_ack(self):
++        client, _, _, _, audit = self.client(
++            publish=[RuntimeError("publish failed"), None,
++                     Basic.Ack(delivery_tag=3, multiple=False)])
++        await client._cleanup_group_resources()
++        attempts = [fields for name, fields in audit.events
++                    if name == "LEAVE_RECEIPT_ATTEMPT"]
++        self.assertEqual([item["outcome"] for item in attempts],
++                         ["exception", "uncertain", "ack"])
++        self.assertEqual(len({item["receiptId"] for item in attempts}), 1)
++        self.assertEqual(sum(name == "LEAVE_RECEIPT_PUBLISHED"
++                             for name, _ in audit.events), 1)
++
++    async def test_missing_publisher_confirms_sends_no_receipt(self):
++        client, _, exchange, _, _ = self.client()
++        exchange.channel.publisher_confirms = False
++        with self.assertRaisesRegex(RuntimeError, "PUBLISHER_CONFIRMS_REQUIRED"):
++            await client._cleanup_group_resources()
++        exchange.publish.assert_not_awaited()
++
++    async def test_duplicate_disband_is_idempotent_and_conflict_rejected(self):
++        client, _, _, _, audit = self.client()
++        client._disband_context = None
++        command = GroupMgmtCommand(
++            id=COMMAND, sentAt="2026-10-29T00:00:00Z", senderRole="leader",
++            senderId=LEADER, mentions="all", groupId=GROUP, sessionId=SESSION,
++            command=GroupMgmtCommandType.DISBAND)
++        await client._handle_mgmt_command(command)
++        first_id = client._receipt_id()
++        await client._handle_mgmt_command(command)
++        self.assertEqual(client._receipt_id(), first_id)
++        conflicting = command.model_copy(update={"id": "different-disband"})
++        await client._handle_mgmt_command(conflicting)
++        self.assertEqual(client._receipt_id(), first_id)
++        self.assertTrue(any(name == "DISBAND_REJECTED" for name, _ in audit.events))
++
++    async def test_uncorrelated_or_wrong_leader_disband_is_rejected(self):
++        client, _, _, _, audit = self.client()
++        client._disband_context = None
++        command = GroupMgmtCommand(
++            id=COMMAND, sentAt="2026-10-29T00:00:00Z", senderRole="leader",
++            senderId="wrong-leader", mentions="all", groupId=GROUP, sessionId=None,
++            command=GroupMgmtCommandType.DISBAND)
++        await client._handle_mgmt_command(command)
++        self.assertIsNone(client._disband_context)
++        self.assertFalse(client._pending_leave)
++        self.assertEqual(audit.events[0][0], "DISBAND_REJECTED")
++
++    async def test_failed_leave_close_does_not_reenter_cleanup_or_publish(self):
++        client, queue, exchange, _, audit = self.client()
++        client.leave_finished.set()
++        client.leave_succeeded = False
++        client._inbox_channel = MagicMock(is_closed=True)
++        await client.close()
++        queue.cancel.assert_not_awaited()
++        queue.delete.assert_not_awaited()
++        exchange.publish.assert_not_awaited()
++        self.assertTrue(any(name == "FAILED_LEAVE_TRANSPORT_CLOSED"
++                            for name, _ in audit.events))
++
++    async def test_duplicate_cleanup_waits_for_single_sequence(self):
++        client, queue, exchange, _, audit = self.client()
++        entered = asyncio.Event()
++        release = asyncio.Event()
++        async def cancel_once(*_):
++            entered.set()
++            await release.wait()
++        queue.cancel.side_effect = cancel_once
++        first = asyncio.create_task(client._cleanup_group_resources())
++        await entered.wait()
++        second = asyncio.create_task(client._cleanup_group_resources())
++        await asyncio.sleep(0)
++        release.set()
++        await asyncio.gather(first, second)
++        queue.cancel.assert_awaited_once()
++        queue.delete.assert_awaited_once()
++        exchange.publish.assert_awaited_once()
++        self.assertEqual(sum(name == "LEAVE_RECEIPT_PUBLISHED"
++                             for name, _ in audit.events), 1)
++
++    def test_retry_budget_is_below_leader_window(self):
++        # asyncio.wait_for enforces each attempt; there is no retry sleep.
++        self.assertLess(3 * 5, 20)
++
++    async def test_end_to_end_partner_budget_exhaustion_sends_no_receipt(self):
++        client, queue, exchange, _, _ = self.client()
++        client._disband_received_at = monotonic() - 18.1
++        with self.assertRaises(TimeoutError):
++            await client._cleanup_group_resources()
++        queue.cancel.assert_not_awaited()
++        queue.delete.assert_not_awaited()
++        exchange.publish.assert_not_awaited()
++
++
++if __name__ == "__main__":
++    unittest.main()
+

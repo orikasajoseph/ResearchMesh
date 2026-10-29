@@ -50,6 +50,8 @@ def main(argv=None):
                         help="仅恢复业务与协议已完成、但旧Group清理未确认的S1结果；保留限制")
     parser.add_argument("--business-cleanup-proof", type=Path,
                         help="独立通过的invitation→Disband清理协议record.json")
+    parser.add_argument("--business-cleanup-leader-commit",
+                        help="执行清理证明时实际加载的Leader 40位commit")
     parser.add_argument("--resource-proof", type=Path,
                         help="复用与本轮S1绑定的已核验资源记录；再次检查PDF缓存，不新增资源请求")
     parser.add_argument("--join-timeout", type=float, default=90)
@@ -67,8 +69,9 @@ def main(argv=None):
     if not args.partners_ready or not args.confirm_each_stage:
         print("正式连续联调必须同时指定 --partners-ready 和 --confirm-each-stage。")
         return 2
-    if args.resume_business_completed and (not args.resume or not args.business_cleanup_proof):
-        print("--resume-business-completed 必须同时指定 --resume 和 --business-cleanup-proof。未连接平台。")
+    if args.resume_business_completed and (not args.resume or not args.business_cleanup_proof
+            or not args.business_cleanup_leader_commit):
+        print("--resume-business-completed 必须同时指定 --resume、--business-cleanup-proof 和 --business-cleanup-leader-commit。未连接平台。")
         return 2
     if args.business_cleanup_proof and not args.resume_business_completed:
         print("--business-cleanup-proof 仅可与 --resume-business-completed 同时使用。未连接平台。")
@@ -125,11 +128,15 @@ def main(argv=None):
     try:
         cleanup_proof = (read_json(args.business_cleanup_proof)
                          if args.business_cleanup_proof else None)
+        cleanup_runtime = ({"leaderCommit": args.business_cleanup_leader_commit,
+                            "partnerCommit": args.literature_commit}
+                           if args.resume_business_completed else None)
         state = asyncio.run(execute_platform_chain(plan, output, runner,
             resource_preparer=prepare_resources, resume_unstarted=args.resume_unstarted,
             resume_terminal_failed=args.resume_terminal_failed,
             resume_business_completed=args.resume_business_completed,
-            business_cleanup_proof=cleanup_proof))
+            business_cleanup_proof=cleanup_proof,
+            business_cleanup_runtime=cleanup_runtime))
     except KeyboardInterrupt:
         print("已中断；检查 state.json 与当前 Partner SQLite，禁止直接重发未确认阶段。")
         return 130

@@ -262,7 +262,7 @@ def verify_saved_stage(output, row, payload):
     return record, result
 
 
-def validate_cleanup_protocol_proof(proof, record):
+def validate_cleanup_protocol_proof(proof, record, expected_runtime):
     """Validate an independent invitation-only proof for the repaired leave protocol.
 
     The proof does not retroactively make the old Group cleanup successful.  It
@@ -274,11 +274,20 @@ def validate_cleanup_protocol_proof(proof, record):
     if not all(proof.get(key) is True for key in (
             "passed", "partnerJoinConfirmed", "cleanupSucceeded",
             "partnerDisbandConfirmed", "aclDeleted", "groupResourcesDeleted",
-            "connectionClosed")):
+            "connectionClosed", "disbandPublished")):
         raise PlatformChainError("BUSINESS_CHECKPOINT_CLEANUP_PROOF_INVALID")
     if (proof.get("taskCommandsSent") != 0 or proof.get("llmCalls") != 0
+            or proof.get("unexpectedTaskMessagesReceived") != 0
             or proof.get("cleanupErrors") != [] or proof.get("error") is not None):
         raise PlatformChainError("BUSINESS_CHECKPOINT_CLEANUP_PROOF_INVALID")
+    binding = proof.get("runtimeBinding")
+    if (not isinstance(expected_runtime, dict)
+            or set(expected_runtime) != {"leaderCommit", "partnerCommit"}
+            or binding != expected_runtime
+            or any(not isinstance(value, str) or len(value) != 40
+                   or any(char not in "0123456789abcdef" for char in value.lower())
+                   for value in expected_runtime.values())):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_CLEANUP_PROOF_RUNTIME_MISMATCH")
     if (proof.get("leaderAic") != record.get("leaderAic")
             or proof.get("partnerAic") != record.get("partnerAic")):
         raise PlatformChainError("BUSINESS_CHECKPOINT_CLEANUP_PROOF_IDENTITY_MISMATCH")
@@ -292,7 +301,8 @@ def validate_cleanup_protocol_proof(proof, record):
     return deepcopy(proof)
 
 
-def verify_business_completed_checkpoint(output, row, payload, cleanup_proof):
+def verify_business_completed_checkpoint(output, row, payload, cleanup_proof,
+                                         cleanup_runtime):
     """Recover a business Result while preserving an old cleanup failure.
 
     This is deliberately narrower than accepting a formal completed stage.  It
@@ -340,7 +350,7 @@ def verify_business_completed_checkpoint(output, row, payload, cleanup_proof):
         validate_business_result(payload, result, repository_analysis_mode="static")
     except (ValueError, TypeError, KeyError, AttributeError):
         raise PlatformChainError("BUSINESS_CHECKPOINT_RESULT_INVALID") from None
-    proof = validate_cleanup_protocol_proof(cleanup_proof, record)
+    proof = validate_cleanup_protocol_proof(cleanup_proof, record, cleanup_runtime)
     return record, result, proof
 
 
@@ -363,7 +373,7 @@ def verify_recovered_business_stage(output, row, payload):
     record = read_json(directory / "record.json")
     if digest(record) != row.get("recordSha256") or record.get("task") != payload:
         raise PlatformChainError("FORMAL_STAGE_CHECKPOINT_CHANGED")
-    validate_cleanup_protocol_proof(proof, record)
+    validate_cleanup_protocol_proof(proof, record, recovery.get("runtimeBinding"))
     try:
         validate_business_result(payload, result, repository_analysis_mode="static")
     except (ValueError, TypeError, KeyError, AttributeError):
@@ -396,7 +406,8 @@ def render_report(state):
 async def execute_platform_chain(plan, output, runner, *, resource_preparer=None,
                                  resume_unstarted=False, resume_terminal_failed=False,
                                  resume_business_completed=False,
-                                 business_cleanup_proof=None):
+                                 business_cleanup_proof=None,
+                                 business_cleanup_runtime=None):
     """Execute or safely resume a three-stage chain using an injected runner.
 
     runner(stage_name, seven_field_task) must return the persisted Leader record
@@ -444,7 +455,8 @@ async def execute_platform_chain(plan, output, runner, *, resource_preparer=None
                 continue
             if resume_business_completed:
                 record, result, proof = verify_business_completed_checkpoint(
-                    output, existing, payload, business_cleanup_proof)
+                    output, existing, payload, business_cleanup_proof,
+                    business_cleanup_runtime)
                 directory = stage_directory(output, existing)
                 result_hash = digest(result)
                 recovery = {
@@ -456,6 +468,7 @@ async def execute_platform_chain(plan, output, runner, *, resource_preparer=None
                     "originalCleanupResolved": False,
                     "originalCleanupErrors": deepcopy(record["cleanupErrors"]),
                     "protocolProofSha256": digest(proof),
+                    "runtimeBinding": deepcopy(business_cleanup_runtime),
                     "protocolProofGroupId": proof["groupId"],
                     "protocolProofDisbandCommandId": proof["disbandCommandId"],
                     "claimBoundary": (

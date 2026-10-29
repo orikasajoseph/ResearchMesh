@@ -136,6 +136,9 @@ class RepositoryConversationTests(unittest.IsolatedAsyncioTestCase):
                 await conversation.on_message(message(TaskState.Completed))
 
         client = AsyncMock()
+        client._connection.is_closed = False
+        client._channel.is_closed = False
+        client._exchange.channel = client._channel
         client.send_task_command.side_effect = send
         await conversation.run(client, TASK, record, lambda _: None, 1)
         self.assertEqual(commands, [TaskCommandType.Start, TaskCommandType.Complete])

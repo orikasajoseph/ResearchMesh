@@ -11,7 +11,7 @@ from uuid import uuid4
 import aio_pika
 from aio_pika.connection import make_url
 from acps_sdk.aip import (
-    ACSObject, GroupLeaderMqClient, GroupMgmtCommand, GroupMgmtCommandType,
+    ACSObject, GroupLeaderMqClient, GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult,
     StructuredDataItem, TaskCommand, TaskCommandType, TaskResult, TaskState,
 )
 from acps_sdk.aip.aip_group_auth import GroupAclClient, GroupAclError
@@ -89,6 +89,51 @@ async def settle_group_shutdown():
     await asyncio.sleep(2)
 
 
+async def stop_local_group_consumer(client):
+    """Await consumer registration, then cancel the returned broker consumer tag."""
+    task = getattr(client, "_consume_task", None)
+    queue = getattr(client, "_leader_queue", None)
+    if task is None or queue is None:
+        raise CheckError("CONSUMER_REGISTRATION_UNKNOWN")
+    tag = await asyncio.shield(task)
+    if not isinstance(tag, str) or not tag:
+        raise CheckError("CONSUMER_TAG_UNKNOWN")
+    await queue.cancel(tag, nowait=False)
+
+
+def publish_path_snapshot(client):
+    connection = getattr(client, "_connection", None)
+    channel = getattr(client, "_channel", None)
+    exchange = getattr(client, "_exchange", None)
+    exchange_channel = getattr(exchange, "channel", None) if exchange is not None else None
+    return {"connectionPresent": connection is not None,
+            "connectionClosed": getattr(connection, "is_closed", None),
+            "transportAvailable": getattr(connection, "transport", None) is not None,
+            "channelPresent": channel is not None, "channelClosed": getattr(channel, "is_closed", None),
+            "exchangePresent": exchange is not None,
+            "exchangeChannelClosed": getattr(exchange_channel, "is_closed", None),
+            "exchangeUsesCurrentChannel": exchange_channel is channel}
+
+
+def require_publish_ready(client):
+    connection = getattr(client, "_connection", None)
+    channel = getattr(client, "_channel", None)
+    exchange = getattr(client, "_exchange", None)
+    if connection is None or channel is None or exchange is None:
+        raise CheckError("AMQP_PUBLISH_PATH_UNAVAILABLE")
+    if getattr(connection, "is_closed", False) is True:
+        raise CheckError("AMQP_CONNECTION_CLOSED")
+    if getattr(connection, "transport", object()) is None:
+        raise CheckError("AMQP_CONNECTION_TRANSPORT_UNAVAILABLE")
+    if getattr(channel, "is_closed", False) is True:
+        raise CheckError("AMQP_CHANNEL_CLOSED")
+    exchange_channel = getattr(exchange, "channel", channel)
+    if getattr(exchange_channel, "is_closed", False) is True:
+        raise CheckError("AMQP_EXCHANGE_CHANNEL_CLOSED")
+    if exchange_channel is not channel:
+        raise CheckError("AMQP_EXCHANGE_CHANNEL_STALE")
+
+
 def partner_failure_diagnostic(message):
     """Retain only recognized codes, never arbitrary remote text or credentials."""
     codes = set()
@@ -149,10 +194,28 @@ class LiteratureConversation:
         self.join = JoinConfirmation(config.partner_aic, group_id)
         self.task_id, self.session_id = task_id, session_id
         self.messages = asyncio.Queue(maxsize=128)
+        self.leave_command_id = None
+        self.leave_completed = asyncio.Event()
+        self.leave_receipt = None
         self.overflow = False
         self.ignored = 0
 
     async def on_message(self, message):
+        if (isinstance(message, GroupMgmtResult) and self.leave_command_id is not None
+                and message.senderRole == "partner" and message.senderId == self.join.partner_aic
+                and message.groupId == self.join.group_id and message.sessionId == self.session_id
+                and message.status.connected is False):
+            for item in message.dataItems or []:
+                if (isinstance(item, StructuredDataItem) and isinstance(item.data, dict)
+                        and item.data.get("event") == "GROUP_LEAVE_COMPLETED"
+                        and item.data.get("disbandCommandId") == self.leave_command_id):
+                    if self.leave_receipt is None:
+                        self.leave_receipt = {"messageId": message.id, "senderId": message.senderId,
+                            "groupId": message.groupId, "sessionId": message.sessionId,
+                            "disbandCommandId": self.leave_command_id,
+                            "receivedAt": datetime.now(timezone.utc).isoformat()}
+                    self.leave_completed.set()
+                    return
         if not isinstance(message, TaskResult):
             await self.join.on_message(message)
             return
@@ -186,6 +249,8 @@ class LiteratureConversation:
         event("TASK_START_ATTEMPT")
         # One total deadline covers Start publish, all messages and Complete publish.
         async with asyncio.timeout(timeout):
+            record["startPublishPath"] = publish_path_snapshot(client)
+            require_publish_ready(client)
             await client.send_task_command(
                 TaskCommandType.Start, self.task_id, self.session_id,
                 data_items=[StructuredDataItem(data=deepcopy(task))], mentions=[self.join.partner_aic])
@@ -221,6 +286,8 @@ class LiteratureConversation:
                     event("BUSINESS_RESULT_VALIDATED")
                     record["completeAttempted"] = True
                     event("TASK_COMPLETE_ATTEMPT")
+                    record["completePublishPath"] = publish_path_snapshot(client)
+                    require_publish_ready(client)
                     await client.send_task_command(
                         TaskCommandType.Complete, self.task_id, self.session_id,
                         mentions=[self.join.partner_aic])
@@ -284,6 +351,11 @@ async def _run_group_single_task(config, task, *, execute, partner_ready,
         "completeAttempted": False, "completePublished": False,
         "resultValidated": False, "result": None, "taskStates": [],
         "protocolCompleted": False, "businessReady": False, "remoteStateUnknown": False,
+        "startPublishPath": None, "completePublishPath": None,
+        "disbandPublished": None, "disbandPublishPath": None,
+        "disbandSettleCompleted": None, "consumerCleanupCompleted": None,
+        "partnerDisbandConfirmed": False, "disbandCommandId": None, "groupResourceCleanup": {},
+        "groupResourceCleanupDeferred": [],
         "cleanupAttempted": False, "cleanupSucceeded": None, "aclDeleted": None,
         "groupResourcesDeleted": None, "connectionClosed": None,
         "events": [], "error": None, "cleanupErrors": [], "passed": False,
@@ -303,9 +375,9 @@ async def _run_group_single_task(config, task, *, execute, partner_ready,
     async def bounded(awaitable):
         return await asyncio.wait_for(awaitable, config.timeout)
 
-    async def cleanup(name, operation):
+    async def cleanup(name, operation, *, timeout=None):
         try:
-            await asyncio.wait_for(operation(), min(config.timeout, 5))
+            await asyncio.wait_for(operation(), min(config.timeout, 5) if timeout is None else timeout)
             return True
         except Exception as error:
             record["cleanupErrors"].append({"step": name, "type": type(error).__name__})
@@ -394,24 +466,70 @@ async def _run_group_single_task(config, task, *, execute, partner_ready,
                 client.task_sending_enabled = False
             if record["groupCreated"]:
                 # Use the public SDK call directly: its convenience shutdown swallows publish errors.
-                await cleanup("disband", lambda: client.send_mgmt_command(GroupMgmtCommandType.DISBAND, mentions="all"))
-                await cleanup("disband_settle", settle_group_shutdown)
-                await cleanup("stop_consumer", client.cleanup_group_resources)
+                async def publish_disband():
+                    record["disbandPublishPath"] = publish_path_snapshot(client)
+                    require_publish_ready(client)
+                    command = client._build_mgmt_command(command=GroupMgmtCommandType.DISBAND,
+                                                         mentions="all", session_id=session_id)
+                    record["disbandCommandId"] = command.id
+                    event("DISBAND_PUBLISH_ATTEMPT")
+                    if conversation is not None:
+                        conversation.leave_command_id = command.id
+                    await client.publish_message(command)
+                record["disbandPublished"] = await cleanup("disband", publish_disband)
+                if record["disbandPublished"]:
+                    async def await_partner_leave():
+                        if conversation is None:
+                            raise CheckError("PARTNER_LEAVE_CONFIRMATION_UNAVAILABLE")
+                        await conversation.leave_completed.wait()
+                    record["partnerLeaveTimeoutSeconds"] = config.timeout
+                    record["partnerDisbandConfirmed"] = await cleanup(
+                        "partner_leave_confirmation", await_partner_leave, timeout=config.timeout)
+                    record["partnerLeaveReceipt"] = deepcopy(conversation.leave_receipt) if conversation else None
+                    event("PARTNER_LEAVE_CONFIRMED" if record["partnerDisbandConfirmed"] else "PARTNER_LEAVE_UNCONFIRMED")
+                    if record["partnerDisbandConfirmed"]:
+                        record["disbandSettleCompleted"] = await cleanup("disband_settle", settle_group_shutdown)
+                        if record["disbandSettleCompleted"]:
+                            record["consumerCleanupCompleted"] = await cleanup("stop_consumer", lambda: stop_local_group_consumer(client))
+                        else:
+                            record["cleanupErrors"].append({"step": "stop_consumer_deferred", "type": "DependencyFailed"})
+                    else:
+                        record["cleanupErrors"].append({"step": "stop_consumer_deferred", "type": "DependencyFailed"})
+                else:
+                    record["cleanupErrors"].append({"step": "stop_consumer_deferred", "type": "DependencyFailed"})
             if record["groupCreationAttempted"]:
-                deleted = []
-                if connection is not None and not connection.is_closed:
-                    for kind, name in (
-                        ("queue", build_group_queue_name(config.leader_aic, group_id, config.partner_aic)),
-                        ("queue", build_group_queue_name(config.leader_aic, group_id, config.leader_aic)),
-                        ("exchange", build_group_exchange_name(config.leader_aic, group_id))):
-                        deleted.append(await cleanup("delete_" + kind,
-                            lambda k=kind, n=name: delete_resource(connection, k, n)))
-                record["groupResourcesDeleted"] = len(deleted) == 3 and all(deleted)
+                resources = (
+                    ("partnerQueue", "queue", build_group_queue_name(config.leader_aic, group_id, config.partner_aic)),
+                    ("leaderQueue", "queue", build_group_queue_name(config.leader_aic, group_id, config.leader_aic)),
+                    ("exchange", "exchange", build_group_exchange_name(config.leader_aic, group_id)),
+                )
+                deleted = {}
+                if not record["groupCreated"] or not (record["disbandPublished"] is True and record["partnerDisbandConfirmed"] is True
+                        and record["disbandSettleCompleted"] is True and record["consumerCleanupCompleted"] is True):
+                    record["groupResourceCleanupDeferred"] = [label for label, _, _ in resources]
+                    for label in record["groupResourceCleanupDeferred"]:
+                        deleted[label] = False
+                        record["cleanupErrors"].append({"step": "delete_" + label + "_deferred", "type": "DependencyFailed"})
+                elif connection is not None and not connection.is_closed:
+                    for label, kind, name in resources:
+                        deleted[label] = await cleanup("delete_" + label,
+                            lambda k=kind, n=name: delete_resource(connection, k, n))
+                        if not deleted[label]:
+                            record["groupResourceCleanupDeferred"] = [r[0] for r in resources if r[0] not in deleted]
+                            break
+                record["groupResourceCleanup"] = deleted
+                record["groupResourcesDeleted"] = len(deleted) == 3 and all(deleted.values())
                 if not record["groupResourcesDeleted"]:
                     record["cleanupErrors"].append({"step": "delete_group_resources", "type": "IncompleteCleanup"})
             if acl is not None:
-                record["aclDeleted"] = await cleanup("delete_own_acl", lambda: acl.delete_group(
-                    leader_aic=config.leader_aic, group_id=group_id))
+                mq_cleanup_safe = (not record["groupCreationAttempted"] or
+                    (record["groupResourcesDeleted"] and (not record["groupCreated"] or record["disbandPublished"])))
+                if mq_cleanup_safe:
+                    record["aclDeleted"] = await cleanup("delete_own_acl", lambda: acl.delete_group(
+                        leader_aic=config.leader_aic, group_id=group_id))
+                else:
+                    record["aclDeleted"] = False
+                    record["cleanupErrors"].append({"step": "delete_own_acl_deferred", "type": "DependencyFailed"})
             if connection is not None:
                 await cleanup("close_connection", connection.close)
                 record["connectionClosed"] = bool(connection.is_closed)

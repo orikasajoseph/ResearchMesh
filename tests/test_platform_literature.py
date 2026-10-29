@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from acps_sdk.aip import GroupMgmtCommandType, Product, StructuredDataItem, TaskCommandType, TaskResult, TaskState
+from acps_sdk.aip import GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult, Product, StructuredDataItem, TaskCommandType, TaskResult, TaskState
 from acps_sdk.aip.aip_group_auth import GroupAclError
 from acps_sdk.aip.aip_group_identity import assert_incoming_group_message_identity
 from acps_sdk.aip.aip_identity import SenderIdentityMismatchError
@@ -43,6 +43,34 @@ def message(group_id, task_id, session_id, state, data=None, *, message_id=None)
 
 
 class ConversationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_leave_receipt_requires_exact_sender_group_session_and_command(self):
+        convo = leader.LiteratureConversation(config(), "g", "t", "s")
+        convo.leave_command_id = "d1"
+        fields = {"id": "r", "sentAt": datetime.now(timezone.utc).isoformat(),
+                  "senderRole": "partner", "senderId": PARTNER, "groupId": "g", "sessionId": "s",
+                  "status": {"connected": False, "muted": False},
+                  "dataItems": [StructuredDataItem(data={"event": "GROUP_LEAVE_COMPLETED", "disbandCommandId": "d1"})]}
+        for override in ({"senderId": "other"}, {"groupId": "wrong"}, {"sessionId": "wrong"},
+                         {"status": {"connected": True, "muted": False}},
+                         {"dataItems": [StructuredDataItem(data={"event": "GROUP_LEAVE_COMPLETED", "disbandCommandId": "old"})]}):
+            await convo.on_message(GroupMgmtResult(**dict(fields, **override)))
+            self.assertFalse(convo.leave_completed.is_set())
+        await convo.on_message(GroupMgmtResult(**fields))
+        self.assertTrue(convo.leave_completed.is_set())
+        await convo.on_message(GroupMgmtResult(**fields))
+        self.assertTrue(convo.leave_completed.is_set())
+
+    async def test_receipt_before_disband_is_not_accepted(self):
+        convo = leader.LiteratureConversation(config(), "g", "t", "s")
+        receipt = GroupMgmtResult(id="r", sentAt=datetime.now(timezone.utc).isoformat(),
+            senderRole="partner", senderId=PARTNER, groupId="g", sessionId="s",
+            status={"connected": False, "muted": False}, dataItems=[StructuredDataItem(data={
+                "event": "GROUP_LEAVE_COMPLETED", "disbandCommandId": "d1"})])
+        await convo.on_message(receipt)
+        self.assertFalse(convo.leave_completed.is_set())
+        convo.leave_command_id = "d1"
+        self.assertFalse(convo.leave_completed.is_set())
+
     async def scenario(self, *, data=None, final=None, wrong=False, early=False,
                        terminal=None, duplicate=False, silent=False, publish_error=False):
         convo = leader.LiteratureConversation(config(), "g", "t", "s")
@@ -79,6 +107,9 @@ class ConversationTests(unittest.IsolatedAsyncioTestCase):
                 await convo.on_message(message("g", "t", "s", TaskState.Completed, final))
 
         client = MagicMock()
+        client._connection.is_closed = False
+        client._channel.is_closed = False
+        client._exchange.channel = client._channel
         client.send_task_command = AsyncMock(side_effect=send)
         events = []
         try:
@@ -171,7 +202,9 @@ class ConversationTests(unittest.IsolatedAsyncioTestCase):
 class WorkflowTests(unittest.IsolatedAsyncioTestCase):
     async def scenario(self, *, execute=True, partner_ready=True, partner_commit="edb9dcf",
                        acl_error=False, join_timeout=False, task_timeout=False,
-                       cleanup_error=False, checkpoint=None, task=None, task_release=None):
+                       cleanup_error=False, settle_error=False, consumer_error=False, resource_error=False, no_leave_ack=False,
+                       create_error=False, late_leave_ack=False, disconnect_after_ack=False,
+                       checkpoint=None, task=None, task_release=None):
         operations = []
         acl = MagicMock()
         async def authorize(**kwargs):
@@ -189,9 +222,14 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         connection.connect = AsyncMock(side_effect=connect)
         connection.close = AsyncMock(side_effect=close)
         client = MagicMock()
+        client._connection = connection
+        client._channel.is_closed = False
+        client._exchange.channel = client._channel
         client.connect = AsyncMock()
         async def create(**kwargs):
             client.group_id = kwargs["group_id"]
+            if create_error:
+                raise RuntimeError("uncertain group creation")
             return client.group_id
         client.create_group = AsyncMock(side_effect=create)
         client.start_consuming = AsyncMock()
@@ -209,11 +247,34 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
             await handler(message(client.group_id, task_id, session_id, state,
                                   result() if command == TaskCommandType.Start else None))
         client.send_task_command = AsyncMock(side_effect=send)
-        client.send_mgmt_command = AsyncMock(side_effect=RuntimeError("secret-cleanup") if cleanup_error else None)
+        def build_mgmt_command(*, command, mentions, session_id):
+            return GroupMgmtCommand(id="disband-1", sentAt=datetime.now(timezone.utc).isoformat(),
+                senderRole="leader", senderId=LEADER, groupId=client.group_id, sessionId=session_id,
+                command=command, mentions=mentions, dataItems=[])
+        client._build_mgmt_command.side_effect = build_mgmt_command
+        async def publish_mgmt(command):
+            if cleanup_error:
+                raise RuntimeError("secret-cleanup")
+            async def deliver():
+                await client.set_message_handler.call_args.args[0](GroupMgmtResult(
+                    id="leave-1", sentAt=datetime.now(timezone.utc).isoformat(), senderRole="partner",
+                    senderId=PARTNER, groupId=command.groupId, sessionId=command.sessionId,
+                    status={"connected": False, "muted": False}, dataItems=[StructuredDataItem(data={
+                        "event": "GROUP_LEAVE_COMPLETED", "disbandCommandId": command.id})]))
+            if late_leave_ack:
+                async def later():
+                    await asyncio.sleep(1.1)
+                    await deliver()
+                asyncio.create_task(later())
+            elif not no_leave_ack:
+                await deliver()
+                if disconnect_after_ack:
+                    connection.is_closed = True
+        client.publish_message = AsyncMock(side_effect=publish_mgmt)
         client.cleanup_group_resources = AsyncMock()
         cfg = config()
         from dataclasses import replace
-        cfg = replace(cfg, join_timeout=.015)
+        cfg = replace(cfg, join_timeout=.015, timeout=1 if no_leave_ack or late_leave_ack else cfg.timeout)
         # Validate production deadlines normally; use short fixture deadline only after validation.
         real_validate = leader.validate
         def validated(c, *args):
@@ -224,8 +285,12 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
             a = stack.enter_context(patch.object(leader, "GroupAclClient", return_value=acl))
             b = stack.enter_context(patch.object(leader.aio_pika, "Connection", return_value=connection))
             c = stack.enter_context(patch.object(leader, "SingleTaskMqClient", return_value=client))
-            deletion = stack.enter_context(patch.object(leader, "delete_resource", new_callable=AsyncMock))
-            stack.enter_context(patch.object(leader, "settle_group_shutdown", new_callable=AsyncMock))
+            deletion = stack.enter_context(patch.object(leader, "delete_resource", new_callable=AsyncMock,
+                side_effect=PermissionError("resource") if resource_error else None))
+            stack.enter_context(patch.object(leader, "settle_group_shutdown", new_callable=AsyncMock,
+                                             side_effect=RuntimeError("settle") if settle_error else None))
+            stack.enter_context(patch.object(leader, "stop_local_group_consumer", new_callable=AsyncMock,
+                                             side_effect=RuntimeError("consumer") if consumer_error else None))
             stack.enter_context(patch("socket.getaddrinfo", side_effect=AssertionError("NO_NETWORK")))
             # Keep real config validation, only shorten the task wait for offline timeout tests.
             original_run = leader.LiteratureConversation.run
@@ -271,7 +336,8 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(rec["partnerCommitRemotelyVerified"])
         self.assertEqual(rec["taskCommandsSent"], 2)
         self.assertEqual(deletion.await_count, 3)
-        client.send_mgmt_command.assert_awaited_once_with(GroupMgmtCommandType.DISBAND, mentions="all")
+        client.publish_message.assert_awaited_once()
+        self.assertTrue(rec["partnerDisbandConfirmed"])
         self.assertTrue(rec["groupId"].startswith("rm-literature-"))
         self.assertEqual(acl.delete_group.call_args.kwargs["group_id"], rec["groupId"])
 
@@ -318,6 +384,61 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         client.send_task_command.assert_awaited_once()
         self.assertTrue(rec["cleanupSucceeded"])
 
+    async def test_failed_cleanup_stages_defer_resources_and_acl(self):
+        for options in ({"cleanup_error": True}, {"settle_error": True}, {"consumer_error": True}):
+            with self.subTest(options=options):
+                rec, _, client, _, deletion, acl = await self.scenario(**options)
+                self.assertFalse(rec["cleanupSucceeded"])
+                self.assertFalse(rec["groupResourcesDeleted"])
+                self.assertFalse(rec["aclDeleted"])
+                self.assertEqual(rec["partnerDisbandConfirmed"], not options.get("cleanup_error", False))
+                self.assertEqual(rec["groupResourceCleanupDeferred"], ["partnerQueue", "leaderQueue", "exchange"])
+                deletion.assert_not_awaited()
+                acl.delete_group.assert_not_awaited()
+                client.cleanup_group_resources.assert_not_awaited()
+
+    async def test_failed_resource_deletion_preserves_acl(self):
+        rec, _, _, _, deletion, acl = await self.scenario(resource_error=True)
+        self.assertEqual(deletion.await_count, 1)
+        self.assertFalse(rec["groupResourcesDeleted"])
+        self.assertFalse(rec["aclDeleted"])
+        self.assertFalse(rec["cleanupSucceeded"])
+        acl.delete_group.assert_not_awaited()
+
+    async def test_missing_partner_confirmation_defers_cleanup(self):
+        rec, _, _, _, deletion, acl = await self.scenario(no_leave_ack=True)
+        self.assertTrue(rec["disbandPublished"])
+        self.assertFalse(rec["partnerDisbandConfirmed"])
+        self.assertFalse(rec["cleanupSucceeded"])
+        deletion.assert_not_awaited()
+        acl.delete_group.assert_not_awaited()
+
+    async def test_uncertain_group_creation_preserves_resources_and_acl(self):
+        rec, _, _, _, deletion, acl = await self.scenario(create_error=True)
+        self.assertTrue(rec["groupCreationAttempted"])
+        self.assertFalse(rec["groupCreated"])
+        self.assertFalse(rec["groupResourcesDeleted"])
+        self.assertFalse(rec["aclDeleted"])
+        deletion.assert_not_awaited()
+        acl.delete_group.assert_not_awaited()
+
+    async def test_late_ack_does_not_resume_deferred_cleanup(self):
+        rec, _, _, _, deletion, acl = await self.scenario(late_leave_ack=True)
+        await asyncio.sleep(.2)
+        self.assertFalse(rec["partnerDisbandConfirmed"])
+        self.assertFalse(rec["cleanupSucceeded"])
+        deletion.assert_not_awaited()
+        acl.delete_group.assert_not_awaited()
+
+    async def test_connection_loss_after_ack_preserves_acl(self):
+        rec, _, _, _, deletion, acl = await self.scenario(disconnect_after_ack=True)
+        self.assertTrue(rec["partnerDisbandConfirmed"])
+        self.assertFalse(rec["groupResourcesDeleted"])
+        self.assertFalse(rec["aclDeleted"])
+        self.assertFalse(rec["cleanupSucceeded"])
+        deletion.assert_not_awaited()
+        acl.delete_group.assert_not_awaited()
+
     async def test_cleanup_error_preserves_business_but_prevents_pass(self):
         rec, _, _, _, _, _ = await self.scenario(cleanup_error=True)
         self.assertTrue(rec["protocolCompleted"])
@@ -348,6 +469,39 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
 
 
 class WireTests(unittest.IsolatedAsyncioTestCase):
+    async def test_publish_path_rejects_closed_or_stale_channel(self):
+        client = MagicMock()
+        client._connection.is_closed = False
+        client._channel.is_closed = False
+        client._exchange.channel = client._channel
+        leader.require_publish_ready(client)
+        client._channel.is_closed = True
+        with self.assertRaisesRegex(leader.CheckError, "AMQP_CHANNEL_CLOSED"):
+            leader.require_publish_ready(client)
+        client._channel.is_closed = False
+        client._exchange.channel = MagicMock(is_closed=False)
+        with self.assertRaisesRegex(leader.CheckError, "AMQP_EXCHANGE_CHANNEL_STALE"):
+            leader.require_publish_ready(client)
+
+    async def test_stop_consumer_does_not_call_sdk_resource_cleanup(self):
+        started = asyncio.Event()
+        async def consume():
+            started.set()
+            return "consumer-tag-1"
+        consumer = asyncio.create_task(consume())
+        await started.wait()
+        client = MagicMock()
+        client._consume_task = consumer
+        client._leader_queue.cancel = AsyncMock()
+        client.cleanup_group_resources = AsyncMock()
+        await leader.stop_local_group_consumer(client)
+        self.assertFalse(consumer.cancelled())
+        client._leader_queue.cancel.assert_awaited_once_with("consumer-tag-1", nowait=False)
+        client.cleanup_group_resources.assert_not_awaited()
+        client._leader_queue.cancel.side_effect = RuntimeError("cancel failed")
+        with self.assertRaisesRegex(RuntimeError, "cancel failed"):
+            await leader.stop_local_group_consumer(client)
+
     async def client(self):
         connection, channel, exchange = MagicMock(is_closed=False), MagicMock(is_closed=False), MagicMock()
         exchange.publish = AsyncMock()
@@ -380,6 +534,14 @@ class WireTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "RETRY_DISABLED"):
             await client.send_task_command(TaskCommandType.Start, "t", "s",
                 data_items=[StructuredDataItem(data=TASK)], mentions=[PARTNER])
+
+    async def test_real_sdk_registration_tag_is_cancelled(self):
+        client, _ = await self.client()
+        client._leader_queue.consume = AsyncMock(return_value="sdk-tag")
+        client._leader_queue.cancel = AsyncMock()
+        await client.start_consuming()
+        await leader.stop_local_group_consumer(client)
+        client._leader_queue.cancel.assert_awaited_once_with("sdk-tag", nowait=False)
 
     async def test_scope_and_prejoin_send_guard(self):
         client, exchange = await self.client()

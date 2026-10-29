@@ -10,6 +10,8 @@ import tempfile
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from aiormq.exceptions import AMQPConnectionError, ChannelAccessRefused, ChannelInvalidStateError
+
 from platform_mq_check import (
     ROOT, CertificateInfo, CheckError, certificate_context,
     check_connection, classify_error, validate_config,
@@ -43,6 +45,12 @@ class ConfigTests(unittest.TestCase):
 
     def test_unknown_error_never_echoes_raw_message(self):
         self.assertEqual(classify_error(RuntimeError("secret-value")), "CONNECTION_CHECK_FAILED")
+
+    def test_transport_error_categories_remain_distinct(self):
+        self.assertEqual(classify_error(socket.gaierror()), "DNS_LOOKUP_FAILED")
+        self.assertEqual(classify_error(ChannelAccessRefused()), "AMQP_ACCESS_REFUSED")
+        self.assertEqual(classify_error(ChannelInvalidStateError()), "AMQP_CHANNEL_INVALID_STATE")
+        self.assertEqual(classify_error(AMQPConnectionError()), "AMQP_CONNECTION_FAILED")
 
     def test_platform_credential_paths_are_ignored(self):
         paths = ["leader-key.pem", "leader-cert.pem", "trust-bundle.pem", "leader-eab.json",

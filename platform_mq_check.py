@@ -13,6 +13,10 @@ from time import monotonic
 
 import aio_pika
 from aio_pika.connection import make_url
+from aiormq.exceptions import (
+    AMQPConnectionError, ChannelAccessRefused, ChannelClosed,
+    ChannelInvalidStateError, ConnectionClosed,
+)
 from acps_sdk.aip import GroupLeaderMqClient
 from acps_sdk.aip.aip_group_runtime import build_external_connection_url
 
@@ -94,6 +98,14 @@ def classify_error(exc: Exception) -> str:
         return "CONNECTION_TIMEOUT"
     if isinstance(exc, socket.gaierror):
         return "DNS_LOOKUP_FAILED"
+    if isinstance(exc, ChannelAccessRefused):
+        return "AMQP_ACCESS_REFUSED"
+    if isinstance(exc, ChannelInvalidStateError):
+        return "AMQP_CHANNEL_INVALID_STATE"
+    if isinstance(exc, ChannelClosed):
+        return "AMQP_CHANNEL_CLOSED"
+    if isinstance(exc, (AMQPConnectionError, ConnectionClosed, ConnectionError)):
+        return "AMQP_CONNECTION_FAILED"
     if isinstance(exc, ssl.SSLCertVerificationError):
         return "SERVER_CERTIFICATE_VERIFICATION_FAILED"
     if isinstance(exc, ssl.SSLError):

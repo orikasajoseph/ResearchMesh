@@ -61,6 +61,40 @@ def accepted_record(stage, task):
             "taskId": "task-" + stage, "partnerAic": "aic-" + stage}
 
 
+def cleanup_failed_business_record(task):
+    value = accepted_record("literature_search", task)
+    value.update(
+        leaderAic="leader-aic", passed=False, cleanupSucceeded=False,
+        partnerDisbandConfirmed=False, aclDeleted=False, groupResourcesDeleted=False,
+        startAttempted=True, startPublished=True, completeAttempted=True,
+        completePublished=True, taskCommandsSent=2, cleanupAttempted=True,
+        disbandPublished=True, connectionClosed=True,
+        cleanupErrors=[
+            {"step": "partner_leave_confirmation", "type": "TimeoutError"},
+            {"step": "stop_consumer_deferred", "type": "DependencyFailed"},
+            {"step": "delete_group_resources", "type": "IncompleteCleanup"},
+            {"step": "delete_own_acl_deferred", "type": "DependencyFailed"},
+        ],
+    )
+    return value
+
+
+def cleanup_protocol_proof():
+    return {
+        "scope": "PLATFORM_INVITATION_ONLY", "passed": True,
+        "leaderAic": "leader-aic", "partnerAic": "aic-literature_search",
+        "groupId": "proof-group", "cleanupSessionId": "proof-session",
+        "disbandCommandId": "proof-disband", "partnerJoinConfirmed": True,
+        "cleanupSucceeded": True, "partnerDisbandConfirmed": True,
+        "aclDeleted": True, "groupResourcesDeleted": True, "connectionClosed": True,
+        "taskCommandsSent": 0, "llmCalls": 0, "cleanupErrors": [], "error": None,
+        "partnerLeaveReceipt": {
+            "groupId": "proof-group", "sessionId": "proof-session",
+            "disbandCommandId": "proof-disband", "senderId": "aic-literature_search",
+        },
+    }
+
+
 class FakeRunner:
     def __init__(self, fail=None):
         self.calls = []
@@ -80,6 +114,133 @@ class FakeRunner:
 
 
 class PlatformThreeAgentOrchestratorTests(unittest.TestCase):
+    def test_completed_business_checkpoint_can_resume_without_replaying_s1(self):
+        with TemporaryDirectory() as directory:
+            first_calls = []
+            async def first_runner(stage, task):
+                first_calls.append(stage)
+                return cleanup_failed_business_record(task)
+            with self.assertRaisesRegex(PlatformChainError, "FORMAL_STAGE_NOT_ACCEPTED"):
+                asyncio.run(execute_platform_chain(plan(), directory, first_runner))
+            source = Path(directory, "stages/literature_search/record.json")
+            source_hash = digest(read_json(source))
+            runner = FakeRunner()
+            state = asyncio.run(execute_platform_chain(
+                plan(), directory, runner, resume_business_completed=True,
+                business_cleanup_proof=cleanup_protocol_proof()))
+            self.assertEqual(first_calls, ["literature_search"])
+            self.assertEqual(runner.calls, ["paper_read", "repository_analyze"])
+            self.assertEqual(state["state"], "completed_with_recovered_checkpoint")
+            self.assertFalse(state["formalPlatformExecuted"])
+            self.assertEqual(digest(read_json(source)), source_hash)
+            row = state["stages"][0]
+            self.assertEqual(row["state"], "business_checkpoint_recovered")
+            self.assertFalse(row["originalCleanupResolved"])
+            recovery = read_json(Path(directory,
+                "stages/literature_search/business_checkpoint_recovery.json"))
+            self.assertFalse(recovery["originalCleanupResolved"])
+            self.assertIn("not an uninterrupted", recovery["claimBoundary"])
+
+    def test_business_checkpoint_recovery_rejects_invalid_proof_before_s2(self):
+        with TemporaryDirectory() as directory:
+            async def first_runner(stage, task):
+                return cleanup_failed_business_record(task)
+            with self.assertRaises(PlatformChainError):
+                asyncio.run(execute_platform_chain(plan(), directory, first_runner))
+            runner = FakeRunner()
+            proof = cleanup_protocol_proof(); proof["partnerDisbandConfirmed"] = False
+            with self.assertRaisesRegex(PlatformChainError,
+                    "BUSINESS_CHECKPOINT_CLEANUP_PROOF_INVALID"):
+                asyncio.run(execute_platform_chain(
+                    plan(), directory, runner, resume_business_completed=True,
+                    business_cleanup_proof=proof))
+            self.assertEqual(runner.calls, [])
+
+    def test_business_checkpoint_recovery_rejects_missing_result_and_uncertain_cleanup(self):
+        for change, expected in (("missing_result", "BUSINESS_CHECKPOINT_RESULT_INVALID"),
+                                 ("remote_unknown", "BUSINESS_CHECKPOINT_RECOVERY_NOT_ALLOWED")):
+            with self.subTest(change=change), TemporaryDirectory() as directory:
+                async def first_runner(stage, task):
+                    return cleanup_failed_business_record(task)
+                with self.assertRaises(PlatformChainError):
+                    asyncio.run(execute_platform_chain(plan(), directory, first_runner))
+                record_path = Path(directory, "stages/literature_search/record.json")
+                state_path = Path(directory, "state.json")
+                record, state = read_json(record_path), read_json(state_path)
+                if change == "missing_result":
+                    record["result"] = None
+                else:
+                    record["remoteStateUnknown"] = True
+                record_path.write_text(json.dumps(record), encoding="utf-8")
+                state["stages"][0]["recordSha256"] = digest(record)
+                state_path.write_text(json.dumps(state), encoding="utf-8")
+                with self.assertRaisesRegex((PlatformChainError, ValueError, TypeError), expected):
+                    asyncio.run(execute_platform_chain(
+                        plan(), directory, FakeRunner(), resume_business_completed=True,
+                        business_cleanup_proof=cleanup_protocol_proof()))
+
+    def test_business_checkpoint_recovery_rejects_task_and_record_hash_mismatch(self):
+        for target, expected in (("task", "FORMAL_STAGE_TASK_CHANGED"),
+                                 ("record", "FORMAL_STAGE_CHECKPOINT_CHANGED")):
+            with self.subTest(target=target), TemporaryDirectory() as directory:
+                async def first_runner(stage, task):
+                    return cleanup_failed_business_record(task)
+                with self.assertRaises(PlatformChainError):
+                    asyncio.run(execute_platform_chain(plan(), directory, first_runner))
+                path = Path(directory, "stages/literature_search",
+                            "task.json" if target == "task" else "record.json")
+                value = read_json(path)
+                if target == "task":
+                    value["goal"] += " tampered"
+                else:
+                    value["result"]["summary"] = "tampered"
+                path.write_text(json.dumps(value), encoding="utf-8")
+                with self.assertRaisesRegex(PlatformChainError, expected):
+                    asyncio.run(execute_platform_chain(
+                        plan(), directory, FakeRunner(), resume_business_completed=True,
+                        business_cleanup_proof=cleanup_protocol_proof()))
+
+    def test_recovered_checkpoint_is_immutable_on_later_resume(self):
+        with TemporaryDirectory() as directory:
+            async def first_runner(stage, task):
+                return cleanup_failed_business_record(task)
+            with self.assertRaises(PlatformChainError):
+                asyncio.run(execute_platform_chain(plan(), directory, first_runner))
+            runner = FakeRunner()
+            asyncio.run(execute_platform_chain(
+                plan(), directory, runner, resume_business_completed=True,
+                business_cleanup_proof=cleanup_protocol_proof()))
+            result_path = Path(directory, "stages/literature_search/result.json")
+            changed = read_json(result_path); changed["summary"] = "tampered"
+            result_path.write_text(json.dumps(changed), encoding="utf-8")
+            with self.assertRaisesRegex(PlatformChainError,
+                    "BUSINESS_CHECKPOINT_RECOVERY_CHANGED"):
+                asyncio.run(execute_platform_chain(plan(), directory, FakeRunner()))
+
+    def test_duplicate_recovery_is_a_noop_and_proof_is_immutable(self):
+        with TemporaryDirectory() as directory:
+            async def first_runner(stage, task):
+                return cleanup_failed_business_record(task)
+            with self.assertRaises(PlatformChainError):
+                asyncio.run(execute_platform_chain(plan(), directory, first_runner))
+            runner = FakeRunner()
+            first = asyncio.run(execute_platform_chain(
+                plan(), directory, runner, resume_business_completed=True,
+                business_cleanup_proof=cleanup_protocol_proof()))
+            recovery = Path(directory,
+                "stages/literature_search/business_checkpoint_recovery.json")
+            proof = Path(directory, "stages/literature_search/cleanup_protocol_proof.json")
+            before = (recovery.read_bytes(), proof.read_bytes())
+            forbidden = FakeRunner()
+            second = asyncio.run(execute_platform_chain(
+                plan(), directory, forbidden, resume_business_completed=True,
+                business_cleanup_proof=cleanup_protocol_proof()))
+            self.assertEqual(first["state"], "completed_with_recovered_checkpoint")
+            self.assertEqual(second["state"], "completed_with_recovered_checkpoint")
+            self.assertEqual(forbidden.calls, [])
+            self.assertEqual((recovery.read_bytes(), proof.read_bytes()), before)
+            self.assertEqual(second["recoveredStages"], ["literature_search"])
+
     def test_success_binds_real_outputs_uses_distinct_groups_and_resume_is_noop(self):
         with TemporaryDirectory() as directory:
             runner = FakeRunner()

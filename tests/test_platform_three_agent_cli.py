@@ -20,6 +20,12 @@ def arguments():
 
 
 class PlatformThreeAgentCliTests(unittest.TestCase):
+    def test_business_checkpoint_resume_requires_resume_and_cleanup_proof(self):
+        with patch.object(cli, "execute_platform_chain", side_effect=AssertionError("no Group allowed")), \
+                patch("builtins.print"):
+            self.assertEqual(cli.main(arguments() + ["--execute", "--partners-ready",
+                "--confirm-each-stage", "--resume-business-completed"]), 2)
+
     def test_default_only_validates_plan_and_never_executes(self):
         with patch.object(cli, "execute_platform_chain", side_effect=AssertionError("must not execute")), \
                 patch("builtins.print"):

@@ -46,6 +46,10 @@ def main(argv=None):
                         help="仅恢复有完整证据证明未发送Start的阶段；保留旧记录")
     parser.add_argument("--resume-terminal-failed", action="store_true",
                         help="人工恢复已明确failed且完整清理的阶段；远端状态未知时拒绝")
+    parser.add_argument("--resume-business-completed", action="store_true",
+                        help="仅恢复业务与协议已完成、但旧Group清理未确认的S1结果；保留限制")
+    parser.add_argument("--business-cleanup-proof", type=Path,
+                        help="独立通过的invitation→Disband清理协议record.json")
     parser.add_argument("--resource-proof", type=Path,
                         help="复用与本轮S1绑定的已核验资源记录；再次检查PDF缓存，不新增资源请求")
     parser.add_argument("--join-timeout", type=float, default=90)
@@ -62,6 +66,12 @@ def main(argv=None):
         return 0
     if not args.partners_ready or not args.confirm_each_stage:
         print("正式连续联调必须同时指定 --partners-ready 和 --confirm-each-stage。")
+        return 2
+    if args.resume_business_completed and (not args.resume or not args.business_cleanup_proof):
+        print("--resume-business-completed 必须同时指定 --resume 和 --business-cleanup-proof。未连接平台。")
+        return 2
+    if args.business_cleanup_proof and not args.resume_business_completed:
+        print("--business-cleanup-proof 仅可与 --resume-business-completed 同时使用。未连接平台。")
         return 2
     if importlib.util.find_spec("pypdf") is None:
         print("缺少Leader PDF校验依赖；请安装 requirements-platform-resources.txt。未连接平台。")
@@ -113,9 +123,13 @@ def main(argv=None):
     print("【正式平台三 Agent 连续协作】三个独立Group顺序执行；每阶段人工放行且不自动重试。")
     print("记录：", output)
     try:
+        cleanup_proof = (read_json(args.business_cleanup_proof)
+                         if args.business_cleanup_proof else None)
         state = asyncio.run(execute_platform_chain(plan, output, runner,
             resource_preparer=prepare_resources, resume_unstarted=args.resume_unstarted,
-            resume_terminal_failed=args.resume_terminal_failed))
+            resume_terminal_failed=args.resume_terminal_failed,
+            resume_business_completed=args.resume_business_completed,
+            business_cleanup_proof=cleanup_proof))
     except KeyboardInterrupt:
         print("已中断；检查 state.json 与当前 Partner SQLite，禁止直接重发未确认阶段。")
         return 130

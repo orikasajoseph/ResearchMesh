@@ -93,7 +93,10 @@ def validate_completed_record(record, payload):
         if not isinstance(record.get(key), str) or not record[key].strip():
             raise PlatformChainError("FORMAL_STAGE_IDENTITY_MISSING")
     result = deepcopy(record.get("result"))
-    validate_business_result(payload, result, repository_analysis_mode="static")
+    try:
+        validate_business_result(payload, result, repository_analysis_mode="static")
+    except (ValueError, TypeError, KeyError, AttributeError):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_RESULT_INVALID") from None
     if payload["taskType"] == "repository_analyze" \
             and payload["constraints"].get("requirePaperNotes") is True \
             and not comparison_valid(result, payload):
@@ -259,6 +262,115 @@ def verify_saved_stage(output, row, payload):
     return record, result
 
 
+def validate_cleanup_protocol_proof(proof, record):
+    """Validate an independent invitation-only proof for the repaired leave protocol.
+
+    The proof does not retroactively make the old Group cleanup successful.  It
+    only proves that the same Leader/Partner identities have subsequently passed
+    the two-phase leave protocol without executing a business task.
+    """
+    if not isinstance(proof, dict) or proof.get("scope") != "PLATFORM_INVITATION_ONLY":
+        raise PlatformChainError("BUSINESS_CHECKPOINT_CLEANUP_PROOF_INVALID")
+    if not all(proof.get(key) is True for key in (
+            "passed", "partnerJoinConfirmed", "cleanupSucceeded",
+            "partnerDisbandConfirmed", "aclDeleted", "groupResourcesDeleted",
+            "connectionClosed")):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_CLEANUP_PROOF_INVALID")
+    if (proof.get("taskCommandsSent") != 0 or proof.get("llmCalls") != 0
+            or proof.get("cleanupErrors") != [] or proof.get("error") is not None):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_CLEANUP_PROOF_INVALID")
+    if (proof.get("leaderAic") != record.get("leaderAic")
+            or proof.get("partnerAic") != record.get("partnerAic")):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_CLEANUP_PROOF_IDENTITY_MISMATCH")
+    receipt = proof.get("partnerLeaveReceipt")
+    if (not isinstance(receipt, dict)
+            or receipt.get("groupId") != proof.get("groupId")
+            or receipt.get("sessionId") != proof.get("cleanupSessionId")
+            or receipt.get("disbandCommandId") != proof.get("disbandCommandId")
+            or receipt.get("senderId") != proof.get("partnerAic")):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_CLEANUP_PROOF_INVALID")
+    return deepcopy(proof)
+
+
+def verify_business_completed_checkpoint(output, row, payload, cleanup_proof):
+    """Recover a business Result while preserving an old cleanup failure.
+
+    This is deliberately narrower than accepting a formal completed stage.  It
+    permits only S1, requires an immutable successful business/protocol Result,
+    and records that the original Group cleanup remains unresolved.
+    """
+    if row.get("stage") != "literature_search" or row.get("state") != "blocked_uncertain":
+        raise PlatformChainError("BUSINESS_CHECKPOINT_RECOVERY_NOT_ALLOWED")
+    directory = stage_directory(output, row)
+    saved_task = read_json(directory / "task.json")
+    if saved_task != payload or digest(saved_task) != row.get("taskSha256"):
+        raise PlatformChainError("FORMAL_STAGE_TASK_CHANGED")
+    record = read_json(directory / "record.json")
+    if digest(record) != row.get("recordSha256") or record.get("task") != payload:
+        raise PlatformChainError("FORMAL_STAGE_CHECKPOINT_CHANGED")
+    live_path = directory / "live_record.json"
+    if live_path.exists() and read_json(live_path) != record:
+        raise PlatformChainError("FORMAL_STAGE_CHECKPOINT_CHANGED")
+    if not all(record.get(key) is True for key in (
+            "startAttempted", "startPublished", "completeAttempted",
+            "completePublished", "resultValidated", "protocolCompleted",
+            "businessReady", "cleanupAttempted", "disbandPublished",
+            "connectionClosed")):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_NOT_COMPLETED")
+    if (record.get("taskCommandsSent") != 2 or record.get("remoteStateUnknown") is not False
+            or record.get("error") is not None or record.get("passed") is not False
+            or record.get("cleanupSucceeded") is not False
+            or record.get("partnerDisbandConfirmed") is not False
+            or record.get("aclDeleted") is not False
+            or record.get("groupResourcesDeleted") is not False):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_RECOVERY_NOT_ALLOWED")
+    allowed_steps = {
+        "partner_leave_confirmation", "stop_consumer_deferred",
+        "delete_partnerQueue_deferred", "delete_leaderQueue_deferred",
+        "delete_exchange_deferred", "delete_group_resources",
+        "delete_own_acl_deferred",
+    }
+    errors = record.get("cleanupErrors")
+    if (not isinstance(errors, list) or not errors
+            or any(not isinstance(item, dict) or item.get("step") not in allowed_steps
+                   for item in errors)):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_RECOVERY_NOT_ALLOWED")
+    result = deepcopy(record.get("result"))
+    try:
+        validate_business_result(payload, result, repository_analysis_mode="static")
+    except (ValueError, TypeError, KeyError, AttributeError):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_RESULT_INVALID") from None
+    proof = validate_cleanup_protocol_proof(cleanup_proof, record)
+    return record, result, proof
+
+
+def verify_recovered_business_stage(output, row, payload):
+    directory = stage_directory(output, row)
+    recovery_path = directory / "business_checkpoint_recovery.json"
+    proof_path = directory / "cleanup_protocol_proof.json"
+    result_path = directory / "result.json"
+    if not recovery_path.is_file() or not proof_path.is_file() or not result_path.is_file():
+        raise PlatformChainError("BUSINESS_CHECKPOINT_RECOVERY_MISSING")
+    recovery, proof, result = (read_json(recovery_path), read_json(proof_path),
+                               read_json(result_path))
+    if (digest(recovery) != row.get("recoverySha256")
+            or digest(result) != row.get("resultSha256")
+            or recovery.get("sourceRecordSha256") != row.get("recordSha256")
+            or recovery.get("resultSha256") != row.get("resultSha256")
+            or digest(proof) != recovery.get("protocolProofSha256")
+            or recovery.get("originalCleanupResolved") is not False):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_RECOVERY_CHANGED")
+    record = read_json(directory / "record.json")
+    if digest(record) != row.get("recordSha256") or record.get("task") != payload:
+        raise PlatformChainError("FORMAL_STAGE_CHECKPOINT_CHANGED")
+    validate_cleanup_protocol_proof(proof, record)
+    try:
+        validate_business_result(payload, result, repository_analysis_mode="static")
+    except (ValueError, TypeError, KeyError, AttributeError):
+        raise PlatformChainError("BUSINESS_CHECKPOINT_RESULT_INVALID") from None
+    return record, result
+
+
 def render_report(state):
     lines = ["# ResearchMesh 正式平台三 Agent 连续编排记录", "",
              "> 编排核心本身不执行网络或模型；是否为正式平台结果由注入的 runner 及每阶段记录决定。",
@@ -270,13 +382,21 @@ def render_report(state):
     for row in state["stages"]:
         lines.append("| " + " | ".join((row["stage"], row.get("groupId", "-"),
             row.get("taskId", "-"), row.get("resultSha256", "-"), row["state"])) + " |")
-    lines += ["", "验收边界：" + ("三个阶段已由同一持久编排顺序完成。" if state["state"] == "completed"
-                                    else "尚未完成全部阶段，不能作为三 Agent 连续协作通过证明。"), ""]
+    if state["state"] == "completed":
+        boundary = "三个阶段已由同一持久编排顺序完成。"
+    elif state["state"] == "completed_with_recovered_checkpoint":
+        boundary = ("S1业务结果由受控checkpoint恢复，原S1 Group清理仍未解决；"
+                    "S2与S3已顺序完成，不能表述为不中断的三阶段连续验收。")
+    else:
+        boundary = "尚未完成全部阶段，不能作为三 Agent 连续协作通过证明。"
+    lines += ["", "验收边界：" + boundary, ""]
     return "\n".join(lines)
 
 
 async def execute_platform_chain(plan, output, runner, *, resource_preparer=None,
-                                 resume_unstarted=False, resume_terminal_failed=False):
+                                 resume_unstarted=False, resume_terminal_failed=False,
+                                 resume_business_completed=False,
+                                 business_cleanup_proof=None):
     """Execute or safely resume a three-stage chain using an injected runner.
 
     runner(stage_name, seven_field_task) must return the persisted Leader record
@@ -317,6 +437,51 @@ async def execute_platform_chain(plan, output, runner, *, resource_preparer=None
                 final_payload = stage_payload(output, existing, payload, results, task)
                 _, result = verify_saved_stage(output, existing, final_payload)
                 results[task["subtaskId"]] = result
+                continue
+            if existing["state"] == "business_checkpoint_recovered":
+                _, result = verify_recovered_business_stage(output, existing, payload)
+                results[task["subtaskId"]] = result
+                continue
+            if resume_business_completed:
+                record, result, proof = verify_business_completed_checkpoint(
+                    output, existing, payload, business_cleanup_proof)
+                directory = stage_directory(output, existing)
+                result_hash = digest(result)
+                recovery = {
+                    "scope": "FORMAL_BUSINESS_CHECKPOINT_RECOVERY_V1",
+                    "stage": stage,
+                    "sourceRecordSha256": existing["recordSha256"],
+                    "resultSha256": result_hash,
+                    "originalGroupId": record["groupId"],
+                    "originalCleanupResolved": False,
+                    "originalCleanupErrors": deepcopy(record["cleanupErrors"]),
+                    "protocolProofSha256": digest(proof),
+                    "protocolProofGroupId": proof["groupId"],
+                    "protocolProofDisbandCommandId": proof["disbandCommandId"],
+                    "claimBoundary": (
+                        "S1 business Result recovered; original Group cleanup remains unresolved. "
+                        "This is a checkpoint-resumed chain, not an uninterrupted three-stage run."
+                    ),
+                }
+                write_json(directory / "result.json", result)
+                write_json(directory / "cleanup_protocol_proof.json", proof)
+                write_json(directory / "business_checkpoint_recovery.json", recovery)
+                existing.update(state="business_checkpoint_recovered",
+                                resultSha256=result_hash,
+                                recoverySha256=digest(recovery),
+                                originalCleanupResolved=False,
+                                groupId=record["groupId"],
+                                sessionId=record["sessionId"],
+                                taskId=record["taskId"],
+                                partnerAic=record["partnerAic"])
+                state.setdefault("recoveredStages", []).append(stage)
+                state["results"][task["subtaskId"]] = {
+                    "stage": stage, "resultSha256": result_hash,
+                    "items": len(result["items"]), "formalStageAccepted": False,
+                }
+                results[task["subtaskId"]] = result
+                state["state"] = "running"
+                write_json(state_path, state)
                 continue
             if not resume_unstarted and not resume_terminal_failed:
                 raise PlatformChainError("FORMAL_STAGE_NOT_SAFE_TO_REPLAY_" + stage.upper())
@@ -385,10 +550,11 @@ async def execute_platform_chain(plan, output, runner, *, resource_preparer=None
     tasks_ids = [row["taskId"] for row in state["stages"]]
     if len(set(groups)) != 3 or len(set(tasks_ids)) != 3:
         raise PlatformChainError("DISTINCT_FORMAL_GROUP_AND_TASK_IDS_REQUIRED")
-    state["state"] = "completed"
-    state["formalPlatformExecuted"] = all(
+    recovered = bool(state.get("recoveredStages"))
+    state["state"] = "completed_with_recovered_checkpoint" if recovered else "completed"
+    state["formalPlatformExecuted"] = (not recovered and all(
         read_json(stage_directory(output, row) / "record.json").get("scope", "").startswith("PLATFORM_")
-        for row in state["stages"])
+        for row in state["stages"]))
     state["automaticRetries"] = 0
     write_json(state_path, state)
     (output / "report.md").write_text(render_report(state), encoding="utf-8")

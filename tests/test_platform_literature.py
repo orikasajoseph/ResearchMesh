@@ -237,9 +237,14 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
             a = stack.enter_context(patch.object(leader, "GroupAclClient", return_value=acl))
             b = stack.enter_context(patch.object(leader.aio_pika, "Connection", return_value=connection))
             c = stack.enter_context(patch.object(leader, "SingleTaskMqClient", return_value=client))
+            resource_labels = iter(("partnerQueue", "leaderQueue", "exchange"))
+            async def delete_resource(*_args, **_kwargs):
+                label = next(resource_labels)
+                if resource_error is True or resource_error == label:
+                    raise PermissionError()
             deletion = stack.enter_context(patch.object(
                 leader, "delete_resource", new_callable=AsyncMock,
-                side_effect=PermissionError() if resource_error else None))
+                side_effect=delete_resource))
             stack.enter_context(patch.object(leader, "settle_group_shutdown", new_callable=AsyncMock))
             stack.enter_context(patch("socket.getaddrinfo", side_effect=AssertionError("NO_NETWORK")))
             # Keep real config validation, only shorten the task wait for offline timeout tests.
@@ -377,7 +382,22 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         })
 
     async def test_partial_resource_cleanup_never_deletes_acl_or_claims_success(self):
-        rec, _, _, _, _, acl = await self.scenario(resource_error=True)
+        for failed in ("partnerQueue", "leaderQueue", "exchange"):
+            with self.subTest(failed=failed):
+                rec, _, _, _, deletion, acl = await self.scenario(resource_error=failed)
+                expected = {"partnerQueue": True, "leaderQueue": True, "exchange": True}
+                expected[failed] = False
+                self.assertEqual(rec["groupResourceCleanup"], expected)
+                self.assertIn({"step": "delete_" + failed, "type": "PermissionError"},
+                              rec["cleanupErrors"])
+                self.assertFalse(rec["groupResourcesDeleted"])
+                self.assertFalse(rec["aclDeleted"])
+                self.assertFalse(rec["cleanupSucceeded"])
+                acl.delete_group.assert_not_awaited()
+                self.assertEqual(deletion.await_count, 3)
+
+    async def test_all_resource_cleanup_failures_preserve_acl(self):
+        rec, _, _, _, deletion, acl = await self.scenario(resource_error=True)
         self.assertEqual(rec["groupResourceCleanup"], {
             "partnerQueue": False, "leaderQueue": False, "exchange": False,
         })
@@ -385,6 +405,7 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(rec["aclDeleted"])
         self.assertFalse(rec["cleanupSucceeded"])
         acl.delete_group.assert_not_awaited()
+        self.assertEqual(deletion.await_count, 3)
 
     async def test_broken_checkpoint_prevents_start_and_cleanup_continues(self):
         def checkpoint(rec):

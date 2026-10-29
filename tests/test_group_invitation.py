@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 from aiormq.exceptions import ChannelNotFoundEntity
-from acps_sdk.aip import ACSObject, GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult, TaskCommand, TaskCommandType
+from acps_sdk.aip import ACSObject, GroupMgmtCommand, GroupMgmtCommandType, GroupMgmtResult, StructuredDataItem, TaskCommand, TaskCommandType
 from acps_sdk.aip.aip_group_auth import GroupAclClient, GroupAclError
 from acps_sdk.aip.aip_group_identity import assert_incoming_group_message_identity
 from acps_sdk.aip.aip_identity import SenderIdentityMismatchError
@@ -123,7 +123,7 @@ class JoinTests(unittest.IsolatedAsyncioTestCase):
 class WorkflowTests(unittest.IsolatedAsyncioTestCase):
     async def scenario(self, *, mode="invite", leader_error=None, partner_error=None,
                        group_error=None, publish_error=None, timeout=False, interrupt=False,
-                       cleanup_error=None, resource_error=None, checkpoint=None):
+                       cleanup_error=None, resource_error=None, checkpoint=None, no_ack=False, consumer_error=False):
         operations = []
         acl = MagicMock()
         async def add_member(**kwargs):
@@ -168,7 +168,22 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         client.invite_via_inbox = AsyncMock(side_effect=publish)
         client.broadcast_group_shutdown = AsyncMock()
         client.cleanup_group_resources = AsyncMock()
+        client._build_mgmt_command.side_effect = lambda **kw: GroupMgmtCommand(
+            id="cleanup-command", sentAt=datetime.now(timezone.utc).isoformat(),
+            senderId=LEADER, senderRole="leader", groupId=client.group_id,
+            sessionId=kw["session_id"], command=kw["command"], mentions=kw["mentions"])
+        async def publish_disband(command):
+            if no_ack:
+                return
+            await client.set_message_handler.call_args.args[0](GroupMgmtResult(
+                id="leave-receipt", sentAt=datetime.now(timezone.utc).isoformat(),
+                senderId=PARTNER, senderRole="partner", groupId=command.groupId,
+                sessionId=command.sessionId, status={"connected": False, "muted": False},
+                dataItems=[StructuredDataItem(data={"event": "GROUP_LEAVE_COMPLETED", "disbandCommandId": command.id})]))
+        client.publish_message = AsyncMock(side_effect=publish_disband)
         with ExitStack() as stack:
+            stack.enter_context(patch("group_literature_leader.stop_local_group_consumer", new_callable=AsyncMock,
+                side_effect=RuntimeError("cancel failed") if consumer_error else None))
             stack.enter_context(patch("group_invitation.certificate_context"))
             acl_factory = stack.enter_context(patch("group_invitation.GroupAclClient", return_value=acl))
             conn_factory = stack.enter_context(patch("group_invitation.aio_pika.Connection", return_value=connection))
@@ -176,7 +191,7 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
             deletion = stack.enter_context(patch("group_invitation.delete_resource", new_callable=AsyncMock,
                                                 side_effect=resource_error))
             stack.enter_context(patch("socket.getaddrinfo", side_effect=AssertionError("NO_REAL_NETWORK")))
-            result = await invitation.run_invitation(config(), mode=mode, execute=mode != "offline",
+            result = await invitation.run_invitation(replace(config(), timeout=1) if no_ack else config(), mode=mode, execute=mode != "offline",
                                                      partner_ready=True, checkpoint=checkpoint)
         return result, acl, connection, client, deletion, operations, (acl_factory, conn_factory, client_factory)
 
@@ -234,12 +249,12 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         client.invite_via_inbox.assert_not_called()
         connection.close.assert_awaited_once()
 
-    async def test_partial_group_creation_is_cleaned(self):
+    async def test_partial_group_creation_preserves_uncertain_resources(self):
         result, acl, _, client, deletion, _, _ = await self.scenario(group_error=TimeoutError())
         self.assertFalse(result["groupCreated"])
         self.assertTrue(result["groupCreationAttempted"])
-        self.assertEqual(deletion.await_count, 3)
-        acl.delete_group.assert_awaited_once()
+        deletion.assert_not_awaited()
+        acl.delete_group.assert_not_awaited()
         client.invite_via_inbox.assert_not_called()
 
     async def test_publish_failure_is_not_retried(self):
@@ -255,6 +270,21 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["error"]["code"], "INTERRUPTED")
         acl.delete_group.assert_awaited_once()
         connection.close.assert_awaited_once()
+
+    async def test_receipt_or_consumer_failure_prevents_all_deletions(self):
+        for options in ({"no_ack": True}, {"consumer_error": True}):
+            result, acl, _, client, deletion, _, _ = await self.scenario(**options)
+            self.assertFalse(result["cleanupSucceeded"])
+            self.assertFalse(result["aclDeleted"])
+            deletion.assert_not_awaited()
+            acl.delete_group.assert_not_awaited()
+            client.cleanup_group_resources.assert_not_awaited()
+
+    async def test_first_resource_failure_stops_subsequent_deletions(self):
+        result, acl, _, _, deletion, _, _ = await self.scenario(resource_error=PermissionError())
+        self.assertEqual(deletion.await_count, 1)
+        acl.delete_group.assert_not_awaited()
+        self.assertFalse(result["cleanupSucceeded"])
 
     async def test_cleanup_failure_cannot_claim_pass(self):
         result, _, _, _, _, _, _ = await self.scenario(cleanup_error=RuntimeError("secret-value"))

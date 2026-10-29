@@ -152,9 +152,9 @@ async def run_invitation(config: InviteConfig, *, mode: str = "offline", execute
     async def bounded(awaitable):
         return await asyncio.wait_for(awaitable, timeout=config.timeout)
 
-    async def cleanup_step(name, operation):
+    async def cleanup_step(name, operation, timeout=None):
         try:
-            await asyncio.wait_for(operation(), timeout=min(config.timeout, 5))
+            await asyncio.wait_for(operation(), timeout=min(config.timeout, 5) if timeout is None else timeout)
             return True
         except Exception as exc:
             record["cleanupErrors"].append({"step": name, "type": type(exc).__name__})
@@ -232,15 +232,32 @@ async def run_invitation(config: InviteConfig, *, mode: str = "offline", execute
         if execute and record["aclWriteAttempted"]:
             record["cleanupAttempted"] = True
             event("CLEANUP_STARTED")
+            cleanup_ready = False
             if client is not None and record["groupCreated"]:
-                await cleanup_step("notify_group_disband", client.broadcast_group_shutdown)
-            if client is not None and record["groupCreationAttempted"]:
-                # SDK stops its consumer first. Strict resource deletion below catches
-                # errors that the SDK's best-effort helper may log and suppress.
-                await cleanup_step("stop_sdk_consumer", client.cleanup_group_resources)
+                # Share the same receipt validator as business Leader tasks.
+                from group_literature_leader import LiteratureConversation, stop_local_group_consumer
+                session_id = "cleanup-" + uuid4().hex
+                receipt = LiteratureConversation(config, group_id, "invitation-only", session_id)
+                client.set_message_handler(receipt.on_message)
+                async def disband():
+                    command = client._build_mgmt_command(command=GroupMgmtCommandType.DISBAND,
+                        mentions="all", session_id=session_id)
+                    receipt.leave_command_id = command.id
+                    record["disbandCommandId"] = command.id
+                    record["cleanupSessionId"] = session_id
+                    event("DISBAND_PUBLISH_ATTEMPT")
+                    await client.publish_message(command)
+                record["disbandPublished"] = await cleanup_step("notify_group_disband", disband)
+                if record["disbandPublished"]:
+                    record["partnerDisbandConfirmed"] = await cleanup_step(
+                        "partner_leave_confirmation", receipt.leave_completed.wait, timeout=config.timeout)
+                    record["partnerLeaveReceipt"] = receipt.leave_receipt
+                    event("PARTNER_LEAVE_CONFIRMED" if record["partnerDisbandConfirmed"] else "PARTNER_LEAVE_UNCONFIRMED")
+                    if record["partnerDisbandConfirmed"]:
+                        cleanup_ready = await cleanup_step("stop_sdk_consumer", lambda: stop_local_group_consumer(client))
             if record["groupCreationAttempted"]:
                 results = []
-                if connection is not None and not connection.is_closed:
+                if cleanup_ready and connection is not None and not connection.is_closed:
                     for kind, name in (
                         ("queue", build_group_queue_name(config.leader_aic, group_id, config.partner_aic)),
                         ("queue", build_group_queue_name(config.leader_aic, group_id, config.leader_aic)),
@@ -248,13 +265,19 @@ async def run_invitation(config: InviteConfig, *, mode: str = "offline", execute
                     ):
                         results.append(await cleanup_step(
                             f"delete_{kind}", lambda k=kind, n=name: delete_resource(connection, k, n)))
-                    record["groupResourcesDeleted"] = all(results)
+                        if not results[-1]:
+                            break
+                    record["groupResourcesDeleted"] = len(results) == 3 and all(results)
                 else:
                     record["groupResourcesDeleted"] = False
-                    record["cleanupErrors"].append({"step": "delete_group_resources", "type": "ConnectionUnavailable"})
+                    record["cleanupErrors"].append({"step": "delete_group_resources", "type": "DependencyFailed"})
             if acl is not None:
-                record["aclDeleted"] = await cleanup_step("delete_own_acl", lambda: acl.delete_group(
-                    leader_aic=config.leader_aic, group_id=group_id))
+                if not record["groupCreationAttempted"] or record["groupResourcesDeleted"]:
+                    record["aclDeleted"] = await cleanup_step("delete_own_acl", lambda: acl.delete_group(
+                        leader_aic=config.leader_aic, group_id=group_id))
+                else:
+                    record["aclDeleted"] = False
+                    record["cleanupErrors"].append({"step": "delete_own_acl", "type": "DependencyFailed"})
             if connection is not None:
                 await cleanup_step("close_connection", connection.close)
                 record["connectionClosed"] = bool(connection.is_closed)

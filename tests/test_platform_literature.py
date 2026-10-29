@@ -5,10 +5,12 @@ from copy import deepcopy
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import socket
 import tempfile
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from aiormq.exceptions import ChannelAccessRefused, ChannelInvalidStateError
 from acps_sdk.aip import GroupMgmtCommandType, Product, StructuredDataItem, TaskCommandType, TaskResult, TaskState
 from acps_sdk.aip.aip_group_auth import GroupAclError
 from acps_sdk.aip.aip_group_identity import assert_incoming_group_message_identity
@@ -79,6 +81,9 @@ class ConversationTests(unittest.IsolatedAsyncioTestCase):
                 await convo.on_message(message("g", "t", "s", TaskState.Completed, final))
 
         client = MagicMock()
+        client._connection = MagicMock(is_closed=False, transport=object())
+        client._channel = MagicMock(is_closed=False)
+        client._exchange = MagicMock(channel=client._channel)
         client.send_task_command = AsyncMock(side_effect=send)
         events = []
         try:
@@ -171,7 +176,9 @@ class ConversationTests(unittest.IsolatedAsyncioTestCase):
 class WorkflowTests(unittest.IsolatedAsyncioTestCase):
     async def scenario(self, *, execute=True, partner_ready=True, partner_commit="edb9dcf",
                        acl_error=False, join_timeout=False, task_timeout=False,
-                       cleanup_error=False, checkpoint=None, task=None, task_release=None):
+                       cleanup_error=False, resource_error=False,
+                       stale_publish_path=False, start_error=None, checkpoint=None,
+                       task=None, task_release=None):
         operations = []
         acl = MagicMock()
         async def authorize(**kwargs):
@@ -189,6 +196,10 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         connection.connect = AsyncMock(side_effect=connect)
         connection.close = AsyncMock(side_effect=close)
         client = MagicMock()
+        client._connection = connection
+        connection.transport = object()
+        client._channel = MagicMock(is_closed=stale_publish_path)
+        client._exchange = MagicMock(channel=client._channel)
         client.connect = AsyncMock()
         async def create(**kwargs):
             client.group_id = kwargs["group_id"]
@@ -202,6 +213,8 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         client.invite_via_inbox = AsyncMock(side_effect=invite)
         async def send(command, task_id, session_id, **kwargs):
             operations.append(command.value)
+            if command == TaskCommandType.Start and start_error is not None:
+                raise start_error
             if task_timeout:
                 return
             handler = client.set_message_handler.call_args.args[0]
@@ -224,7 +237,14 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
             a = stack.enter_context(patch.object(leader, "GroupAclClient", return_value=acl))
             b = stack.enter_context(patch.object(leader.aio_pika, "Connection", return_value=connection))
             c = stack.enter_context(patch.object(leader, "SingleTaskMqClient", return_value=client))
-            deletion = stack.enter_context(patch.object(leader, "delete_resource", new_callable=AsyncMock))
+            resource_labels = iter(("partnerQueue", "leaderQueue", "exchange"))
+            async def delete_resource(*_args, **_kwargs):
+                label = next(resource_labels)
+                if resource_error is True or resource_error == label:
+                    raise PermissionError()
+            deletion = stack.enter_context(patch.object(
+                leader, "delete_resource", new_callable=AsyncMock,
+                side_effect=delete_resource))
             stack.enter_context(patch.object(leader, "settle_group_shutdown", new_callable=AsyncMock))
             stack.enter_context(patch("socket.getaddrinfo", side_effect=AssertionError("NO_NETWORK")))
             # Keep real config validation, only shorten the task wait for offline timeout tests.
@@ -319,12 +339,90 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(rec["cleanupSucceeded"])
 
     async def test_cleanup_error_preserves_business_but_prevents_pass(self):
-        rec, _, _, _, _, _ = await self.scenario(cleanup_error=True)
+        rec, _, client, _, deletion, acl = await self.scenario(cleanup_error=True)
         self.assertTrue(rec["protocolCompleted"])
         self.assertTrue(rec["businessReady"])
         self.assertFalse(rec["passed"])
         self.assertFalse(rec["cleanupSucceeded"])
+        self.assertFalse(rec["disbandPublished"])
+        self.assertEqual(rec["groupResourceCleanupDeferred"],
+                         ["partnerQueue", "leaderQueue", "exchange"])
+        self.assertEqual(rec["groupResourceCleanup"], {
+            "partnerQueue": False, "leaderQueue": False, "exchange": False,
+        })
+        deletion.assert_not_awaited()
+        client.cleanup_group_resources.assert_not_awaited()
+        self.assertFalse(rec["groupResourcesDeleted"])
+        self.assertFalse(rec["aclDeleted"])
+        acl.delete_group.assert_not_awaited()
+        client._connection.close.assert_awaited_once()
+        acl.aclose.assert_awaited_once()
+        for resource in ("partnerQueue", "leaderQueue", "exchange"):
+            self.assertIn({"step": "delete_" + resource + "_deferred",
+                           "type": "DependencyFailed"}, rec["cleanupErrors"])
+        self.assertIn({"step": "stop_consumer_deferred", "type": "DependencyFailed"},
+                      rec["cleanupErrors"])
+        self.assertIn({"step": "delete_group_resources", "type": "IncompleteCleanup"},
+                      rec["cleanupErrors"])
+        self.assertIn({"step": "delete_own_acl_deferred", "type": "DependencyFailed"},
+                      rec["cleanupErrors"])
         self.assertNotIn("secret-cleanup", json.dumps(rec))
+
+    async def test_stale_channel_fails_closed_without_start_publish(self):
+        rec, _, client, _, _, _ = await self.scenario(stale_publish_path=True)
+        self.assertTrue(rec["startAttempted"])
+        self.assertFalse(rec["startPublished"])
+        self.assertEqual(rec["taskCommandsSent"], 0)
+        self.assertEqual(rec["startPublishErrorCategory"], "AMQP_CHANNEL_CLOSED")
+        client.send_task_command.assert_not_awaited()
+        self.assertTrue(rec["remoteStateUnknown"])
+
+    async def test_start_transport_faults_are_distinct_and_never_retried(self):
+        cases = (
+            (socket.gaierror(), "DNS_LOOKUP_FAILED"),
+            (ChannelInvalidStateError(), "AMQP_CHANNEL_INVALID_STATE"),
+            (ChannelAccessRefused(), "AMQP_ACCESS_REFUSED"),
+        )
+        for error, category in cases:
+            with self.subTest(category=category):
+                rec, _, client, _, _, _ = await self.scenario(start_error=error)
+                self.assertEqual(rec["startPublishErrorCategory"], category)
+                self.assertFalse(rec["startPublished"])
+                self.assertEqual(rec["taskCommandsSent"], 0)
+                self.assertTrue(rec["remoteStateUnknown"])
+                client.send_task_command.assert_awaited_once()
+
+    async def test_cleanup_audits_each_group_resource(self):
+        rec, _, _, _, _, _ = await self.scenario()
+        self.assertEqual(rec["groupResourceCleanup"], {
+            "partnerQueue": True, "leaderQueue": True, "exchange": True,
+        })
+
+    async def test_partial_resource_cleanup_never_deletes_acl_or_claims_success(self):
+        for failed in ("partnerQueue", "leaderQueue", "exchange"):
+            with self.subTest(failed=failed):
+                rec, _, _, _, deletion, acl = await self.scenario(resource_error=failed)
+                expected = {"partnerQueue": True, "leaderQueue": True, "exchange": True}
+                expected[failed] = False
+                self.assertEqual(rec["groupResourceCleanup"], expected)
+                self.assertIn({"step": "delete_" + failed, "type": "PermissionError"},
+                              rec["cleanupErrors"])
+                self.assertFalse(rec["groupResourcesDeleted"])
+                self.assertFalse(rec["aclDeleted"])
+                self.assertFalse(rec["cleanupSucceeded"])
+                acl.delete_group.assert_not_awaited()
+                self.assertEqual(deletion.await_count, 3)
+
+    async def test_all_resource_cleanup_failures_preserve_acl(self):
+        rec, _, _, _, deletion, acl = await self.scenario(resource_error=True)
+        self.assertEqual(rec["groupResourceCleanup"], {
+            "partnerQueue": False, "leaderQueue": False, "exchange": False,
+        })
+        self.assertFalse(rec["groupResourcesDeleted"])
+        self.assertFalse(rec["aclDeleted"])
+        self.assertFalse(rec["cleanupSucceeded"])
+        acl.delete_group.assert_not_awaited()
+        self.assertEqual(deletion.await_count, 3)
 
     async def test_broken_checkpoint_prevents_start_and_cleanup_continues(self):
         def checkpoint(rec):

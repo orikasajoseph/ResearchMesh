@@ -10,6 +10,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, patch
+from pamqp.commands import Basic
 
 import httpx
 from acps_sdk.aip import GroupMgmtCommand, GroupMgmtCommandType, GroupPartnerMqClient, TaskCommandType
@@ -161,6 +162,7 @@ class AuditTests(unittest.IsolatedAsyncioTestCase):
         client.start_inbox_consuming = inbox
         async def join(invitation):
             client._group_id = GROUP
+            client._group_info = SimpleNamespace(leader=SimpleNamespace(aic=LEADER))
             return True
         client.join_group_from_invitation = join
         server = asyncio.create_task(serve(partner_aic=PARTNER, leader_aic=LEADER,
@@ -169,7 +171,11 @@ class AuditTests(unittest.IsolatedAsyncioTestCase):
         await self.invitation_callback(object())
         client._consumer_tag = "test-consumer"
         client._queue = SimpleNamespace(name="test-queue", cancel=AsyncMock(), delete=AsyncMock())
-        client._channel = SimpleNamespace(is_closed=False)
+        client._channel = SimpleNamespace(is_closed=False, publisher_confirms=True)
+        client._exchange = SimpleNamespace(
+            channel=client._channel,
+            publish=AsyncMock(return_value=Basic.Ack(delivery_tag=1, multiple=False)),
+        )
         client._connection = SimpleNamespace(is_closed=False)
         async def close_channel():
             client._channel.is_closed = True
@@ -252,7 +258,8 @@ class AuditTests(unittest.IsolatedAsyncioTestCase):
                 client._queue.delete.side_effect = RuntimeError("SECRET")
                 await self.lifecycle(client)
                 failures = self.events("CLEANUP_FAILED")
-                self.assertEqual(failures[0]["failures"], ["queue_delete_failed"])
+                self.assertEqual(failures[0]["exceptionCategory"], "two_phase_leave_failed")
+                self.assertFalse(failures[0]["receiptPublished"])
                 self.assertFalse(self.events("CLEANUP_SUCCEEDED"))
                 self.assertNotIn("SECRET", self.audit.path.read_text())
             finally:

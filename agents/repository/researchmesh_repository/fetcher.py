@@ -41,6 +41,23 @@ class GitStageResult:
     stderr: str
     timed_out: bool
     duration_ms: float
+    timeout_returncode: int | None = None
+    returncode_source: str = "natural-exit"
+    termination_attempted: bool = False
+    termination_method: str | None = None
+    termination_command_returncode: int | None = None
+    fallback_kill_attempted: bool = False
+    tree_cleanup_verified: bool | None = None
+
+
+@dataclass(frozen=True)
+class ProcessTerminationResult:
+    attempted: bool
+    method: str | None
+    command_returncode: int | None
+    fallback_kill_attempted: bool
+    final_returncode: int | None
+    tree_cleanup_verified: bool | None
 
 
 def validate_repository_url(url: str) -> str:
@@ -88,8 +105,7 @@ class RepositoryFetcher:
             )
             clone_ms = clone.duration_ms
             self.git_diagnostics.append(_diagnostic(
-                "clone", safe_url, clone.returncode, clone.timed_out,
-                clone.stderr or clone.stdout, clone_ms, None,
+                "clone", safe_url, clone, None,
             ))
             if clone.timed_out or clone.returncode != 0:
                 detail = _sanitize_stderr(clone.stderr or clone.stdout, safe_url)
@@ -99,6 +115,7 @@ class RepositoryFetcher:
                     diagnostics=self.git_diagnostics,
                 )
 
+            pre_checkout_state = _checkout_preflight_snapshot(repository_path)
             checkout = _run_git_stage(
                 _git_command("-c", f"core.hooksPath={disabled_hooks}",
                              "-C", str(repository_path), "checkout",
@@ -106,8 +123,8 @@ class RepositoryFetcher:
                 timeout=self.config.checkout_timeout_seconds,
             )
             self.git_diagnostics.append(_diagnostic(
-                "checkout", safe_url, checkout.returncode, checkout.timed_out,
-                checkout.stderr or checkout.stdout, checkout.duration_ms, None,
+                "checkout", safe_url, checkout, None,
+                local_state=pre_checkout_state,
             ))
             if checkout.timed_out or checkout.returncode != 0:
                 raise RepositoryCloneError(
@@ -125,9 +142,7 @@ class RepositoryFetcher:
                 and re.fullmatch(r"[0-9a-fA-F]{40}", commit.stdout.strip())
             ) else None
             self.git_diagnostics.append(_diagnostic(
-                "head", safe_url, commit.returncode, commit.timed_out,
-                commit.stderr or ("" if resolved else commit.stdout),
-                commit.duration_ms, resolved,
+                "head", safe_url, commit, resolved,
             ))
             if resolved is None:
                 raise RepositoryCloneError(
@@ -144,9 +159,8 @@ class RepositoryFetcher:
                               and verification.returncode == 0
                               and not verification.stdout.strip())
             self.git_diagnostics.append(_diagnostic(
-                "worktree", safe_url, verification.returncode, verification.timed_out,
-                verification.stderr or verification.stdout,
-                verification.duration_ms, resolved if worktree_clean else None,
+                "worktree", safe_url, verification,
+                resolved if worktree_clean else None,
             ))
             if not worktree_clean:
                 raise RepositoryCloneError(
@@ -169,8 +183,10 @@ class RepositoryFetcher:
                     _remove_temp_root(temp_root)
                 except OSError as exc:
                     self.git_diagnostics.append(_diagnostic(
-                        "cleanup", safe_url, None, False, str(exc),
-                        _elapsed_ms(started), None,
+                        "cleanup", safe_url,
+                        GitStageResult(None, "", str(exc), False, _elapsed_ms(started),
+                                       returncode_source="not-applicable"),
+                        None,
                     ))
                     if primary_error is None:
                         raise RepositoryCloneError(
@@ -179,8 +195,10 @@ class RepositoryFetcher:
                         ) from exc
                 else:
                     self.git_diagnostics.append(_diagnostic(
-                        "cleanup", safe_url, None, False, "",
-                        _elapsed_ms(started), None,
+                        "cleanup", safe_url,
+                        GitStageResult(None, "", "", False, _elapsed_ms(started),
+                                       returncode_source="not-applicable"),
+                        None,
                     ))
 
 
@@ -216,7 +234,8 @@ def _run_git_stage(command: list[str], *, timeout: float) -> GitStageResult:
     try:
         process = subprocess.Popen(command, **kwargs)
     except (OSError, ValueError) as exc:
-        return GitStageResult(None, "", str(exc), False, _elapsed_ms(started))
+        return GitStageResult(None, "", str(exc), False, _elapsed_ms(started),
+                              returncode_source="process-start-failed")
     try:
         stdout, stderr = process.communicate(timeout=timeout)
         return GitStageResult(process.returncode, stdout or "", stderr or "",
@@ -224,37 +243,86 @@ def _run_git_stage(command: list[str], *, timeout: float) -> GitStageResult:
     except subprocess.TimeoutExpired as exc:
         partial_stdout = _decode_output(exc.stdout)
         partial_stderr = _decode_output(exc.stderr)
-        _terminate_owned_tree(process)
+        timeout_returncode = process.poll()
+        termination = _terminate_owned_tree(process)
         try:
             stdout, stderr = process.communicate(timeout=5)
         except subprocess.TimeoutExpired:
             _close_process_pipes(process)
             stdout, stderr = "", ""
+        final_returncode = process.poll()
+        if timeout_returncode is not None:
+            returncode_source = "natural-exit-race-after-timeout"
+        elif not termination.attempted and termination.final_returncode is not None:
+            returncode_source = "natural-exit-race-before-termination"
+        elif termination.attempted:
+            returncode_source = "post-termination"
+        else:
+            returncode_source = "unavailable-after-timeout"
         return GitStageResult(
-            process.poll(), (stdout or partial_stdout),
-            (stderr or partial_stderr), True, _elapsed_ms(started),
+            final_returncode, _merge_output(partial_stdout, _decode_output(stdout)),
+            _merge_output(partial_stderr, _decode_output(stderr)), True, _elapsed_ms(started),
+            timeout_returncode=timeout_returncode,
+            returncode_source=returncode_source,
+            termination_attempted=termination.attempted,
+            termination_method=termination.method,
+            termination_command_returncode=termination.command_returncode,
+            fallback_kill_attempted=termination.fallback_kill_attempted,
+            tree_cleanup_verified=termination.tree_cleanup_verified,
         )
 
 
-def _terminate_owned_tree(process: subprocess.Popen) -> None:
-    if process.poll() is not None:
-        return
+def _terminate_owned_tree(process: subprocess.Popen) -> ProcessTerminationResult:
+    initial_returncode = process.poll()
+    if initial_returncode is not None:
+        return ProcessTerminationResult(False, None, None, False,
+                                        initial_returncode, None)
+    method = "process-group-kill"
+    command_returncode = None
+    fallback_kill_attempted = False
     if os.name == "nt":
-        stopped = subprocess.run(
-            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            timeout=10, creationflags=subprocess.CREATE_NO_WINDOW, check=False,
-        )
-        if stopped.returncode != 0 and process.poll() is None:
-            process.kill()
+        method = "taskkill-tree"
+        try:
+            stopped = subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=10, creationflags=subprocess.CREATE_NO_WINDOW, check=False,
+            )
+            command_returncode = stopped.returncode
+        except (OSError, subprocess.TimeoutExpired):
+            command_returncode = None
+        if command_returncode != 0 and process.poll() is None:
+            fallback_kill_attempted = True
+            try:
+                process.kill()
+            except OSError:
+                pass
     else:
         import signal
-        os.killpg(process.pid, signal.SIGKILL)
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except OSError:
+            pass
     try:
         process.wait(timeout=5)
     except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait(timeout=5)
+        fallback_kill_attempted = True
+        try:
+            process.kill()
+        except OSError:
+            pass
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+    final_returncode = process.poll()
+    # A successful termination command and a reaped parent do not independently
+    # prove that every descendant exited.  Keep this explicitly unverified until
+    # a separate process-tree observation is implemented.
+    tree_verified = None
+    return ProcessTerminationResult(True, method, command_returncode,
+                                    fallback_kill_attempted, final_returncode,
+                                    tree_verified)
 
 
 def _close_process_pipes(process: subprocess.Popen) -> None:
@@ -271,31 +339,90 @@ def _decode_output(value: object) -> str:
     return str(value)
 
 
+def _merge_output(partial: str, final: str) -> str:
+    """Preserve TimeoutExpired output without duplicating communicate output."""
+    if not partial:
+        return final
+    if not final or final in partial:
+        return partial
+    if partial in final:
+        return final
+    return partial + final
+
+
 def _elapsed_ms(started: float) -> float:
     return round((time.perf_counter() - started) * 1000, 3)
 
 
-def _sanitize_stderr(value: object, repository_url: str) -> str:
+def _sanitize_stream(value: object, repository_url: str) -> tuple[str, bool]:
     text = str(value or "").replace(repository_url, "<repository-url>")
     text = re.sub(r"(?i)(https?://)[^\s/@:]+:[^\s/@]+@", r"\1<redacted>@", text)
     text = re.sub(
         r"(?i)\b(access[_-]?token|auth[_-]?token|password|secret|api[_-]?key)\s*[=:]\s*[^\s]+",
         r"\1=<redacted>", text,
     )
-    return text.strip()[-1000:]
+    text = re.sub(r"(?i)\b(authorization\s*[:=]\s*)(?:basic|bearer)\s+[^\s]+",
+                  r"\1<redacted>", text)
+    text = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b",
+                  "<redacted-token>", text)
+    text = text.strip()
+    truncated = len(text) > 1000
+    return text[-1000:], truncated
 
 
-def _diagnostic(stage: str, repository_url: str, returncode: int | None,
-                timed_out: bool, stderr: object, duration_ms: float,
-                resolved_commit: str | None) -> dict:
-    return {
+def _sanitize_stderr(value: object, repository_url: str) -> str:
+    return _sanitize_stream(value, repository_url)[0]
+
+
+def _diagnostic(stage: str, repository_url: str, result: GitStageResult,
+                resolved_commit: str | None, *, local_state: dict | None = None) -> dict:
+    stdout, stdout_truncated = _sanitize_stream(result.stdout, repository_url)
+    stderr, stderr_truncated = _sanitize_stream(result.stderr, repository_url)
+    record = {
         "stage": stage,
-        "returncode": returncode,
-        "timedOut": timed_out,
-        "stderr": _sanitize_stderr(stderr, repository_url),
-        "durationMs": duration_ms,
+        "returncode": result.returncode,
+        "returncodeSource": result.returncode_source,
+        "timedOut": result.timed_out,
+        "timeoutReturncode": result.timeout_returncode,
+        "stdout": stdout,
+        "stdoutTruncated": stdout_truncated,
+        "stderr": stderr,
+        "stderrTruncated": stderr_truncated,
+        "durationMs": result.duration_ms,
         "repositoryUrl": repository_url,
         "resolvedCommit": resolved_commit,
+        "termination": {
+            "attempted": result.termination_attempted,
+            "method": result.termination_method,
+            "commandReturncode": result.termination_command_returncode,
+            "fallbackKillAttempted": result.fallback_kill_attempted,
+            "treeCleanupVerified": result.tree_cleanup_verified,
+        },
+    }
+    if local_state is not None:
+        record["preCheckoutState"] = local_state
+    return record
+
+
+def _checkout_preflight_snapshot(repository_path: Path) -> dict:
+    """Capture filesystem-only facts; none imply a successful checkout."""
+    git_path = repository_path / ".git"
+    head_path = git_path / "HEAD"
+    try:
+        head_reference = head_path.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        head_reference = None
+    if head_reference and not (
+        re.fullmatch(r"ref: refs/[A-Za-z0-9._/-]+", head_reference)
+        or re.fullmatch(r"[0-9a-fA-F]{40}", head_reference)
+    ):
+        head_reference = "<unrecognized>"
+    return {
+        "repositoryDirectoryExists": repository_path.is_dir(),
+        "gitDirectoryExists": git_path.is_dir(),
+        "headReferencePresent": bool(head_reference),
+        "headReference": head_reference,
+        "worktreeCheckoutVerified": False,
     }
 
 

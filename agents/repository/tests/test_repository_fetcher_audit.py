@@ -6,7 +6,12 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from researchmesh_repository.fetcher import RepositoryCloneError, RepositoryFetcher, _run_git_stage
+from researchmesh_repository.fetcher import (
+    ProcessTerminationResult,
+    RepositoryCloneError,
+    RepositoryFetcher,
+    _run_git_stage,
+)
 
 URL = "https://github.com/microsoft/LoRA"
 COMMIT = "a" * 40
@@ -74,7 +79,11 @@ class RepositoryFetcherAuditTests(unittest.TestCase):
         secret = "https://user:password@github.com/microsoft/LoRA"
         fetcher = RepositoryFetcher()
         with patch("researchmesh_repository.fetcher.subprocess.Popen",
-                   return_value=FakeProcess(returncode=128, stderr=f"fatal {URL} {secret} access_token=abc")) as popen, \
+                   return_value=FakeProcess(
+                       returncode=128,
+                       stderr=(f"fatal {URL} {secret} access_token=abc "
+                               "Authorization: Bearer bearer-value "
+                               "ghp_abcdefghijklmnopqrstuvwxyz"))) as popen, \
                 patch("researchmesh_repository.fetcher._remove_temp_root"):
             with self.assertRaises(RepositoryCloneError):
                 with fetcher.fetch(URL): self.fail("failed clone must not yield")
@@ -82,7 +91,12 @@ class RepositoryFetcherAuditTests(unittest.TestCase):
         record = fetcher.git_diagnostics[0]
         self.assertEqual(record["returncode"], 128); self.assertFalse(record["timedOut"])
         self.assertNotIn("password", record["stderr"]); self.assertNotIn("abc", record["stderr"])
+        self.assertNotIn("bearer-value", record["stderr"])
+        self.assertNotIn("ghp_", record["stderr"])
         self.assertNotIn(URL, record["stderr"]); self.assertLessEqual(len(record["stderr"]), 1000)
+        self.assertEqual(record["stdout"], "")
+        self.assertFalse(record["stderrTruncated"])
+        self.assertEqual(record["returncodeSource"], "natural-exit")
 
     def test_server_filter_warning_is_preserved_not_treated_as_capability_proof(self):
         processes = self.success_processes()
@@ -111,15 +125,93 @@ class RepositoryFetcherAuditTests(unittest.TestCase):
         record = fetcher.git_diagnostics[1]
         self.assertEqual(record["stage"], "checkout"); self.assertTrue(record["timedOut"])
         self.assertEqual(record["returncode"], 1); self.assertIn("100%", record["stderr"])
+        self.assertIsNone(record["timeoutReturncode"])
+        self.assertEqual(record["returncodeSource"], "post-termination")
+        self.assertEqual(record["termination"]["method"], "taskkill-tree")
+        self.assertEqual(record["termination"]["commandReturncode"], 0)
+        self.assertIsNone(record["termination"]["treeCleanupVerified"])
+        self.assertFalse(record["preCheckoutState"]["worktreeCheckoutVerified"])
         self.assertIsNone(record["resolvedCommit"])
 
     def test_timeout_can_have_no_obtainable_returncode(self):
         process = FakeProcess(timeout=True, stderr="hung")
         with patch("researchmesh_repository.fetcher.subprocess.Popen", return_value=process), \
-                patch("researchmesh_repository.fetcher._terminate_owned_tree"), \
+                patch("researchmesh_repository.fetcher._terminate_owned_tree",
+                      return_value=ProcessTerminationResult(
+                          True, "mock", None, True, None, False)), \
                 patch("researchmesh_repository.fetcher._close_process_pipes"):
             result = _run_git_stage(["git", "mock"], timeout=0.01)
         self.assertTrue(result.timed_out); self.assertIsNone(result.returncode)
+        self.assertEqual(result.returncode_source, "post-termination")
+
+    def test_timeout_race_records_natural_exit_without_termination(self):
+        process = FakeProcess(returncode=7, timeout=True, stdout="partial out")
+        process.returncode = 7
+        with patch("researchmesh_repository.fetcher.subprocess.Popen", return_value=process), \
+                patch("researchmesh_repository.fetcher._terminate_owned_tree",
+                      return_value=ProcessTerminationResult(
+                          False, None, None, False, 7, None)) as terminate:
+            result = _run_git_stage(["git", "mock"], timeout=0.01)
+        terminate.assert_called_once()
+        self.assertTrue(result.timed_out)
+        self.assertEqual(result.timeout_returncode, 7)
+        self.assertEqual(result.returncode, 7)
+        self.assertEqual(result.returncode_source, "natural-exit-race-after-timeout")
+        self.assertFalse(result.termination_attempted)
+
+    def test_timeout_race_between_status_check_and_termination_is_distinguished(self):
+        process = FakeProcess(returncode=7, timeout=True)
+        polls = iter([None, 7, 7])
+        process.poll = lambda: next(polls, 7)
+        with patch("researchmesh_repository.fetcher.subprocess.Popen", return_value=process):
+            result = _run_git_stage(["git", "mock"], timeout=0.01)
+        self.assertIsNone(result.timeout_returncode)
+        self.assertEqual(result.returncode, 7)
+        self.assertEqual(result.returncode_source,
+                         "natural-exit-race-before-termination")
+        self.assertFalse(result.termination_attempted)
+
+    def test_timeout_preserves_partial_and_final_stdout_and_stderr_separately(self):
+        process = FakeProcess(returncode=1, timeout=True,
+                              stdout="partial-out\n", stderr="partial-err\n",
+                              second_stdout="final-out\n", second_stderr="final-err\n")
+        with patch("researchmesh_repository.fetcher.subprocess.Popen", return_value=process), \
+                patch("researchmesh_repository.fetcher._terminate_owned_tree",
+                      return_value=ProcessTerminationResult(
+                          True, "mock", 0, False, 1, True)):
+            result = _run_git_stage(["git", "mock"], timeout=0.01)
+        self.assertEqual(result.stdout, "partial-out\nfinal-out\n")
+        self.assertEqual(result.stderr, "partial-err\nfinal-err\n")
+
+    def test_streams_are_independently_redacted_and_truncated(self):
+        fetcher = RepositoryFetcher()
+        long_stdout = "out " + URL + " " + ("x" * 1100)
+        long_stderr = ("api_key=secret Authorization: Bearer bearer-secret "
+                       "ghp_abcdefghijklmnopqrstuvwxyz " + ("y" * 1100))
+        with patch("researchmesh_repository.fetcher.subprocess.Popen",
+                   return_value=FakeProcess(returncode=128, stdout=long_stdout,
+                                            stderr=long_stderr)), \
+                patch("researchmesh_repository.fetcher._remove_temp_root"):
+            with self.assertRaises(RepositoryCloneError):
+                with fetcher.fetch(URL): pass
+        record = fetcher.git_diagnostics[0]
+        self.assertTrue(record["stdoutTruncated"])
+        self.assertTrue(record["stderrTruncated"])
+        self.assertEqual(len(record["stdout"]), 1000)
+        self.assertEqual(len(record["stderr"]), 1000)
+        self.assertNotIn(URL, record["stdout"])
+        self.assertNotIn("secret", record["stderr"])
+
+    def test_termination_command_failure_uses_fallback_and_is_not_tree_verified(self):
+        process = FakeProcess(returncode=1, timeout=True)
+        with patch("researchmesh_repository.fetcher.subprocess.Popen", return_value=process), \
+                patch("researchmesh_repository.fetcher.subprocess.run",
+                      side_effect=subprocess.TimeoutExpired(["taskkill"], 10)):
+            result = _run_git_stage(["git", "mock"], timeout=0.01)
+        self.assertTrue(result.termination_attempted)
+        self.assertIsNone(result.termination_command_returncode)
+        self.assertTrue(result.fallback_kill_attempted)
+        self.assertIsNone(result.tree_cleanup_verified)
 
     def test_head_failure_never_produces_resolved_commit(self):
         processes = [FakeProcess(), FakeProcess(), FakeProcess(returncode=2, stderr="not a repository")]

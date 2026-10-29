@@ -298,7 +298,7 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
         "disbandPublished": None, "disbandPublishPath": None,
         "cleanupAttempted": False, "cleanupSucceeded": None, "aclDeleted": None,
         "groupResourcesDeleted": None, "connectionClosed": None,
-        "groupResourceCleanup": {},
+        "groupResourceCleanup": {}, "groupResourceCleanupDeferred": [],
         "events": [], "error": None, "cleanupErrors": [], "passed": False,
     }
     acl = connection = client = conversation = None
@@ -414,14 +414,25 @@ async def run_group_literature(config, task, *, execute=False, partner_ready=Fal
                 record["disbandPublished"] = await cleanup("disband", publish_disband)
                 if record["disbandPublished"]:
                     await cleanup("disband_settle", settle_group_shutdown)
-                await cleanup("stop_consumer", client.cleanup_group_resources)
+                    await cleanup("stop_consumer", client.cleanup_group_resources)
+                else:
+                    record["cleanupErrors"].append(
+                        {"step": "stop_consumer_deferred", "type": "DependencyFailed"})
             if record["groupCreationAttempted"]:
+                resources = (
+                    ("partnerQueue", "queue", build_group_queue_name(config.leader_aic, group_id, config.partner_aic)),
+                    ("leaderQueue", "queue", build_group_queue_name(config.leader_aic, group_id, config.leader_aic)),
+                    ("exchange", "exchange", build_group_exchange_name(config.leader_aic, group_id)),
+                )
                 deleted = {}
-                if connection is not None and not connection.is_closed:
-                    for label, kind, name in (
-                        ("partnerQueue", "queue", build_group_queue_name(config.leader_aic, group_id, config.partner_aic)),
-                        ("leaderQueue", "queue", build_group_queue_name(config.leader_aic, group_id, config.leader_aic)),
-                        ("exchange", "exchange", build_group_exchange_name(config.leader_aic, group_id))):
+                if record["groupCreated"] and record["disbandPublished"] is not True:
+                    record["groupResourceCleanupDeferred"] = [label for label, _, _ in resources]
+                    for label in record["groupResourceCleanupDeferred"]:
+                        deleted[label] = False
+                        record["cleanupErrors"].append(
+                            {"step": "delete_" + label + "_deferred", "type": "DependencyFailed"})
+                elif connection is not None and not connection.is_closed:
+                    for label, kind, name in resources:
                         deleted[label] = await cleanup("delete_" + label,
                             lambda k=kind, n=name: delete_resource(connection, k, n))
                 record["groupResourceCleanup"] = deleted

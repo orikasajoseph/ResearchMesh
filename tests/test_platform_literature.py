@@ -339,14 +339,31 @@ class WorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(rec["cleanupSucceeded"])
 
     async def test_cleanup_error_preserves_business_but_prevents_pass(self):
-        rec, _, _, _, _, acl = await self.scenario(cleanup_error=True)
+        rec, _, client, _, deletion, acl = await self.scenario(cleanup_error=True)
         self.assertTrue(rec["protocolCompleted"])
         self.assertTrue(rec["businessReady"])
         self.assertFalse(rec["passed"])
         self.assertFalse(rec["cleanupSucceeded"])
         self.assertFalse(rec["disbandPublished"])
+        self.assertEqual(rec["groupResourceCleanupDeferred"],
+                         ["partnerQueue", "leaderQueue", "exchange"])
+        self.assertEqual(rec["groupResourceCleanup"], {
+            "partnerQueue": False, "leaderQueue": False, "exchange": False,
+        })
+        deletion.assert_not_awaited()
+        client.cleanup_group_resources.assert_not_awaited()
+        self.assertFalse(rec["groupResourcesDeleted"])
         self.assertFalse(rec["aclDeleted"])
         acl.delete_group.assert_not_awaited()
+        client._connection.close.assert_awaited_once()
+        acl.aclose.assert_awaited_once()
+        for resource in ("partnerQueue", "leaderQueue", "exchange"):
+            self.assertIn({"step": "delete_" + resource + "_deferred",
+                           "type": "DependencyFailed"}, rec["cleanupErrors"])
+        self.assertIn({"step": "stop_consumer_deferred", "type": "DependencyFailed"},
+                      rec["cleanupErrors"])
+        self.assertIn({"step": "delete_group_resources", "type": "IncompleteCleanup"},
+                      rec["cleanupErrors"])
         self.assertIn({"step": "delete_own_acl_deferred", "type": "DependencyFailed"},
                       rec["cleanupErrors"])
         self.assertNotIn("secret-cleanup", json.dumps(rec))

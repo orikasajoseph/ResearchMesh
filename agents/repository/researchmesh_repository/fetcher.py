@@ -98,7 +98,10 @@ class RepositoryFetcher:
                     "-c", "protocol.version=2",
                     "-c", f"core.hooksPath={disabled_hooks}", "clone",
                     "--depth", "1", "--single-branch", "--no-tags",
-                    "--filter=blob:none", "--no-checkout", "--progress",
+                    # Fetch the shallow HEAD's blobs during clone.  A partial
+                    # clone allowed checkout to become an implicit network
+                    # stage without independently useful progress diagnostics.
+                    "--no-checkout", "--progress",
                     safe_url, str(repository_path),
                 ),
                 timeout=self.config.clone_timeout_seconds,

@@ -47,7 +47,7 @@ class RepositoryFetcherAuditTests(unittest.TestCase):
     def success_processes():
         return [FakeProcess(), FakeProcess(), FakeProcess(stdout=COMMIT + "\n"), FakeProcess()]
 
-    def test_success_splits_clone_checkout_head_worktree_and_direct_child_policy(self):
+    def test_success_fetches_shallow_head_blobs_before_checkout(self):
         with patch.dict(os.environ, {"HTTP_PROXY": "http://bad:1", "http_proxy": "http://bad:2",
                   "HTTPS_PROXY": "http://bad:3", "UNRELATED_VALUE": "preserved"}, clear=False), \
                 patch("researchmesh_repository.fetcher.subprocess.Popen",
@@ -61,7 +61,7 @@ class RepositoryFetcherAuditTests(unittest.TestCase):
         self.assertEqual(fetcher.git_diagnostics[3]["resolvedCommit"], COMMIT)
         command = popen.call_args_list[0].args[0]
         self.assertIn("--no-checkout", command)
-        self.assertIn("--filter=blob:none", command)
+        self.assertNotIn("--filter=blob:none", command)
         self.assertIn("--single-branch", command)
         self.assertIn("--progress", command)
         self.assertIn("protocol.version=2", command)
@@ -72,8 +72,14 @@ class RepositoryFetcherAuditTests(unittest.TestCase):
         self.assertEqual(environment["UNRELATED_VALUE"], "preserved")
         self.assertEqual(environment["GIT_LFS_SKIP_SMUDGE"], "1")
         checkout_command = popen.call_args_list[1].args[0]
+        self.assertEqual(checkout_command[1:5],
+                         ["-c", "http.proxy=", "-c", "https.proxy="])
         self.assertIn("--progress", checkout_command)
         self.assertTrue(any(str(value).startswith("core.hooksPath=") for value in checkout_command))
+        checkout_environment = popen.call_args_list[1].kwargs["env"]
+        for name in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy",
+                     "ALL_PROXY", "all_proxy"):
+            self.assertNotIn(name, checkout_environment)
 
     def test_nonzero_clone_records_bounded_redacted_stderr_and_stops(self):
         secret = "https://user:password@github.com/microsoft/LoRA"
@@ -98,15 +104,17 @@ class RepositoryFetcherAuditTests(unittest.TestCase):
         self.assertFalse(record["stderrTruncated"])
         self.assertEqual(record["returncodeSource"], "natural-exit")
 
-    def test_server_filter_warning_is_preserved_not_treated_as_capability_proof(self):
-        processes = self.success_processes()
-        processes[0]._output = ("", "warning: filtering not recognized by server, ignoring")
-        with patch("researchmesh_repository.fetcher.subprocess.Popen", side_effect=processes), \
+    def test_clone_strategy_has_no_partial_clone_lazy_fetch_dependency(self):
+        with patch("researchmesh_repository.fetcher.subprocess.Popen",
+                   side_effect=self.success_processes()) as popen, \
                 patch("researchmesh_repository.fetcher._remove_temp_root"):
-            fetcher = RepositoryFetcher()
-            with fetcher.fetch(URL): pass
-        self.assertIn("filtering not recognized", fetcher.git_diagnostics[0]["stderr"])
-        self.assertEqual(fetcher.git_diagnostics[0]["returncode"], 0)
+            with RepositoryFetcher().fetch(URL): pass
+        clone = popen.call_args_list[0].args[0]
+        checkout = popen.call_args_list[1].args[0]
+        self.assertIn("--depth", clone)
+        self.assertIn("--no-checkout", clone)
+        self.assertFalse(any(str(value).startswith("--filter=") for value in clone))
+        self.assertNotIn("fetch", checkout)
 
     def test_checkout_100_percent_then_hangs_kills_owned_tree_and_stops(self):
         checkout = FakeProcess(returncode=1, timeout=True,

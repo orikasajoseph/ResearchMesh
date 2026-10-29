@@ -1,0 +1,14 @@
+diff --git a/config/amp/fluent-bit-heartbeat-repository-platform.conf b/config/amp/fluent-bit-heartbeat-repository-platform.conf
+index 3855153..f5d6ffe 100644
+--- a/config/amp/fluent-bit-heartbeat-repository-platform.conf
++++ b/config/amp/fluent-bit-heartbeat-repository-platform.conf
+@@ -6,7 +6,7 @@
+ 
+ [INPUT]
+     Name              tail
+-    Path              D:/research/ResearchMesh/logs/amp_heartbeat_repository_live.jsonl
++    Path              D:/research/aic/worktrees/repository-partner-candidate-20261029/logs/amp_heartbeat_repository_live.jsonl
+     Tag               amp.heartbeat
+     Parser            amp_audit_json
+     Refresh_Interval  1
+

@@ -61,6 +61,17 @@ Reader S2 正式验收包含单次真实模型 HTTP 请求、全文 paper note�
 - 依赖及三入口Mock验收提交：`0ed081e`
 - 协作基线均在历史中：`origin/zhao/planner-integration@58ebbbf`、`origin/shared/s2-s3-leader-cleanup-618489f@32b24af`
 
+### 正式三阶段运行版本
+
+| 组件 | 正式运行版本 | 证据边界 |
+|---|---|---|
+| Leader | `05d6365f19c8816408be73d68c19799d7f25f6b0` | 三阶段正式编排运行版本 |
+| Literature Partner | `de3af4d9509019f312189fbc92dbcd87e32cbcf7` | S1正式运行版本 |
+| Reader Partner | `de3af4d9509019f312189fbc92dbcd87e32cbcf7` | S2正式运行版本 |
+| Repository Partner | 基线 `32b24af5360b050b928e989ca78b5410a8aab2d3` + 当时未提交候选差异 | S3运行成功，但证据未冻结出唯一运行commit；不得把后续commit冒充为当时运行版本 |
+
+Repository Git transport 后续冻结提交为 `e096755`，用于最终代码收口参考，不等同于上述 S3 当时的完整内存/工作树版本。最终交付包提交以本分支最新 HEAD 为准。
+
 ## 9. 演示与证据索引
 
 演示顺序：身份与架构 → S1/S2/S3状态及Result → Kafka三Agent矩阵 → Discovery公开正向对照与正式AIC空结果 → 平台待核验边界。演示脚本见 [`final_demo_video_script_20261030.md`](final_demo_video_script_20261030.md)，文件与SHA清单见 [`MANIFEST.md`](MANIFEST.md) 和 [`SHA256SUMS.txt`](SHA256SUMS.txt)。

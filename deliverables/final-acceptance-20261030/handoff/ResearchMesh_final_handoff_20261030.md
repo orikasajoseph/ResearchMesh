@@ -30,6 +30,17 @@
 Agent，不能误认为是本项目正式 Agent。所有查询、报告和演示均以以上正式
 AIC 与对应 skill 为准。
 
+### 最终正式运行版本（2026-10-30）
+
+| 组件 | 运行版本 | 说明 |
+|---|---|---|
+| Leader | `05d6365f19c8816408be73d68c19799d7f25f6b0` | S1→S2→S3正式连续编排 |
+| Literature Partner | `de3af4d9509019f312189fbc92dbcd87e32cbcf7` | 正式S1运行版本 |
+| Reader Partner | `de3af4d9509019f312189fbc92dbcd87e32cbcf7` | 正式S2运行版本 |
+| Repository Partner | 基线 `32b24af5360b050b928e989ca78b5410a8aab2d3` + 当时未提交候选差异 | 正式S3成功，但未留下可复现的单一运行commit；保持为证据限制 |
+
+后续 Repository Git transport 冻结提交 `e096755` 和最终交付分支不应被倒推为 S3 当时的完整运行版本。最终交付分支为 `wu/final-delivery-20261030`。
+
 ### 核心结论
 
 1.  用户已完成三个功能 Agent 的平台注册及四张证书申请；Leader 由赵注册。

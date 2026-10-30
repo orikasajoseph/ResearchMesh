@@ -5,7 +5,7 @@
 - 本机三智能体链已真实运行：Planner → Literature → Reader → Repository 静态分析 → 报告。入口为 `run_aip_research.py`；Repository 可选增强另有真实验收记录。
 - 正式梧桐 Literature 第三次单任务已通过 Leader 自动验收：返回正确 LoRA 论文，六字段 Result 校验、Complete/completed 和 Leader 清理成功。
 - 吴已反馈同一 Task 的 SQLite 唯一记录为 completed，收到 GROUP_JOINED 与 DISBAND_RECEIVED；该次 Provider HTTP 请求次数、Partner 缓存回读和 GROUP_LEFT 证据仍待核对。
-- 正式 Reader/Repository 的 Leader 单任务入口、ADP 自动发现接线和正式平台 S1→S2→S3 全链仍待完成。本机三智能体通过不替代这些验收。
+- 2026-10-30 最终验收：显式 AIC 的正式平台 S1→S2→S3 连续业务链已完成并通过；三个 Partner 的单条 Kafka heartbeat 已获得 Broker ACK 与指定 offset 独立回读。平台 Consumer 消费、Registry alive 关联及三个正式 Agent 的 DSP/Discovery 可见性仍待平台核验，自动 Discovery 不记为通过。最终脱敏材料见 [`deliverables/final-acceptance-20261030/`](deliverables/final-acceptance-20261030/)。
 - 三个业务包均已在 `agents/` 中。协议沿用 v0.2 七字段 Task、六字段 Result，平台身份与状态置于官方 AIP 消息中。
 
 当前核对的已推送基线为 `zhao/planner-integration@cd56780`；后续补丁是否提交以 Git 状态为准。
@@ -290,9 +290,9 @@ v0.2 沿用 camelCase 字段风格，任务名和技能名见新的接口文档�
 Schema 导出和校验细节见 [数据模型说明](docs/schema_notes.md)。Planner 遇到格式/结构错误最多修正一次，
 单次模型调用默认最多等 30 秒；两次格式错误或调用失败不会用虚构计划兜底。
 
-## 尚未完成
+## 历史待办与当前平台待核验
 
-当前待办以 [当前进度](docs/current_status_20261022.md) 为准：Literature双方证据闭合、正式Reader/Repository Leader入口、ADP接线与正式平台全链、最终用户界面及交付材料。
+当前最终状态以 [`deliverables/final-acceptance-20261030/final_acceptance_report_20261030.md`](deliverables/final-acceptance-20261030/final_acceptance_report_20261030.md) 为准。剩余待办仅包括平台 Consumer 消费证明、Registry alive 关联、DSP对象级索引与正式 Agent 的 Discovery 可见性核验；历史进度文档仅描述当时状态。
 
 前两周记录见 [2026-10-12会议进度](docs/meeting_progress_20261012.md) 和 [当时接入说明](docs/week2_integration_ready_20261012.md)，其中“尚未实现/验收”的文字仅描述当时状态。分支提交和 main 合并状态另以 Git 为准。
 Mock 数据和格式检查不证明科研结论真实，也不证明平台发现或赛事互联已完成。

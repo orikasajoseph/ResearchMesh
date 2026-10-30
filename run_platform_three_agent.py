@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 import re
+from types import SimpleNamespace
 from uuid import uuid4
 
 from group_invitation import InviteConfig
@@ -18,6 +19,8 @@ from platform_three_agent_orchestrator import (
 )
 from platform_chain_resources import prepare_reader_resources, verify_cached_preparation
 from run_platform_literature import confirm_task_release
+from resolver.adp import AdpAgentResolver
+from resolver.discovery_http import DiscoveryHttpTransport
 
 
 STAGES = {
@@ -26,14 +29,44 @@ STAGES = {
     "repository_analyze": (run_group_repository_chain, "repository"),
 }
 
+STAGE_SKILLS = {
+    "literature_search": "literature.search",
+    "paper_read": "paper.analyze",
+    "repository_analyze": "repository.analyze",
+}
+
+
+def _selection_mode(args):
+    explicit = (args.literature_aic, args.reader_aic, args.repository_aic)
+    if args.discovery_mtls and not args.discovery_url:
+        raise ValueError("DISCOVERY_MTLS_REQUIRES_DISCOVERY_MODE")
+    if args.discovery_url:
+        if any(explicit):
+            raise ValueError("AMBIGUOUS_AGENT_SELECTION")
+        return "discovery"
+    if not all(explicit):
+        raise ValueError("AGENT_SELECTION_REQUIRED")
+    return "explicit"
+
+
+def _selection_executor(_candidate):
+    async def forbidden(*_args, **_kwargs):
+        raise RuntimeError("DISCOVERY_SELECTION_EXECUTOR_MUST_NOT_RUN")
+    return SimpleNamespace(execute=forbidden)
+
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=Path, default=ROOT / "examples/platform_three_agent_chain_v02.json")
     parser.add_argument("--leader-aic", required=True)
-    parser.add_argument("--literature-aic", required=True)
-    parser.add_argument("--reader-aic", required=True)
-    parser.add_argument("--repository-aic", required=True)
+    parser.add_argument("--literature-aic")
+    parser.add_argument("--reader-aic")
+    parser.add_argument("--repository-aic")
+    parser.add_argument("--discovery-url",
+                        help="启用正式在线发现；与三个显式AIC互斥，发现失败时禁止回退")
+    parser.add_argument("--discovery-timeout", type=float, default=10.0)
+    parser.add_argument("--discovery-mtls", action="store_true",
+                        help="使用credentials-dir中的Leader证书进行Discovery TLS客户端认证")
     parser.add_argument("--literature-commit", required=True)
     parser.add_argument("--reader-commit", required=True)
     parser.add_argument("--repository-commit", required=True)
@@ -57,8 +90,14 @@ def main(argv=None):
     plan_path = args.resume / "plan.json" if args.resume else args.plan
     plan = json.loads(plan_path.read_text(encoding="utf-8-sig"))
     validate_chain(plan)
+    try:
+        selection_mode = _selection_mode(args)
+    except ValueError as error:
+        print("Agent选择配置无效：", error)
+        return 2
     if not args.execute:
-        print("离线校验通过；未连接平台、未创建Group、未发送任务。")
+        print("离线校验通过；Agent选择模式：", selection_mode,
+              "；未连接平台、未创建Group、未发送任务。")
         return 0
     if not args.partners_ready or not args.confirm_each_stage:
         print("正式连续联调必须同时指定 --partners-ready 和 --confirm-each-stage。")
@@ -72,6 +111,25 @@ def main(argv=None):
     aics = {"literature_search": args.literature_aic,
             "paper_read": args.reader_aic,
             "repository_analyze": args.repository_aic}
+    discovery_transport = None
+    discovery_resolver = None
+    if selection_mode == "discovery":
+        try:
+            mtls = ({"cert_file": args.credentials_dir / "leader-cert.pem",
+                     "key_file": args.credentials_dir / "leader-key.pem",
+                     "trust_bundle_file": args.credentials_dir / "trust-bundle.pem"}
+                    if args.discovery_mtls else {})
+            discovery_transport = DiscoveryHttpTransport(
+                args.discovery_url, timeout_seconds=args.discovery_timeout, **mtls)
+        except ValueError as error:
+            print("Discovery配置无效：", error)
+            return 2
+        discovery_resolver = AdpAgentResolver(
+            discovery_transport,
+            _selection_executor,
+            timeout_seconds=args.discovery_timeout,
+            limit=5,
+        )
     timeouts = {"literature_search": args.literature_timeout,
                 "paper_read": args.reader_timeout,
                 "repository_analyze": args.repository_timeout}
@@ -80,10 +138,25 @@ def main(argv=None):
 
     async def runner(stage, task):
         function, label = STAGES[stage]
-        config = InviteConfig(args.leader_aic, aics[stage], args.credentials_dir,
-                              timeout=20, join_timeout=args.join_timeout, hold_seconds=0)
         state = read_json(output / "state.json")
         row = next(row for row in state["stages"] if row["stage"] == stage)
+        partner_aic = aics[stage]
+        if discovery_resolver is not None:
+            discovery_dir = stage_directory(output, row)
+            discovery_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                handle = await discovery_resolver.resolve(STAGE_SKILLS[stage])
+                partner_aic = handle.agent_id
+            finally:
+                if discovery_resolver.records:
+                    write_json(discovery_dir / "discovery.json", {
+                        "selectionMode": "discovery",
+                        "resolver": discovery_resolver.records[-1],
+                        "transport": discovery_transport.records[-1]
+                        if discovery_transport and discovery_transport.records else None,
+                    })
+        config = InviteConfig(args.leader_aic, partner_aic, args.credentials_dir,
+                              timeout=20, join_timeout=args.join_timeout, hold_seconds=0)
         live_path = stage_directory(output, row) / "live_record.json"
 
         def checkpoint(record):
@@ -111,11 +184,18 @@ def main(argv=None):
             checkpoint=lambda value: write_json(directory / "resource_attempt.json", value))
 
     print("【正式平台三 Agent 连续协作】三个独立Group顺序执行；每阶段人工放行且不自动重试。")
+    print("Agent选择：", "平台Discovery自动发现（失败不回退）" if discovery_resolver else "显式AIC")
     print("记录：", output)
+    async def run_chain():
+        try:
+            return await execute_platform_chain(plan, output, runner,
+                resource_preparer=prepare_resources, resume_unstarted=args.resume_unstarted,
+                resume_terminal_failed=args.resume_terminal_failed)
+        finally:
+            if discovery_transport is not None:
+                await discovery_transport.aclose()
     try:
-        state = asyncio.run(execute_platform_chain(plan, output, runner,
-            resource_preparer=prepare_resources, resume_unstarted=args.resume_unstarted,
-            resume_terminal_failed=args.resume_terminal_failed))
+        state = asyncio.run(run_chain())
     except KeyboardInterrupt:
         print("已中断；检查 state.json 与当前 Partner SQLite，禁止直接重发未确认阶段。")
         return 130

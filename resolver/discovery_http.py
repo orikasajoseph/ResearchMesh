@@ -57,7 +57,10 @@ class DiscoveryHttpTransport:
                 for path in (cert_file, key_file, trust_bundle_file):
                     if not path.is_file():
                         raise ValueError("DISCOVERY_MTLS_FILE_NOT_FOUND")
-                context = ssl.create_default_context(cafile=str(trust_bundle_file))
+                # Keep public Web PKI roots for the HTTPS server certificate,
+                # then add the ACPs trust bundle used by the Leader identity.
+                context = ssl.create_default_context()
+                context.load_verify_locations(cafile=str(trust_bundle_file))
                 context.load_cert_chain(certfile=str(cert_file), keyfile=str(key_file))
                 context.minimum_version = ssl.TLSVersion.TLSv1_2
                 verify = context

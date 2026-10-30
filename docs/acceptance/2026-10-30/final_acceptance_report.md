@@ -36,8 +36,10 @@
 | Leader | `05d6365f19c8816408be73d68c19799d7f25f6b0` |
 | Literature Partner | `de3af4d9509019f312189fbc92dbcd87e32cbcf7` |
 | Reader Partner | `de3af4d9509019f312189fbc92dbcd87e32cbcf7` |
-| Repository 基线 | `32b24af5360b050b928e989ca78b5410a8aab2d3` |
-| Repository 最终运行 commit | **待冻结：本次运行含未提交局部修改，不能将基线 SHA 冒充为最终运行提交。** |
+| Repository 运行时 Git HEAD（基线） | `32b24af5360b050b928e989ca78b5410a8aab2d3` |
+| Repository 最终冻结代码 | `e096755c9bd4aeb36bed33747ab527192851c8ed`（分支 `release/repository-git-trust-config-20261030`） |
+
+S3 运行时的 Repository Git HEAD 是上述基线；运行工作区同时包含未提交的 `REPOSITORY_GIT_TRUST_CONFIG=1` 局部开关，因此不得将基线误报为包含该开关的运行提交。冻结提交 `e096755c9bd4aeb36bed33747ab527192851c8ed` 在干净分支上仅提取并测试该开关及其定向测试，作为可追溯的最终 Repository 代码版本；它是成功运行后冻结的提交，并非对当时实际运行 HEAD 的追溯性声称。S3 实际分析的目标 LoRA 仓库 commit 仍为 `c4593f060e6a368d7bb5af5273b8e42810cdef90`。
 
 Python：Leader/Literature/Reader 使用 Python 3.13.14；Repository runtime 使用 Python 3.12.10。关键依赖：`acps-sdk 2.2.0`、`aio-pika 10.1.1`、`aiormq 7.2.2`、`pamqp 4.0.1`、`pydantic 2.13.4`、`httpx 0.28.1`、`pypdf 6.20.0`；Repository runtime 使用 `codewiki 2.0.0`。
 
@@ -59,7 +61,7 @@ Python：Leader/Literature/Reader 使用 Python 3.13.14；Repository runtime 使
 |---|---|
 | 源码仓库 | https://github.com/orikasajoseph/ResearchMesh |
 | 本次材料归档分支 | `submission/acceptance-evidence-20261030` |
-| 最终提交 commit | **待补：需先冻结并提交 Repository 运行态局部修改。** |
+| Repository 最终冻结代码 commit | `e096755c9bd4aeb36bed33747ab527192851c8ed`（`release/repository-git-trust-config-20261030`） |
 | 平台验收日期 | 2026-10-30，08:07:59–08:11:21（Asia/Shanghai） |
 | 三 Agent 结果 | S1、S2、S3 均 completed；三次离组回执与清理均成功 |
 | 视频文件名 | **待补：未归档视频。建议 `ResearchMesh_S1-S2-S3_Demo_20261030.mp4`。** |
@@ -79,6 +81,5 @@ python run_platform_three_agent.py --execute --partners-ready --confirm-each-sta
 
 ## 尚缺材料
 
-1. Repository 最终运行变更的审查、冻结与提交 SHA。
-2. 3–5 分钟演示视频文件或可访问链接。
-3. 平台后台的注册、发现、互联、任务终态、回执与清理截图。
+1. 3–5 分钟演示视频文件或可访问链接。
+2. 平台后台的注册、发现、互联、任务终态、回执与清理截图。

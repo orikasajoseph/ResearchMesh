@@ -34,7 +34,7 @@ async def run_live(*, partner_aic: str, leader_aic: str,
     print("GROUP_TASK_DB_PATH:", TASK_DB_PATH, flush=True)
     HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
     heartbeat = KafkaBackedHeartbeatEmitter(
-        HEARTBEAT_PATH, aic=partner_aic, credential_dir=CREDENTIAL_DIR,
+        HEARTBEAT_PATH, aic=partner_aic,
     )
     interval = float(os.getenv("AMP_HEARTBEAT_INTERVAL_SECONDS", "15"))
     task = asyncio.create_task(heartbeat.run_periodic(interval), name="repository-heartbeat")

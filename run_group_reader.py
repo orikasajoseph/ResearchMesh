@@ -25,7 +25,7 @@ async def run_live(*, partner_aic, leader_aic, executor):
     heartbeat_path = ROOT / "logs" / "amp_heartbeat_reader_live.jsonl"
     heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
     heartbeat = KafkaBackedHeartbeatEmitter(
-        heartbeat_path, aic=partner_aic, credential_dir=CREDENTIAL_DIR,
+        heartbeat_path, aic=partner_aic,
     )
     task = asyncio.create_task(heartbeat.run_periodic(float(os.getenv("AMP_HEARTBEAT_INTERVAL_SECONDS", "15"))))
     try:

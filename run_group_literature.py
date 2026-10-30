@@ -82,7 +82,6 @@ async def run_live(
     heartbeat = KafkaBackedHeartbeatEmitter(
         HEARTBEAT_PATH,
         aic=partner_aic,
-        credential_dir=CREDENTIAL_DIR,
     )
 
     interval = float(

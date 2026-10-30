@@ -206,12 +206,22 @@ class RepositoryFetcher:
 
 
 def _git_command(*arguments: str) -> list[str]:
+    if os.getenv("REPOSITORY_GIT_TRUST_CONFIG", "0").strip().lower() in {
+        "1", "true", "yes",
+    }:
+        return ["git", *arguments]
     # Command-level empty proxy values override user/global Git config.  The
     # setting applies only to this child process and never writes configuration.
     return ["git", "-c", "http.proxy=", "-c", "https.proxy=", *arguments]
 
 
 def _git_environment() -> dict[str, str]:
+    if os.getenv("REPOSITORY_GIT_TRUST_CONFIG", "0").strip().lower() in {
+        "1", "true", "yes",
+    }:
+        environment = dict(os.environ)
+        environment.update(GIT_TERMINAL_PROMPT="0", GIT_LFS_SKIP_SMUDGE="1")
+        return environment
     # Git/libcurl also consult conventional proxy variables.  Remove only those
     # variables from this child environment; retain every unrelated variable.
     proxy_names = {

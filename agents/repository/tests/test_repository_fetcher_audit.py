@@ -10,6 +10,8 @@ from researchmesh_repository.fetcher import (
     ProcessTerminationResult,
     RepositoryCloneError,
     RepositoryFetcher,
+    _git_command,
+    _git_environment,
     _run_git_stage,
 )
 
@@ -43,6 +45,30 @@ class FakeProcess:
 
 
 class RepositoryFetcherAuditTests(unittest.TestCase):
+    def test_git_trust_config_is_opt_in_and_preserves_git_configuration(self):
+        with patch.dict(os.environ, {
+            "REPOSITORY_GIT_TRUST_CONFIG": "1",
+            "HTTPS_PROXY": "http://configured-proxy:8443",
+        }, clear=False):
+            command = _git_command("clone", "https://github.com/microsoft/LoRA")
+            environment = _git_environment()
+
+        self.assertEqual(command, ["git", "clone", "https://github.com/microsoft/LoRA"])
+        self.assertEqual(environment["HTTPS_PROXY"], "http://configured-proxy:8443")
+        self.assertEqual(environment["GIT_TERMINAL_PROMPT"], "0")
+        self.assertEqual(environment["GIT_LFS_SKIP_SMUDGE"], "1")
+
+    def test_git_trust_config_false_keeps_proxy_isolation(self):
+        with patch.dict(os.environ, {
+            "REPOSITORY_GIT_TRUST_CONFIG": "false",
+            "HTTPS_PROXY": "http://configured-proxy:8443",
+        }, clear=False):
+            command = _git_command("status")
+            environment = _git_environment()
+
+        self.assertEqual(command[:5], ["git", "-c", "http.proxy=", "-c", "https.proxy="])
+        self.assertNotIn("HTTPS_PROXY", environment)
+
     @staticmethod
     def success_processes():
         return [FakeProcess(), FakeProcess(), FakeProcess(stdout=COMMIT + "\n"), FakeProcess()]

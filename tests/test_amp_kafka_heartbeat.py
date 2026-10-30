@@ -11,7 +11,7 @@ from unittest.mock import patch
 from aip.amp_kafka_heartbeat import (
     AmpKafkaSettings,
     KafkaBackedHeartbeatEmitter,
-    KafkaTlsHeartbeatPublisher,
+    KafkaHeartbeatPublisher,
 )
 
 
@@ -58,22 +58,18 @@ class FakeKafkaProducer:
 
 
 class AmpKafkaHeartbeatTests(unittest.TestCase):
-    def test_settings_centralize_broker_topic_and_per_agent_tls_paths(self) -> None:
-        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}, clear=True):
-            credential_dir = Path(directory)
-            settings = AmpKafkaSettings.from_environment(credential_dir)
+    def test_settings_centralize_broker_and_topic(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            settings = AmpKafkaSettings.from_environment()
         self.assertEqual(settings.bootstrap_servers, "wt.ioa.pub:19092")
         self.assertEqual(settings.topic, "amp.heartbeat")
-        self.assertEqual(settings.ca_file, credential_dir / "trust-bundle.pem")
-        self.assertEqual(settings.cert_file, credential_dir / "agent-cert.pem")
-        self.assertEqual(settings.key_file, credential_dir / "agent-key.pem")
 
     def test_local_record_is_preserved_and_exact_bytes_are_published(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "heartbeat.jsonl"
             publisher = FakePublisher()
             emitter = KafkaBackedHeartbeatEmitter(
-                path, aic=AIC, credential_dir=Path(directory), publisher=publisher,
+                path, aic=AIC, publisher=publisher,
             )
             self.assertTrue(asyncio.run(emitter.emit_once()))
             local = path.read_bytes().splitlines()
@@ -89,16 +85,16 @@ class AmpKafkaHeartbeatTests(unittest.TestCase):
             path = Path(directory) / "heartbeat.jsonl"
             publisher = FailingPublisher()
             emitter = KafkaBackedHeartbeatEmitter(
-                path, aic=AIC, credential_dir=Path(directory), publisher=publisher,
+                path, aic=AIC, publisher=publisher,
             )
             self.assertFalse(asyncio.run(emitter.emit_once()))
             record = json.loads(path.read_bytes().splitlines()[-1])
         self.assertEqual(record["aic"], AIC)
         self.assertEqual(publisher.stopped, 1)
 
-    def test_producer_requires_tls_all_acks_and_aic_key(self) -> None:
+    def test_producer_uses_platform_plaintext_all_acks_and_aic_key(self) -> None:
         with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}, clear=True):
-            settings = AmpKafkaSettings.from_environment(Path(directory))
+            settings = AmpKafkaSettings.from_environment()
             made: list[FakeKafkaProducer] = []
 
             def factory(**kwargs: object) -> FakeKafkaProducer:
@@ -107,17 +103,18 @@ class AmpKafkaHeartbeatTests(unittest.TestCase):
                 return producer
 
             async def exercise() -> None:
-                with patch.object(AmpKafkaSettings, "ssl_context", return_value=object()):
-                    publisher = KafkaTlsHeartbeatPublisher(
-                        settings=settings, aic=AIC, producer_factory=factory,
-                    )
-                    await publisher.start()
-                    await publisher.publish(json.dumps({"aic": AIC}).encode())
-                    await publisher.stop()
+                publisher = KafkaHeartbeatPublisher(
+                    settings=settings, aic=AIC, producer_factory=factory,
+                )
+                await publisher.start()
+                metadata = await publisher.publish(json.dumps({"aic": AIC}).encode())
+                self.assertEqual((metadata.partition, metadata.offset), (0, 7))
+                await publisher.stop()
 
             asyncio.run(exercise())
         producer = made[0]
-        self.assertEqual(producer.kwargs["security_protocol"], "SSL")
+        self.assertEqual(producer.kwargs["security_protocol"], "PLAINTEXT")
+        self.assertNotIn("ssl_context", producer.kwargs)
         self.assertEqual(producer.kwargs["acks"], "all")
         self.assertEqual(producer.sent[0][0], "amp.heartbeat")
         self.assertEqual(producer.sent[0][2], AIC.encode())

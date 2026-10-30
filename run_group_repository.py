@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from acps_sdk.amp import HeartbeatEmitter
+from aip.amp_kafka_heartbeat import KafkaBackedHeartbeatEmitter
 from aip.group_repository_partner import serve, tls_context
 from aip.group_task_store import DurableTaskStore
 from aip.literature_audit import AuditJournal
@@ -33,7 +33,9 @@ async def run_live(*, partner_aic: str, leader_aic: str,
     print("GROUP_TASK_STORE_READY", flush=True)
     print("GROUP_TASK_DB_PATH:", TASK_DB_PATH, flush=True)
     HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    heartbeat = HeartbeatEmitter(HEARTBEAT_PATH, aic=partner_aic)
+    heartbeat = KafkaBackedHeartbeatEmitter(
+        HEARTBEAT_PATH, aic=partner_aic, credential_dir=CREDENTIAL_DIR,
+    )
     interval = float(os.getenv("AMP_HEARTBEAT_INTERVAL_SECONDS", "15"))
     task = asyncio.create_task(heartbeat.run_periodic(interval), name="repository-heartbeat")
     print("HEARTBEAT_STARTED", flush=True)

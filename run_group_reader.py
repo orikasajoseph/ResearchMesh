@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from acps_sdk.amp import HeartbeatEmitter
+from aip.amp_kafka_heartbeat import KafkaBackedHeartbeatEmitter
 from aip.group_literature_partner import tls_context
 from aip.group_reader_partner import serve
 from aip.group_task_store import DurableTaskStore
@@ -24,7 +24,9 @@ async def run_live(*, partner_aic, leader_aic, executor):
     store = DurableTaskStore(TASK_DB_PATH)
     heartbeat_path = ROOT / "logs" / "amp_heartbeat_reader_live.jsonl"
     heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
-    heartbeat = HeartbeatEmitter(heartbeat_path, aic=partner_aic)
+    heartbeat = KafkaBackedHeartbeatEmitter(
+        heartbeat_path, aic=partner_aic, credential_dir=CREDENTIAL_DIR,
+    )
     task = asyncio.create_task(heartbeat.run_periodic(float(os.getenv("AMP_HEARTBEAT_INTERVAL_SECONDS", "15"))))
     try:
         await serve(partner_aic=partner_aic, leader_aic=leader_aic, credential_dir=CREDENTIAL_DIR,

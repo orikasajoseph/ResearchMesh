@@ -22,7 +22,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from acps_sdk.amp import HeartbeatEmitter
+from aip.amp_kafka_heartbeat import KafkaBackedHeartbeatEmitter
 from aip.group_literature_partner import (
     serve,
     tls_context,
@@ -79,9 +79,10 @@ async def run_live(
         exist_ok=True,
     )
 
-    heartbeat = HeartbeatEmitter(
+    heartbeat = KafkaBackedHeartbeatEmitter(
         HEARTBEAT_PATH,
         aic=partner_aic,
+        credential_dir=CREDENTIAL_DIR,
     )
 
     interval = float(

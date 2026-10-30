@@ -10,3 +10,11 @@
 *.ini text eol=lf
 *.cfg text eol=lf
 *.sh text eol=lf
+
+# Acceptance artefacts are byte-for-byte snapshots of the formal run.
+evidence/2026-10-30/state.json -text
+evidence/2026-10-30/report.md -text
+evidence/2026-10-30/stages/**/record.json -text
+evidence/2026-10-30/stages/**/result.json -text
+evidence/2026-10-30/journals/*.jsonl -text
+evidence/2026-10-30/logs/*.log -text

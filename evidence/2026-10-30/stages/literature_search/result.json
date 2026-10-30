@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "0.2",
+  "subtaskId": "S1",
+  "taskType": "literature_search",
+  "summary": "保留 1 篇可定位论文；未阅读全文，未分析代码。",
+  "items": [
+    {
+      "kind": "paper",
+      "data": {
+        "paperId": "https://openalex.org/W3168867926",
+        "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+        "authors": [
+          "J. Edward Hu",
+          "Yelong Shen",
+          "Phillip Wallis",
+          "Zeyuan Allen-Zhu",
+          "Yuanzhi Li",
+          "Shean Wang",
+          "Wang, Lu",
+          "Chen, Weizhu"
+        ],
+        "year": 2021,
+        "abstract": "An important paradigm of natural language processing consists of large-scale pre-training on general domain data and adaptation to particular tasks or domains. As we pre-train larger models, full fine-tuning, which retrains all model parameters, becomes less feasible. Using GPT-3 175B as an example -- deploying independent instances of fine-tuned models, each with 175B parameters, is prohibitively expensive. We propose Low-Rank Adaptation, or LoRA, which freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer of the Transformer architecture, greatly reducing the number of trainable parameters for downstream tasks. Compared to GPT-3 175B fine-tuned with Adam, LoRA can reduce the number of trainable parameters by 10,000 times and the GPU memory requirement by 3 times. LoRA performs on-par or better than fine-tuning in model quality on RoBERTa, DeBERTa, GPT-2, and GPT-3, despite having fewer trainable parameters, a higher training throughput, and, unlike adapters, no additional inference latency. We also provide an empirical investigation into rank-deficiency in language model adaptation, which sheds light on the efficacy of LoRA. We release a package that facilitates the integration of LoRA with PyTorch models and provide our implementations and model checkpoints for RoBERTa, DeBERTa, and GPT-2 at https://github.com/microsoft/LoRA.",
+        "doi": "10.48550/arxiv.2106.09685",
+        "url": "https://openalex.org/W3168867926",
+        "pdfUrl": "https://arxiv.org/pdf/2106.09685",
+        "citationCount": 2501,
+        "repositoryUrls": [],
+        "sourceUrls": [
+          "https://arxiv.org/abs/2106.09685"
+        ],
+        "authorRecords": [
+          {
+            "authorId": "https://openalex.org/A5103230101",
+            "name": "J. Edward Hu"
+          },
+          {
+            "authorId": "https://openalex.org/A5101180037",
+            "name": "Yelong Shen"
+          },
+          {
+            "authorId": "https://openalex.org/A5058656827",
+            "name": "Phillip Wallis"
+          },
+          {
+            "authorId": "https://openalex.org/A5048981295",
+            "name": "Zeyuan Allen-Zhu"
+          },
+          {
+            "authorId": "https://openalex.org/A5101879892",
+            "name": "Yuanzhi Li"
+          },
+          {
+            "authorId": "https://openalex.org/A5047774607",
+            "name": "Shean Wang"
+          },
+          {
+            "authorId": null,
+            "name": "Wang, Lu"
+          },
+          {
+            "authorId": null,
+            "name": "Chen, Weizhu"
+          }
+        ],
+        "provider": "openalex",
+        "relevance": "关键词检索返回；未经全文阅读或相关性人工复核。"
+      }
+    }
+  ],
+  "warnings": [
+    "SOURCE_URLS_NORMALIZED：论文地址保存为 sourceUrls，不作为 GitHub 仓库地址。"
+  ]
+}

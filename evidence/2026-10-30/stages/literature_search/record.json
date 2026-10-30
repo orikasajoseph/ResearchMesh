@@ -1,0 +1,308 @@
+{
+  "timeUtc": "2026-10-30T00:07:59.216530+00:00",
+  "scope": "PLATFORM_LITERATURE_SINGLE_TASK",
+  "groupId": "rm-literature-e495e36bf2e9446284dccbe54c29f607",
+  "taskId": "task-f31b36aa6f014408b5145081847fba38",
+  "sessionId": "session-65fc4981aa6e474d8aab2b6a79a7b97d",
+  "leaderAic": "1.2.156.3088.1.BUPT.RECKYJ.Q77J9R.52YOLZ.11P6",
+  "partnerAic": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL",
+  "partnerSelection": "explicit_aic_not_adp",
+  "partnerCommitDeclared": "de3af4d9509019f312189fbc92dbcd87e32cbcf7",
+  "partnerCommitRemotelyVerified": false,
+  "providerExecutionVerified": false,
+  "leaderLlmCalls": 0,
+  "partnerLlmCalls": null,
+  "offlineChecksPassed": true,
+  "networkAttempted": true,
+  "aclWriteAttempted": true,
+  "leaderAuthorized": true,
+  "partnerAuthorized": true,
+  "amqpConnected": true,
+  "groupCreationAttempted": true,
+  "groupCreated": true,
+  "invitationPublishAttempted": true,
+  "invitationPublished": true,
+  "partnerJoinConfirmed": true,
+  "taskReleaseRequired": true,
+  "taskReleaseConfirmed": true,
+  "startAttempted": true,
+  "startPublished": true,
+  "taskCommandsSent": 2,
+  "completeAttempted": true,
+  "completePublished": true,
+  "resultValidated": true,
+  "result": {
+    "schemaVersion": "0.2",
+    "subtaskId": "S1",
+    "taskType": "literature_search",
+    "summary": "保留 1 篇可定位论文；未阅读全文，未分析代码。",
+    "items": [
+      {
+        "kind": "paper",
+        "data": {
+          "paperId": "https://openalex.org/W3168867926",
+          "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+          "authors": [
+            "J. Edward Hu",
+            "Yelong Shen",
+            "Phillip Wallis",
+            "Zeyuan Allen-Zhu",
+            "Yuanzhi Li",
+            "Shean Wang",
+            "Wang, Lu",
+            "Chen, Weizhu"
+          ],
+          "year": 2021,
+          "abstract": "An important paradigm of natural language processing consists of large-scale pre-training on general domain data and adaptation to particular tasks or domains. As we pre-train larger models, full fine-tuning, which retrains all model parameters, becomes less feasible. Using GPT-3 175B as an example -- deploying independent instances of fine-tuned models, each with 175B parameters, is prohibitively expensive. We propose Low-Rank Adaptation, or LoRA, which freezes the pre-trained model weights and injects trainable rank decomposition matrices into each layer of the Transformer architecture, greatly reducing the number of trainable parameters for downstream tasks. Compared to GPT-3 175B fine-tuned with Adam, LoRA can reduce the number of trainable parameters by 10,000 times and the GPU memory requirement by 3 times. LoRA performs on-par or better than fine-tuning in model quality on RoBERTa, DeBERTa, GPT-2, and GPT-3, despite having fewer trainable parameters, a higher training throughput, and, unlike adapters, no additional inference latency. We also provide an empirical investigation into rank-deficiency in language model adaptation, which sheds light on the efficacy of LoRA. We release a package that facilitates the integration of LoRA with PyTorch models and provide our implementations and model checkpoints for RoBERTa, DeBERTa, and GPT-2 at https://github.com/microsoft/LoRA.",
+          "doi": "10.48550/arxiv.2106.09685",
+          "url": "https://openalex.org/W3168867926",
+          "pdfUrl": "https://arxiv.org/pdf/2106.09685",
+          "citationCount": 2501,
+          "repositoryUrls": [],
+          "sourceUrls": [
+            "https://arxiv.org/abs/2106.09685"
+          ],
+          "authorRecords": [
+            {
+              "authorId": "https://openalex.org/A5103230101",
+              "name": "J. Edward Hu"
+            },
+            {
+              "authorId": "https://openalex.org/A5101180037",
+              "name": "Yelong Shen"
+            },
+            {
+              "authorId": "https://openalex.org/A5058656827",
+              "name": "Phillip Wallis"
+            },
+            {
+              "authorId": "https://openalex.org/A5048981295",
+              "name": "Zeyuan Allen-Zhu"
+            },
+            {
+              "authorId": "https://openalex.org/A5101879892",
+              "name": "Yuanzhi Li"
+            },
+            {
+              "authorId": "https://openalex.org/A5047774607",
+              "name": "Shean Wang"
+            },
+            {
+              "authorId": null,
+              "name": "Wang, Lu"
+            },
+            {
+              "authorId": null,
+              "name": "Chen, Weizhu"
+            }
+          ],
+          "provider": "openalex",
+          "relevance": "关键词检索返回；未经全文阅读或相关性人工复核。"
+        }
+      }
+    ],
+    "warnings": [
+      "SOURCE_URLS_NORMALIZED：论文地址保存为 sourceUrls，不作为 GitHub 仓库地址。"
+    ]
+  },
+  "taskStates": [
+    {
+      "messageId": "result-890cb3c3-911c-4f18-abbd-7bbeabf9d358",
+      "state": "accepted",
+      "timeUtc": "2026-10-30T00:08:13.018481+00:00"
+    },
+    {
+      "messageId": "result-6830eff9-f908-4e24-8554-c9f3ff3d8d21",
+      "state": "working",
+      "timeUtc": "2026-10-30T00:08:13.146906+00:00"
+    },
+    {
+      "messageId": "result-5e76330f-3453-4e9e-a8d7-6773673d3b2f",
+      "state": "awaiting-completion",
+      "timeUtc": "2026-10-30T00:08:18.939181+00:00"
+    },
+    {
+      "messageId": "result-7918434e-70f7-4622-91a2-e691154d6ec7",
+      "state": "completed",
+      "timeUtc": "2026-10-30T00:08:19.122195+00:00"
+    }
+  ],
+  "protocolCompleted": true,
+  "businessReady": true,
+  "remoteStateUnknown": false,
+  "startPublishPath": {
+    "connectionPresent": true,
+    "connectionClosed": false,
+    "transportAvailable": true,
+    "channelPresent": true,
+    "channelClosed": false,
+    "exchangePresent": true,
+    "exchangeChannelClosed": false,
+    "exchangeUsesCurrentChannel": true
+  },
+  "completePublishPath": {
+    "connectionPresent": true,
+    "connectionClosed": false,
+    "transportAvailable": true,
+    "channelPresent": true,
+    "channelClosed": false,
+    "exchangePresent": true,
+    "exchangeChannelClosed": false,
+    "exchangeUsesCurrentChannel": true
+  },
+  "disbandPublished": true,
+  "disbandPublishPath": {
+    "connectionPresent": true,
+    "connectionClosed": false,
+    "transportAvailable": true,
+    "channelPresent": true,
+    "channelClosed": false,
+    "exchangePresent": true,
+    "exchangeChannelClosed": false,
+    "exchangeUsesCurrentChannel": true
+  },
+  "disbandSettleCompleted": true,
+  "consumerCleanupCompleted": true,
+  "partnerDisbandConfirmed": true,
+  "disbandCommandId": "mgmt-cmd-5d58e903-7196-4721-9378-48db73097467",
+  "groupResourceCleanup": {
+    "partnerQueue": true,
+    "leaderQueue": true,
+    "exchange": true
+  },
+  "groupResourceCleanupDeferred": [],
+  "cleanupAttempted": true,
+  "cleanupSucceeded": true,
+  "aclDeleted": true,
+  "groupResourcesDeleted": true,
+  "connectionClosed": true,
+  "events": [
+    {
+      "event": "OFFLINE_PREFLIGHT_PASSED",
+      "timeUtc": "2026-10-30T00:07:59.391558+00:00"
+    },
+    {
+      "event": "LEADER_ACL_WRITE_ATTEMPT",
+      "timeUtc": "2026-10-30T00:07:59.464627+00:00"
+    },
+    {
+      "event": "LEADER_ACL_AUTHORIZED",
+      "timeUtc": "2026-10-30T00:08:00.936038+00:00"
+    },
+    {
+      "event": "GROUP_CREATE_ATTEMPT",
+      "timeUtc": "2026-10-30T00:08:01.298869+00:00"
+    },
+    {
+      "event": "GROUP_CREATED",
+      "timeUtc": "2026-10-30T00:08:01.416898+00:00"
+    },
+    {
+      "event": "PARTNER_ACL_AUTHORIZED",
+      "timeUtc": "2026-10-30T00:08:01.805431+00:00"
+    },
+    {
+      "event": "INVITATION_PUBLISH_ATTEMPT",
+      "timeUtc": "2026-10-30T00:08:01.808413+00:00"
+    },
+    {
+      "event": "INVITATION_PUBLISHED",
+      "timeUtc": "2026-10-30T00:08:01.883345+00:00"
+    },
+    {
+      "event": "GROUP_JOINED_CONFIRMED",
+      "timeUtc": "2026-10-30T00:08:02.066045+00:00"
+    },
+    {
+      "event": "TASK_RELEASE_WAITING",
+      "timeUtc": "2026-10-30T00:08:02.070065+00:00"
+    },
+    {
+      "event": "TASK_RELEASE_CONFIRMED",
+      "timeUtc": "2026-10-30T00:08:12.919167+00:00"
+    },
+    {
+      "event": "TASK_START_ATTEMPT",
+      "timeUtc": "2026-10-30T00:08:12.923049+00:00"
+    },
+    {
+      "event": "TASK_START_PUBLISHED",
+      "timeUtc": "2026-10-30T00:08:12.964941+00:00"
+    },
+    {
+      "event": "TASK_STATE_ACCEPTED",
+      "timeUtc": "2026-10-30T00:08:13.018498+00:00"
+    },
+    {
+      "event": "TASK_STATE_WORKING",
+      "timeUtc": "2026-10-30T00:08:13.146923+00:00"
+    },
+    {
+      "event": "TASK_STATE_AWAITING_COMPLETION",
+      "timeUtc": "2026-10-30T00:08:18.939205+00:00"
+    },
+    {
+      "event": "BUSINESS_RESULT_VALIDATED",
+      "timeUtc": "2026-10-30T00:08:18.942424+00:00"
+    },
+    {
+      "event": "TASK_COMPLETE_ATTEMPT",
+      "timeUtc": "2026-10-30T00:08:18.944865+00:00"
+    },
+    {
+      "event": "TASK_COMPLETE_PUBLISHED",
+      "timeUtc": "2026-10-30T00:08:19.009891+00:00"
+    },
+    {
+      "event": "TASK_STATE_COMPLETED",
+      "timeUtc": "2026-10-30T00:08:19.122211+00:00"
+    },
+    {
+      "event": "TASK_COMPLETED_CONFIRMED",
+      "timeUtc": "2026-10-30T00:08:19.125363+00:00"
+    },
+    {
+      "event": "CLEANUP_STARTED",
+      "timeUtc": "2026-10-30T00:08:19.127902+00:00"
+    },
+    {
+      "event": "DISBAND_PUBLISH_ATTEMPT",
+      "timeUtc": "2026-10-30T00:08:19.131925+00:00"
+    },
+    {
+      "event": "PARTNER_LEAVE_CONFIRMED",
+      "timeUtc": "2026-10-30T00:08:19.506380+00:00"
+    },
+    {
+      "event": "CLEANUP_FINISHED",
+      "timeUtc": "2026-10-30T00:08:23.352102+00:00"
+    }
+  ],
+  "error": null,
+  "cleanupErrors": [],
+  "passed": true,
+  "task": {
+    "schemaVersion": "0.2",
+    "subtaskId": "S1",
+    "taskType": "literature_search",
+    "goal": "检索题为 LoRA: Low-Rank Adaptation of Large Language Models 的论文并返回可定位来源。",
+    "input": {
+      "query": "LoRA: Low-Rank Adaptation of Large Language Models"
+    },
+    "constraints": {
+      "maxResults": 1
+    },
+    "outputSchema": "paper_records.v1"
+  },
+  "partnerLeaveTimeoutSeconds": 20,
+  "partnerLeaveReceipt": {
+    "messageId": "leave-receipt-ccfcf39e20a710c8ab1688a83663833a",
+    "senderId": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL",
+    "groupId": "rm-literature-e495e36bf2e9446284dccbe54c29f607",
+    "sessionId": "session-65fc4981aa6e474d8aab2b6a79a7b97d",
+    "disbandCommandId": "mgmt-cmd-5d58e903-7196-4721-9378-48db73097467",
+    "receivedAt": "2026-10-30T00:08:19.506264+00:00"
+  },
+  "ignoredTaskResults": 0,
+  "elapsedMs": 24139
+}

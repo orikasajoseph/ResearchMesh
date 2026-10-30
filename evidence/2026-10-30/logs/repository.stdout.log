@@ -1,0 +1,13 @@
+AUDIT_JOURNAL: D:\research\aic\evidence\literature-c136b2ff61b44cf3ba9c8e7b10e285e2.jsonl
+GROUP_TASK_STORE_READY
+GROUP_TASK_DB_PATH: D:\research\aic\state\group_tasks.sqlite3
+HEARTBEAT_STARTED
+HEARTBEAT_PATH: D:\research\aic\worktrees\s2-s3-repository-time-budget-candidate-20261030\logs\amp_heartbeat_repository_live.jsonl
+AMQPS_CONNECTED
+INBOX_LISTENING
+GROUP_JOINED rm-repository-chain-e6f096562e0b4fa0b9b79135bd640161
+DISBAND_RECEIVED rm-repository-chain-e6f096562e0b4fa0b9b79135bd640161
+GROUP_LEFT rm-repository-chain-e6f096562e0b4fa0b9b79135bd640161
+INBOX_RESTART_STARTED 1
+INBOX_RESTART_SUCCEEDED 1
+INBOX_LISTENING

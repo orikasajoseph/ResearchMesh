@@ -6,7 +6,10 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
+
+from acps_sdk.amp import HeartbeatLogRecord
 
 from aip.amp_kafka_heartbeat import (
     AmpKafkaSettings,
@@ -76,6 +79,7 @@ class AmpKafkaHeartbeatTests(unittest.TestCase):
         self.assertEqual(publisher.started, 1)
         self.assertEqual(publisher.payloads, [local[-1]])
         record = json.loads(local[-1])
+        HeartbeatLogRecord.model_validate(record)
         self.assertEqual(record["aic"], AIC)
         self.assertEqual(record["schema_version"], "1.0")
         self.assertEqual(record["log_type"], "heartbeat")
@@ -119,3 +123,79 @@ class AmpKafkaHeartbeatTests(unittest.TestCase):
         self.assertEqual(producer.sent[0][0], "amp.heartbeat")
         self.assertEqual(producer.sent[0][2], AIC.encode())
         self.assertTrue(producer.stopped)
+
+
+class _EntryHeartbeat:
+    created: list[tuple[Path, str]] = []
+    cancelled = 0
+
+    def __init__(self, path: Path, *, aic: str) -> None:
+        self.created.append((path, aic))
+
+    async def run_periodic(self, _interval: float) -> None:
+        try:
+            await asyncio.Event().wait()
+        finally:
+            type(self).cancelled += 1
+
+
+class AmpKafkaHeartbeatEntryPointTests(unittest.TestCase):
+    def setUp(self) -> None:
+        _EntryHeartbeat.created = []
+        _EntryHeartbeat.cancelled = 0
+
+    def test_literature_live_entry_uses_kafka_backed_emitter(self) -> None:
+        import run_group_literature as entry
+
+        async def serve(**_kwargs: object) -> None:
+            await asyncio.sleep(0)
+
+        with patch.object(entry, "KafkaBackedHeartbeatEmitter", _EntryHeartbeat), \
+                patch.object(entry, "AuditJournal", return_value=SimpleNamespace(path="audit")), \
+                patch.object(entry, "DurableTaskStore", return_value=object()), \
+                patch.object(entry, "serve", serve):
+            asyncio.run(entry.run_live(partner_aic=AIC, leader_aic="leader"))
+
+        self.assertEqual(_EntryHeartbeat.created, [(entry.HEARTBEAT_PATH, AIC)])
+        self.assertEqual(_EntryHeartbeat.cancelled, 1)
+
+    def test_reader_live_entry_uses_kafka_backed_emitter(self) -> None:
+        import run_group_reader as entry
+
+        async def serve(**_kwargs: object) -> None:
+            await asyncio.sleep(0)
+
+        executor = SimpleNamespace(
+            python=Path("reader-python"), reader_root=Path("reader-root"),
+            env_file=Path("reader.env"), runtime_home=Path("runtime-home"),
+        )
+        expected_path = entry.ROOT / "logs" / "amp_heartbeat_reader_live.jsonl"
+        with patch.object(entry, "KafkaBackedHeartbeatEmitter", _EntryHeartbeat), \
+                patch.object(entry, "AuditJournal", return_value=SimpleNamespace(path="audit")), \
+                patch.object(entry, "DurableTaskStore", return_value=object()), \
+                patch.object(entry, "serve", serve):
+            asyncio.run(entry.run_live(
+                partner_aic=AIC, leader_aic="leader", executor=executor,
+            ))
+
+        self.assertEqual(_EntryHeartbeat.created, [(expected_path, AIC)])
+        self.assertEqual(_EntryHeartbeat.cancelled, 1)
+
+    def test_repository_live_entry_uses_kafka_backed_emitter(self) -> None:
+        import run_group_repository as entry
+
+        async def serve(**_kwargs: object) -> None:
+            await asyncio.sleep(0)
+
+        with patch.object(entry, "KafkaBackedHeartbeatEmitter", _EntryHeartbeat), \
+                patch.object(entry, "AuditJournal", return_value=SimpleNamespace(path="audit")), \
+                patch.object(entry, "DurableTaskStore", return_value=object()), \
+                patch.object(entry, "serve", serve):
+            asyncio.run(entry.run_live(
+                partner_aic=AIC, leader_aic="leader",
+                repository_python=Path("repository-python"),
+                wrapper_root=Path("repository-root"),
+            ))
+
+        self.assertEqual(_EntryHeartbeat.created, [(entry.HEARTBEAT_PATH, AIC)])
+        self.assertEqual(_EntryHeartbeat.cancelled, 1)

@@ -1,0 +1,13 @@
+{
+  "evidenceType": "kafka_heartbeat_literature_single_send_metadata",
+  "aic": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL",
+  "logId": "2f653966-1d02-42bd-bdf5-47ed3b2645a0",
+  "broker": "wt.ioa.pub:19092",
+  "topic": "amp.heartbeat",
+  "securityProtocol": "PLAINTEXT",
+  "partition": 0,
+  "offset": 41976683,
+  "payloadReadbackMatched": true,
+  "provenance": "User-confirmed acceptance metadata and retained original JSONL payload.",
+  "limitation": "The raw Broker ACK/readback command output was not found locally and is not included; this file does not replace that missing raw artifact."
+}

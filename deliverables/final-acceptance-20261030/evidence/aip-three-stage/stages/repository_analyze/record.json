@@ -1,0 +1,1388 @@
+{
+  "timeUtc": "2026-10-30T00:10:00.111920+00:00",
+  "scope": "PLATFORM_REPOSITORY_CHAIN_TASK",
+  "groupId": "rm-repository-chain-e6f096562e0b4fa0b9b79135bd640161",
+  "taskId": "task-88307e0012dc40feb5514f307bbee3dd",
+  "sessionId": "session-6a54d8ac3f4c46dd865497ca20ebd62e",
+  "leaderAic": "1.2.156.3088.1.BUPT.RECKYJ.Q77J9R.52YOLZ.11P6",
+  "partnerAic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+  "partnerSelection": "explicit_aic_not_adp",
+  "partnerCommitDeclared": "32b24af5360b050b928e989ca78b5410a8aab2d3",
+  "partnerCommitRemotelyVerified": false,
+  "providerExecutionVerified": false,
+  "leaderLlmCalls": 0,
+  "partnerLlmCalls": null,
+  "offlineChecksPassed": true,
+  "networkAttempted": true,
+  "aclWriteAttempted": true,
+  "leaderAuthorized": true,
+  "partnerAuthorized": true,
+  "amqpConnected": true,
+  "groupCreationAttempted": true,
+  "groupCreated": true,
+  "invitationPublishAttempted": true,
+  "invitationPublished": true,
+  "partnerJoinConfirmed": true,
+  "taskReleaseRequired": true,
+  "taskReleaseConfirmed": true,
+  "startAttempted": true,
+  "startPublished": true,
+  "taskCommandsSent": 2,
+  "completeAttempted": true,
+  "completePublished": true,
+  "resultValidated": true,
+  "result": {
+    "schemaVersion": "0.2",
+    "subtaskId": "S3",
+    "taskType": "repository_analyze",
+    "summary": "Analyzed one repository: 33 components, 24 dependency edges, 1 artifacts. Paper context consumed: 1 fulltext note; 24 lexical evidence matches (not semantic verification).",
+    "items": [
+      {
+        "kind": "repository",
+        "data": {
+          "repository": {
+            "url": "https://github.com/microsoft/LoRA",
+            "commitHash": "c4593f060e6a368d7bb5af5273b8e42810cdef90"
+          },
+          "structure": [
+            {
+              "filePath": "loralib/layers.py",
+              "components": [
+                {
+                  "componentId": "loralib\\layers.py::Conv1d",
+                  "name": "Conv1d",
+                  "componentType": "class",
+                  "symbol": "Conv1d",
+                  "startLine": 303,
+                  "endLine": 305,
+                  "evidenceId": "E1"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Conv1d.__init__",
+                  "name": "Conv1d.__init__",
+                  "componentType": "method",
+                  "symbol": "Conv1d.__init__",
+                  "startLine": 304,
+                  "endLine": 305,
+                  "evidenceId": "E2"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Conv2d",
+                  "name": "Conv2d",
+                  "componentType": "class",
+                  "symbol": "Conv2d",
+                  "startLine": 299,
+                  "endLine": 301,
+                  "evidenceId": "E3"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Conv2d.__init__",
+                  "name": "Conv2d.__init__",
+                  "componentType": "method",
+                  "symbol": "Conv2d.__init__",
+                  "startLine": 300,
+                  "endLine": 301,
+                  "evidenceId": "E4"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Conv3d",
+                  "name": "Conv3d",
+                  "componentType": "class",
+                  "symbol": "Conv3d",
+                  "startLine": 309,
+                  "endLine": 311,
+                  "evidenceId": "E5"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Conv3d.__init__",
+                  "name": "Conv3d.__init__",
+                  "componentType": "method",
+                  "symbol": "Conv3d.__init__",
+                  "startLine": 310,
+                  "endLine": 311,
+                  "evidenceId": "E6"
+                },
+                {
+                  "componentId": "loralib\\layers.py::ConvLoRA",
+                  "name": "ConvLoRA",
+                  "componentType": "class",
+                  "symbol": "ConvLoRA",
+                  "startLine": 246,
+                  "endLine": 297,
+                  "evidenceId": "E7"
+                },
+                {
+                  "componentId": "loralib\\layers.py::ConvLoRA.__init__",
+                  "name": "ConvLoRA.__init__",
+                  "componentType": "method",
+                  "symbol": "ConvLoRA.__init__",
+                  "startLine": 247,
+                  "endLine": 266,
+                  "evidenceId": "E8"
+                },
+                {
+                  "componentId": "loralib\\layers.py::ConvLoRA.forward",
+                  "name": "ConvLoRA.forward",
+                  "componentType": "method",
+                  "symbol": "ConvLoRA.forward",
+                  "startLine": 290,
+                  "endLine": 297,
+                  "evidenceId": "E9"
+                },
+                {
+                  "componentId": "loralib\\layers.py::ConvLoRA.reset_parameters",
+                  "name": "ConvLoRA.reset_parameters",
+                  "componentType": "method",
+                  "symbol": "ConvLoRA.reset_parameters",
+                  "startLine": 268,
+                  "endLine": 273,
+                  "evidenceId": "E10"
+                },
+                {
+                  "componentId": "loralib\\layers.py::ConvLoRA.train",
+                  "name": "ConvLoRA.train",
+                  "componentType": "method",
+                  "symbol": "ConvLoRA.train",
+                  "startLine": 275,
+                  "endLine": 288,
+                  "evidenceId": "E11"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Embedding",
+                  "name": "Embedding",
+                  "componentType": "class",
+                  "symbol": "Embedding",
+                  "startLine": 32,
+                  "endLine": 87,
+                  "evidenceId": "E12"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Embedding.__init__",
+                  "name": "Embedding.__init__",
+                  "componentType": "method",
+                  "symbol": "Embedding.__init__",
+                  "startLine": 34,
+                  "endLine": 53,
+                  "evidenceId": "E13"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Embedding.forward",
+                  "name": "Embedding.forward",
+                  "componentType": "method",
+                  "symbol": "Embedding.forward",
+                  "startLine": 77,
+                  "endLine": 87,
+                  "evidenceId": "E14"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Embedding.reset_parameters",
+                  "name": "Embedding.reset_parameters",
+                  "componentType": "method",
+                  "symbol": "Embedding.reset_parameters",
+                  "startLine": 55,
+                  "endLine": 60,
+                  "evidenceId": "E15"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Embedding.train",
+                  "name": "Embedding.train",
+                  "componentType": "method",
+                  "symbol": "Embedding.train",
+                  "startLine": 62,
+                  "endLine": 75,
+                  "evidenceId": "E16"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Linear",
+                  "name": "Linear",
+                  "componentType": "class",
+                  "symbol": "Linear",
+                  "startLine": 90,
+                  "endLine": 152,
+                  "evidenceId": "E17"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Linear.__init__",
+                  "name": "Linear.__init__",
+                  "componentType": "method",
+                  "symbol": "Linear.__init__",
+                  "startLine": 92,
+                  "endLine": 117,
+                  "evidenceId": "E18"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Linear.forward",
+                  "name": "Linear.forward",
+                  "componentType": "method",
+                  "symbol": "Linear.forward",
+                  "startLine": 144,
+                  "endLine": 152,
+                  "evidenceId": "E19"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Linear.reset_parameters",
+                  "name": "Linear.reset_parameters",
+                  "componentType": "method",
+                  "symbol": "Linear.reset_parameters",
+                  "startLine": 119,
+                  "endLine": 125,
+                  "evidenceId": "E20"
+                },
+                {
+                  "componentId": "loralib\\layers.py::Linear.train",
+                  "name": "Linear.train",
+                  "componentType": "method",
+                  "symbol": "Linear.train",
+                  "startLine": 127,
+                  "endLine": 142,
+                  "evidenceId": "E21"
+                },
+                {
+                  "componentId": "loralib\\layers.py::LoRALayer",
+                  "name": "LoRALayer",
+                  "componentType": "class",
+                  "symbol": "LoRALayer",
+                  "startLine": 12,
+                  "endLine": 29,
+                  "evidenceId": "E22"
+                },
+                {
+                  "componentId": "loralib\\layers.py::LoRALayer.__init__",
+                  "name": "LoRALayer.__init__",
+                  "componentType": "method",
+                  "symbol": "LoRALayer.__init__",
+                  "startLine": 13,
+                  "endLine": 29,
+                  "evidenceId": "E23"
+                },
+                {
+                  "componentId": "loralib\\layers.py::MergedLinear",
+                  "name": "MergedLinear",
+                  "componentType": "class",
+                  "symbol": "MergedLinear",
+                  "startLine": 155,
+                  "endLine": 244,
+                  "evidenceId": "E24"
+                },
+                {
+                  "componentId": "loralib\\layers.py::MergedLinear.__init__",
+                  "name": "MergedLinear.__init__",
+                  "componentType": "method",
+                  "symbol": "MergedLinear.__init__",
+                  "startLine": 157,
+                  "endLine": 194,
+                  "evidenceId": "E25"
+                },
+                {
+                  "componentId": "loralib\\layers.py::MergedLinear.forward",
+                  "name": "MergedLinear.forward",
+                  "componentType": "method",
+                  "symbol": "MergedLinear.forward",
+                  "startLine": 235,
+                  "endLine": 244,
+                  "evidenceId": "E26"
+                },
+                {
+                  "componentId": "loralib\\layers.py::MergedLinear.merge_AB",
+                  "name": "MergedLinear.merge_AB",
+                  "componentType": "method",
+                  "symbol": "MergedLinear.merge_AB",
+                  "startLine": 208,
+                  "endLine": 216,
+                  "evidenceId": "E27"
+                },
+                {
+                  "componentId": "loralib\\layers.py::MergedLinear.reset_parameters",
+                  "name": "MergedLinear.reset_parameters",
+                  "componentType": "method",
+                  "symbol": "MergedLinear.reset_parameters",
+                  "startLine": 196,
+                  "endLine": 201,
+                  "evidenceId": "E28"
+                },
+                {
+                  "componentId": "loralib\\layers.py::MergedLinear.train",
+                  "name": "MergedLinear.train",
+                  "componentType": "method",
+                  "symbol": "MergedLinear.train",
+                  "startLine": 218,
+                  "endLine": 233,
+                  "evidenceId": "E29"
+                },
+                {
+                  "componentId": "loralib\\layers.py::MergedLinear.zero_pad",
+                  "name": "MergedLinear.zero_pad",
+                  "componentType": "method",
+                  "symbol": "MergedLinear.zero_pad",
+                  "startLine": 203,
+                  "endLine": 206,
+                  "evidenceId": "E30"
+                }
+              ]
+            },
+            {
+              "filePath": "loralib/utils.py",
+              "components": [
+                {
+                  "componentId": "loralib\\utils.py::lora_state_dict",
+                  "name": "lora_state_dict",
+                  "componentType": "function",
+                  "symbol": "lora_state_dict",
+                  "startLine": 33,
+                  "endLine": 49,
+                  "evidenceId": "E31"
+                },
+                {
+                  "componentId": "loralib\\utils.py::mark_only_lora_as_trainable",
+                  "name": "mark_only_lora_as_trainable",
+                  "componentType": "function",
+                  "symbol": "mark_only_lora_as_trainable",
+                  "startLine": 13,
+                  "endLine": 30,
+                  "evidenceId": "E32"
+                }
+              ]
+            },
+            {
+              "filePath": "setup.py",
+              "components": [
+                {
+                  "componentId": "setup.py::setup.py",
+                  "name": "setup.py",
+                  "componentType": "artifact",
+                  "symbol": "setup.py",
+                  "startLine": 1,
+                  "endLine": 23,
+                  "evidenceId": "E33"
+                }
+              ]
+            }
+          ],
+          "dependencies": [
+            {
+              "source": "loralib\\layers.py::Conv1d",
+              "target": "loralib\\layers.py::ConvLoRA",
+              "evidenceIds": [
+                "E1",
+                "E7"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Conv1d.__init__",
+              "target": "loralib\\layers.py::ConvLoRA.__init__",
+              "evidenceIds": [
+                "E2",
+                "E8"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Conv2d",
+              "target": "loralib\\layers.py::ConvLoRA",
+              "evidenceIds": [
+                "E3",
+                "E7"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Conv2d.__init__",
+              "target": "loralib\\layers.py::ConvLoRA.__init__",
+              "evidenceIds": [
+                "E4",
+                "E8"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Conv3d",
+              "target": "loralib\\layers.py::ConvLoRA",
+              "evidenceIds": [
+                "E5",
+                "E7"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Conv3d.__init__",
+              "target": "loralib\\layers.py::ConvLoRA.__init__",
+              "evidenceIds": [
+                "E6",
+                "E8"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::ConvLoRA",
+              "target": "loralib\\layers.py::LoRALayer",
+              "evidenceIds": [
+                "E7",
+                "E22"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::ConvLoRA.__init__",
+              "target": "loralib\\layers.py::ConvLoRA.reset_parameters",
+              "evidenceIds": [
+                "E8",
+                "E10"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::ConvLoRA.__init__",
+              "target": "loralib\\layers.py::LoRALayer.__init__",
+              "evidenceIds": [
+                "E8",
+                "E23"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Embedding",
+              "target": "loralib\\layers.py::Embedding",
+              "evidenceIds": [
+                "E12"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Embedding",
+              "target": "loralib\\layers.py::LoRALayer",
+              "evidenceIds": [
+                "E12",
+                "E22"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Embedding.__init__",
+              "target": "loralib\\layers.py::Embedding.reset_parameters",
+              "evidenceIds": [
+                "E13",
+                "E15"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Embedding.__init__",
+              "target": "loralib\\layers.py::LoRALayer.__init__",
+              "evidenceIds": [
+                "E13",
+                "E23"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Linear",
+              "target": "loralib\\layers.py::Linear",
+              "evidenceIds": [
+                "E17"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Linear",
+              "target": "loralib\\layers.py::LoRALayer",
+              "evidenceIds": [
+                "E17",
+                "E22"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Linear.__init__",
+              "target": "loralib\\layers.py::Linear.reset_parameters",
+              "evidenceIds": [
+                "E18",
+                "E20"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::Linear.__init__",
+              "target": "loralib\\layers.py::LoRALayer.__init__",
+              "evidenceIds": [
+                "E18",
+                "E23"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::MergedLinear",
+              "target": "loralib\\layers.py::Linear",
+              "evidenceIds": [
+                "E24",
+                "E17"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::MergedLinear",
+              "target": "loralib\\layers.py::LoRALayer",
+              "evidenceIds": [
+                "E24",
+                "E22"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::MergedLinear.__init__",
+              "target": "loralib\\layers.py::LoRALayer.__init__",
+              "evidenceIds": [
+                "E25",
+                "E23"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::MergedLinear.__init__",
+              "target": "loralib\\layers.py::MergedLinear.reset_parameters",
+              "evidenceIds": [
+                "E25",
+                "E28"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::MergedLinear.forward",
+              "target": "loralib\\layers.py::MergedLinear.merge_AB",
+              "evidenceIds": [
+                "E26",
+                "E27"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::MergedLinear.merge_AB",
+              "target": "loralib\\layers.py::MergedLinear.zero_pad",
+              "evidenceIds": [
+                "E27",
+                "E30"
+              ]
+            },
+            {
+              "source": "loralib\\layers.py::MergedLinear.train",
+              "target": "loralib\\layers.py::MergedLinear.merge_AB",
+              "evidenceIds": [
+                "E29",
+                "E27"
+              ]
+            }
+          ],
+          "entrypoints": [],
+          "runCommands": [
+            {
+              "command": "pip install loralib",
+              "source": "README.md",
+              "type": "declared",
+              "evidenceIds": [
+                "E34"
+              ]
+            }
+          ],
+          "reproductionBarriers": [],
+          "overview": null,
+          "evidence": [
+            {
+              "sourceId": "E1",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L303-L305",
+              "locator": "loralib/layers.py:L303",
+              "supports": "Static source fragment extracted from loralib/layers.py:L303, symbol Conv1d; target code was not executed and reproduction was not verified.",
+              "text": "class Conv1d(ConvLoRA):\n    def __init__(self, *args, **kwargs):\n        super(Conv1d, self).__init__(nn.Conv1d, *args, **kwargs)"
+            },
+            {
+              "sourceId": "E2",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L304-L305",
+              "locator": "loralib/layers.py:L304",
+              "supports": "Static source fragment extracted from loralib/layers.py:L304, symbol Conv1d.__init__; target code was not executed and reproduction was not verified.",
+              "text": "    def __init__(self, *args, **kwargs):\n        super(Conv1d, self).__init__(nn.Conv1d, *args, **kwargs)"
+            },
+            {
+              "sourceId": "E3",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L299-L301",
+              "locator": "loralib/layers.py:L299",
+              "supports": "Static source fragment extracted from loralib/layers.py:L299, symbol Conv2d; target code was not executed and reproduction was not verified.",
+              "text": "class Conv2d(ConvLoRA):\n    def __init__(self, *args, **kwargs):\n        super(Conv2d, self).__init__(nn.Conv2d, *args, **kwargs)"
+            },
+            {
+              "sourceId": "E4",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L300-L301",
+              "locator": "loralib/layers.py:L300",
+              "supports": "Static source fragment extracted from loralib/layers.py:L300, symbol Conv2d.__init__; target code was not executed and reproduction was not verified.",
+              "text": "    def __init__(self, *args, **kwargs):\n        super(Conv2d, self).__init__(nn.Conv2d, *args, **kwargs)"
+            },
+            {
+              "sourceId": "E5",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L309-L311",
+              "locator": "loralib/layers.py:L309",
+              "supports": "Static source fragment extracted from loralib/layers.py:L309, symbol Conv3d; target code was not executed and reproduction was not verified.",
+              "text": "class Conv3d(ConvLoRA):\n    def __init__(self, *args, **kwargs):\n        super(Conv3d, self).__init__(nn.Conv3d, *args, **kwargs)"
+            },
+            {
+              "sourceId": "E6",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L310-L311",
+              "locator": "loralib/layers.py:L310",
+              "supports": "Static source fragment extracted from loralib/layers.py:L310, symbol Conv3d.__init__; target code was not executed and reproduction was not verified.",
+              "text": "    def __init__(self, *args, **kwargs):\n        super(Conv3d, self).__init__(nn.Conv3d, *args, **kwargs)"
+            },
+            {
+              "sourceId": "E7",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L246-L297",
+              "locator": "loralib/layers.py:L246",
+              "supports": "Static source fragment extracted from loralib/layers.py:L246, symbol ConvLoRA; target code was not executed and reproduction was not verified.",
+              "text": "class ConvLoRA(nn.Module, LoRALayer):\n    def __init__(self, conv_module, in_channels, out_channels, kernel_size, r=0, lora_alpha=1, lora_dropout=0., merge_weights=True, **kwargs):\n        super(ConvLoRA, self).__init__()\n        self.conv = conv_module(in_channels, out_channels, kernel_size, **kwargs)\n        for name, param in self.conv.named_parameters():\n            self.register_parameter(name, param)\n        LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, merge_weights=merge_weights)\n        assert isinstance(kernel_size, int)\n        # Actual trainable parameters\n        if r > 0:\n            self.lora_A = nn.Parameter(\n                self.conv.weight.new_zeros((r * kernel_size, in_channels * kernel_size))\n            )\n            self.lora_B = nn.Parameter(\n              self.conv.weight.new_zeros((out_channels//self.conv.groups*kernel_size, r*kernel_size))\n            )\n            self.scaling = self.lora_alpha / self.r\n            # Freezing the pre-trained weight matrix\n            self.conv.weight.requires_grad = False\n        self.reset_parameters()\n        self.merged = False\n\n    def reset_parameters(self):\n        self.conv.reset_parameters()\n        if hasattr(self, 'lora_A'):\n            # initialize A the same way as the default for nn.Linear and B to zero\n            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))\n            nn.init.zeros_(self.lora_B)\n\n    def train(self, mode=True):\n        super(ConvLoRA, self).train(mode)\n        if mode:\n            if self.merge_weights and self.merged:\n                if self.r > 0:\n                    # Make sure that the weights are not merged\n                    self.conv.weight.data -= (self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling\n                self.merged = False\n        else:\n            if self.merge_weights and not self.merged:\n                if self.r > 0:\n                    # Merge the weights and mark it\n                    self.conv.weight.data += (self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling\n                self.merged = True\n\n    def forward(self, x):\n        if self.r > 0 and not self.merged:\n            return self.conv._conv_forward(\n                x, \n                self.conv.weight + (self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling,\n                self.conv.bias\n            )\n        return self.conv(x)"
+            },
+            {
+              "sourceId": "E8",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L247-L266",
+              "locator": "loralib/layers.py:L247",
+              "supports": "Static source fragment extracted from loralib/layers.py:L247, symbol ConvLoRA.__init__; target code was not executed and reproduction was not verified.",
+              "text": "    def __init__(self, conv_module, in_channels, out_channels, kernel_size, r=0, lora_alpha=1, lora_dropout=0., merge_weights=True, **kwargs):\n        super(ConvLoRA, self).__init__()\n        self.conv = conv_module(in_channels, out_channels, kernel_size, **kwargs)\n        for name, param in self.conv.named_parameters():\n            self.register_parameter(name, param)\n        LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout, merge_weights=merge_weights)\n        assert isinstance(kernel_size, int)\n        # Actual trainable parameters\n        if r > 0:\n            self.lora_A = nn.Parameter(\n                self.conv.weight.new_zeros((r * kernel_size, in_channels * kernel_size))\n            )\n            self.lora_B = nn.Parameter(\n              self.conv.weight.new_zeros((out_channels//self.conv.groups*kernel_size, r*kernel_size))\n            )\n            self.scaling = self.lora_alpha / self.r\n            # Freezing the pre-trained weight matrix\n            self.conv.weight.requires_grad = False\n        self.reset_parameters()\n        self.merged = False"
+            },
+            {
+              "sourceId": "E9",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L290-L297",
+              "locator": "loralib/layers.py:L290",
+              "supports": "Static source fragment extracted from loralib/layers.py:L290, symbol ConvLoRA.forward; target code was not executed and reproduction was not verified.",
+              "text": "    def forward(self, x):\n        if self.r > 0 and not self.merged:\n            return self.conv._conv_forward(\n                x, \n                self.conv.weight + (self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling,\n                self.conv.bias\n            )\n        return self.conv(x)"
+            },
+            {
+              "sourceId": "E10",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L268-L273",
+              "locator": "loralib/layers.py:L268",
+              "supports": "Static source fragment extracted from loralib/layers.py:L268, symbol ConvLoRA.reset_parameters; target code was not executed and reproduction was not verified.",
+              "text": "    def reset_parameters(self):\n        self.conv.reset_parameters()\n        if hasattr(self, 'lora_A'):\n            # initialize A the same way as the default for nn.Linear and B to zero\n            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))\n            nn.init.zeros_(self.lora_B)"
+            },
+            {
+              "sourceId": "E11",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L275-L288",
+              "locator": "loralib/layers.py:L275",
+              "supports": "Static source fragment extracted from loralib/layers.py:L275, symbol ConvLoRA.train; target code was not executed and reproduction was not verified.",
+              "text": "    def train(self, mode=True):\n        super(ConvLoRA, self).train(mode)\n        if mode:\n            if self.merge_weights and self.merged:\n                if self.r > 0:\n                    # Make sure that the weights are not merged\n                    self.conv.weight.data -= (self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling\n                self.merged = False\n        else:\n            if self.merge_weights and not self.merged:\n                if self.r > 0:\n                    # Merge the weights and mark it\n                    self.conv.weight.data += (self.lora_B @ self.lora_A).view(self.conv.weight.shape) * self.scaling\n                self.merged = True"
+            },
+            {
+              "sourceId": "E12",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L32-L87",
+              "locator": "loralib/layers.py:L32",
+              "supports": "Static source fragment extracted from loralib/layers.py:L32, symbol Embedding; target code was not executed and reproduction was not verified.",
+              "text": "class Embedding(nn.Embedding, LoRALayer):\n    # LoRA implemented in a dense layer\n    def __init__(\n        self,\n        num_embeddings: int,\n        embedding_dim: int,\n        r: int = 0,\n        lora_alpha: int = 1,\n        merge_weights: bool = True,\n        **kwargs\n    ):\n        nn.Embedding.__init__(self, num_embeddings, embedding_dim, **kwargs)\n        LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=0,\n                           merge_weights=merge_weights)\n        # Actual trainable parameters\n        if r > 0:\n            self.lora_A = nn.Parameter(self.weight.new_zeros((r, num_embeddings)))\n            self.lora_B = nn.Parameter(self.weight.new_zeros((embedding_dim, r)))\n            self.scaling = self.lora_alpha / self.r\n            # Freezing the pre-trained weight matrix\n            self.weight.requires_grad = False\n        self.reset_parameters()\n\n    def reset_parameters(self):\n        nn.Embedding.reset_parameters(self)\n        if hasattr(self, 'lora_A'):\n            # initialize A the same way as the default for nn.Linear and B to zero\n            nn.init.zeros_(self.lora_A)\n            nn.init.normal_(self.lora_B)\n\n    def train(self, mode: bool = True):\n        nn.Embedding.train(self, mode)\n        if mode:\n            if self.merge_weights and self.merged:\n                # Make sure that the weights are not merged\n                if self.r > 0:\n                    self.weight.data -= (self.lora_B @ self.lora_A).transpose(0, 1) * self.scaling\n                self.merged = False\n        else:\n            if self.merge_weights and not self.merged:\n                # Merge the weights and mark it\n                if self.r > 0:\n                    self.weight.data += (self.lora_B @ self.lora_A).transpose(0, 1) * self.scaling\n                self.merged = True\n        \n    def forward(self, x: torch.Tensor):\n        if self.r > 0 and not self.merged:\n            result = nn.Embedding.forward(self, x)\n            after_A = F.embedding(\n                x, self.lora_A.transpose(0, 1), self.padding_idx, self.max_norm,\n                self.norm_type, self.scale_grad_by_freq, self.sparse\n            )\n            result += (after_A @ self.lora_B.transpose(0, 1)) * self.scaling\n            return result\n        else:\n            return nn.Embedding.forward(self, x)"
+            },
+            {
+              "sourceId": "E13",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L34-L53",
+              "locator": "loralib/layers.py:L34",
+              "supports": "Static source fragment extracted from loralib/layers.py:L34, symbol Embedding.__init__; target code was not executed and reproduction was not verified.",
+              "text": "    def __init__(\n        self,\n        num_embeddings: int,\n        embedding_dim: int,\n        r: int = 0,\n        lora_alpha: int = 1,\n        merge_weights: bool = True,\n        **kwargs\n    ):\n        nn.Embedding.__init__(self, num_embeddings, embedding_dim, **kwargs)\n        LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=0,\n                           merge_weights=merge_weights)\n        # Actual trainable parameters\n        if r > 0:\n            self.lora_A = nn.Parameter(self.weight.new_zeros((r, num_embeddings)))\n            self.lora_B = nn.Parameter(self.weight.new_zeros((embedding_dim, r)))\n            self.scaling = self.lora_alpha / self.r\n            # Freezing the pre-trained weight matrix\n            self.weight.requires_grad = False\n        self.reset_parameters()"
+            },
+            {
+              "sourceId": "E14",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L77-L87",
+              "locator": "loralib/layers.py:L77",
+              "supports": "Static source fragment extracted from loralib/layers.py:L77, symbol Embedding.forward; target code was not executed and reproduction was not verified.",
+              "text": "    def forward(self, x: torch.Tensor):\n        if self.r > 0 and not self.merged:\n            result = nn.Embedding.forward(self, x)\n            after_A = F.embedding(\n                x, self.lora_A.transpose(0, 1), self.padding_idx, self.max_norm,\n                self.norm_type, self.scale_grad_by_freq, self.sparse\n            )\n            result += (after_A @ self.lora_B.transpose(0, 1)) * self.scaling\n            return result\n        else:\n            return nn.Embedding.forward(self, x)"
+            },
+            {
+              "sourceId": "E15",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L55-L60",
+              "locator": "loralib/layers.py:L55",
+              "supports": "Static source fragment extracted from loralib/layers.py:L55, symbol Embedding.reset_parameters; target code was not executed and reproduction was not verified.",
+              "text": "    def reset_parameters(self):\n        nn.Embedding.reset_parameters(self)\n        if hasattr(self, 'lora_A'):\n            # initialize A the same way as the default for nn.Linear and B to zero\n            nn.init.zeros_(self.lora_A)\n            nn.init.normal_(self.lora_B)"
+            },
+            {
+              "sourceId": "E16",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L62-L75",
+              "locator": "loralib/layers.py:L62",
+              "supports": "Static source fragment extracted from loralib/layers.py:L62, symbol Embedding.train; target code was not executed and reproduction was not verified.",
+              "text": "    def train(self, mode: bool = True):\n        nn.Embedding.train(self, mode)\n        if mode:\n            if self.merge_weights and self.merged:\n                # Make sure that the weights are not merged\n                if self.r > 0:\n                    self.weight.data -= (self.lora_B @ self.lora_A).transpose(0, 1) * self.scaling\n                self.merged = False\n        else:\n            if self.merge_weights and not self.merged:\n                # Merge the weights and mark it\n                if self.r > 0:\n                    self.weight.data += (self.lora_B @ self.lora_A).transpose(0, 1) * self.scaling\n                self.merged = True"
+            },
+            {
+              "sourceId": "E17",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L90-L152",
+              "locator": "loralib/layers.py:L90",
+              "supports": "Static source fragment extracted from loralib/layers.py:L90, symbol Linear; target code was not executed and reproduction was not verified.",
+              "text": "class Linear(nn.Linear, LoRALayer):\n    # LoRA implemented in a dense layer\n    def __init__(\n        self, \n        in_features: int, \n        out_features: int, \n        r: int = 0, \n        lora_alpha: int = 1, \n        lora_dropout: float = 0.,\n        fan_in_fan_out: bool = False, # Set this to True if the layer to replace stores weight like (fan_in, fan_out)\n        merge_weights: bool = True,\n        **kwargs\n    ):\n        nn.Linear.__init__(self, in_features, out_features, **kwargs)\n        LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout,\n                           merge_weights=merge_weights)\n\n        self.fan_in_fan_out = fan_in_fan_out\n        # Actual trainable parameters\n        if r > 0:\n            self.lora_A = nn.Parameter(self.weight.new_zeros((r, in_features)))\n            self.lora_B = nn.Parameter(self.weight.new_zeros((out_features, r)))\n            self.scaling = self.lora_alpha / self.r\n            # Freezing the pre-trained weight matrix\n            self.weight.requires_grad = False\n        self.reset_parameters()\n        if fan_in_fan_out:\n            self.weight.data = self.weight.data.transpose(0, 1)\n\n    def reset_parameters(self):\n        nn.Linear.reset_parameters(self)\n        if hasattr(self, 'lora_A'):\n            # initialize B the same way as the default for nn.Linear and A to zero\n            # this is different than what is described in the paper but should not affect performance\n            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))\n            nn.init.zeros_(self.lora_B)\n\n    def train(self, mode: bool = True):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        nn.Linear.train(self, mode)\n        if mode:\n            if self.merge_weights and self.merged:\n                # Make sure that the weights are not merged\n                if self.r > 0:\n                    self.weight.data -= T(self.lora_B @ self.lora_A) * self.scaling\n                self.merged = False\n        else:\n            if self.merge_weights and not self.merged:\n                # Merge the weights and mark it\n                if self.r > 0:\n                    self.weight.data += T(self.lora_B @ self.lora_A) * self.scaling\n                self.merged = True       \n\n    def forward(self, x: torch.Tensor):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        if self.r > 0 and not self.merged:\n            result = F.linear(x, T(self.weight), bias=self.bias)            \n            result += (self.lora_dropout(x) @ self.lora_A.transpose(0, 1) @ self.lora_B.transpose(0, 1)) * self.scaling\n            return result\n        else:\n            return F.linear(x, T(self.weight), bias=self.bias)"
+            },
+            {
+              "sourceId": "E18",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L92-L117",
+              "locator": "loralib/layers.py:L92",
+              "supports": "Static source fragment extracted from loralib/layers.py:L92, symbol Linear.__init__; target code was not executed and reproduction was not verified.",
+              "text": "    def __init__(\n        self, \n        in_features: int, \n        out_features: int, \n        r: int = 0, \n        lora_alpha: int = 1, \n        lora_dropout: float = 0.,\n        fan_in_fan_out: bool = False, # Set this to True if the layer to replace stores weight like (fan_in, fan_out)\n        merge_weights: bool = True,\n        **kwargs\n    ):\n        nn.Linear.__init__(self, in_features, out_features, **kwargs)\n        LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout,\n                           merge_weights=merge_weights)\n\n        self.fan_in_fan_out = fan_in_fan_out\n        # Actual trainable parameters\n        if r > 0:\n            self.lora_A = nn.Parameter(self.weight.new_zeros((r, in_features)))\n            self.lora_B = nn.Parameter(self.weight.new_zeros((out_features, r)))\n            self.scaling = self.lora_alpha / self.r\n            # Freezing the pre-trained weight matrix\n            self.weight.requires_grad = False\n        self.reset_parameters()\n        if fan_in_fan_out:\n            self.weight.data = self.weight.data.transpose(0, 1)"
+            },
+            {
+              "sourceId": "E19",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L144-L152",
+              "locator": "loralib/layers.py:L144",
+              "supports": "Static source fragment extracted from loralib/layers.py:L144, symbol Linear.forward; target code was not executed and reproduction was not verified.",
+              "text": "    def forward(self, x: torch.Tensor):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        if self.r > 0 and not self.merged:\n            result = F.linear(x, T(self.weight), bias=self.bias)            \n            result += (self.lora_dropout(x) @ self.lora_A.transpose(0, 1) @ self.lora_B.transpose(0, 1)) * self.scaling\n            return result\n        else:\n            return F.linear(x, T(self.weight), bias=self.bias)"
+            },
+            {
+              "sourceId": "E20",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L119-L125",
+              "locator": "loralib/layers.py:L119",
+              "supports": "Static source fragment extracted from loralib/layers.py:L119, symbol Linear.reset_parameters; target code was not executed and reproduction was not verified.",
+              "text": "    def reset_parameters(self):\n        nn.Linear.reset_parameters(self)\n        if hasattr(self, 'lora_A'):\n            # initialize B the same way as the default for nn.Linear and A to zero\n            # this is different than what is described in the paper but should not affect performance\n            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))\n            nn.init.zeros_(self.lora_B)"
+            },
+            {
+              "sourceId": "E21",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L127-L142",
+              "locator": "loralib/layers.py:L127",
+              "supports": "Static source fragment extracted from loralib/layers.py:L127, symbol Linear.train; target code was not executed and reproduction was not verified.",
+              "text": "    def train(self, mode: bool = True):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        nn.Linear.train(self, mode)\n        if mode:\n            if self.merge_weights and self.merged:\n                # Make sure that the weights are not merged\n                if self.r > 0:\n                    self.weight.data -= T(self.lora_B @ self.lora_A) * self.scaling\n                self.merged = False\n        else:\n            if self.merge_weights and not self.merged:\n                # Merge the weights and mark it\n                if self.r > 0:\n                    self.weight.data += T(self.lora_B @ self.lora_A) * self.scaling\n                self.merged = True       "
+            },
+            {
+              "sourceId": "E22",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L12-L29",
+              "locator": "loralib/layers.py:L12",
+              "supports": "Static source fragment extracted from loralib/layers.py:L12, symbol LoRALayer; target code was not executed and reproduction was not verified.",
+              "text": "class LoRALayer():\n    def __init__(\n        self, \n        r: int, \n        lora_alpha: int, \n        lora_dropout: float,\n        merge_weights: bool,\n    ):\n        self.r = r\n        self.lora_alpha = lora_alpha\n        # Optional dropout\n        if lora_dropout > 0.:\n            self.lora_dropout = nn.Dropout(p=lora_dropout)\n        else:\n            self.lora_dropout = lambda x: x\n        # Mark the weight as unmerged\n        self.merged = False\n        self.merge_weights = merge_weights"
+            },
+            {
+              "sourceId": "E23",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L13-L29",
+              "locator": "loralib/layers.py:L13",
+              "supports": "Static source fragment extracted from loralib/layers.py:L13, symbol LoRALayer.__init__; target code was not executed and reproduction was not verified.",
+              "text": "    def __init__(\n        self, \n        r: int, \n        lora_alpha: int, \n        lora_dropout: float,\n        merge_weights: bool,\n    ):\n        self.r = r\n        self.lora_alpha = lora_alpha\n        # Optional dropout\n        if lora_dropout > 0.:\n            self.lora_dropout = nn.Dropout(p=lora_dropout)\n        else:\n            self.lora_dropout = lambda x: x\n        # Mark the weight as unmerged\n        self.merged = False\n        self.merge_weights = merge_weights"
+            },
+            {
+              "sourceId": "E24",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L155-L244",
+              "locator": "loralib/layers.py:L155",
+              "supports": "Static source fragment extracted from loralib/layers.py:L155, symbol MergedLinear; target code was not executed and reproduction was not verified.",
+              "text": "class MergedLinear(nn.Linear, LoRALayer):\n    # LoRA implemented in a dense layer\n    def __init__(\n        self, \n        in_features: int, \n        out_features: int, \n        r: int = 0, \n        lora_alpha: int = 1, \n        lora_dropout: float = 0.,\n        enable_lora: List[bool] = [False],\n        fan_in_fan_out: bool = False,\n        merge_weights: bool = True,\n        **kwargs\n    ):\n        nn.Linear.__init__(self, in_features, out_features, **kwargs)\n        LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout,\n                           merge_weights=merge_weights)\n        assert out_features % len(enable_lora) == 0, \\\n            'The length of enable_lora must divide out_features'\n        self.enable_lora = enable_lora\n        self.fan_in_fan_out = fan_in_fan_out\n        # Actual trainable parameters\n        if r > 0 and any(enable_lora):\n            self.lora_A = nn.Parameter(\n                self.weight.new_zeros((r * sum(enable_lora), in_features)))\n            self.lora_B = nn.Parameter(\n                self.weight.new_zeros((out_features // len(enable_lora) * sum(enable_lora), r))\n            ) # weights for Conv1D with groups=sum(enable_lora)\n            self.scaling = self.lora_alpha / self.r\n            # Freezing the pre-trained weight matrix\n            self.weight.requires_grad = False\n            # Compute the indices\n            self.lora_ind = self.weight.new_zeros(\n                (out_features, ), dtype=torch.bool\n            ).view(len(enable_lora), -1)\n            self.lora_ind[enable_lora, :] = True\n            self.lora_ind = self.lora_ind.view(-1)\n        self.reset_parameters()\n        if fan_in_fan_out:\n            self.weight.data = self.weight.data.transpose(0, 1)\n\n    def reset_parameters(self):\n        nn.Linear.reset_parameters(self)\n        if hasattr(self, 'lora_A'):\n            # initialize A the same way as the default for nn.Linear and B to zero\n            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))\n            nn.init.zeros_(self.lora_B)\n\n    def zero_pad(self, x):\n        result = x.new_zeros((len(self.lora_ind), *x.shape[1:]))\n        result[self.lora_ind] = x\n        return result\n\n    def merge_AB(self):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        delta_w = F.conv1d(\n            self.lora_A.unsqueeze(0), \n            self.lora_B.unsqueeze(-1), \n            groups=sum(self.enable_lora)\n        ).squeeze(0)\n        return T(self.zero_pad(delta_w))\n\n    def train(self, mode: bool = True):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        nn.Linear.train(self, mode)\n        if mode:\n            if self.merge_weights and self.merged:\n                # Make sure that the weights are not merged\n                if self.r > 0 and any(self.enable_lora):\n                    self.weight.data -= self.merge_AB() * self.scaling\n                self.merged = False\n        else:\n            if self.merge_weights and not self.merged:\n                # Merge the weights and mark it\n                if self.r > 0 and any(self.enable_lora):\n                    self.weight.data += self.merge_AB() * self.scaling\n                self.merged = True        \n\n    def forward(self, x: torch.Tensor):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        if self.merged:\n            return F.linear(x, T(self.weight), bias=self.bias)\n        else:\n            result = F.linear(x, T(self.weight), bias=self.bias)\n            if self.r > 0:\n                result += self.lora_dropout(x) @ T(self.merge_AB().T) * self.scaling\n            return result"
+            },
+            {
+              "sourceId": "E25",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L157-L194",
+              "locator": "loralib/layers.py:L157",
+              "supports": "Static source fragment extracted from loralib/layers.py:L157, symbol MergedLinear.__init__; target code was not executed and reproduction was not verified.",
+              "text": "    def __init__(\n        self, \n        in_features: int, \n        out_features: int, \n        r: int = 0, \n        lora_alpha: int = 1, \n        lora_dropout: float = 0.,\n        enable_lora: List[bool] = [False],\n        fan_in_fan_out: bool = False,\n        merge_weights: bool = True,\n        **kwargs\n    ):\n        nn.Linear.__init__(self, in_features, out_features, **kwargs)\n        LoRALayer.__init__(self, r=r, lora_alpha=lora_alpha, lora_dropout=lora_dropout,\n                           merge_weights=merge_weights)\n        assert out_features % len(enable_lora) == 0, \\\n            'The length of enable_lora must divide out_features'\n        self.enable_lora = enable_lora\n        self.fan_in_fan_out = fan_in_fan_out\n        # Actual trainable parameters\n        if r > 0 and any(enable_lora):\n            self.lora_A = nn.Parameter(\n                self.weight.new_zeros((r * sum(enable_lora), in_features)))\n            self.lora_B = nn.Parameter(\n                self.weight.new_zeros((out_features // len(enable_lora) * sum(enable_lora), r))\n            ) # weights for Conv1D with groups=sum(enable_lora)\n            self.scaling = self.lora_alpha / self.r\n            # Freezing the pre-trained weight matrix\n            self.weight.requires_grad = False\n            # Compute the indices\n            self.lora_ind = self.weight.new_zeros(\n                (out_features, ), dtype=torch.bool\n            ).view(len(enable_lora), -1)\n            self.lora_ind[enable_lora, :] = True\n            self.lora_ind = self.lora_ind.view(-1)\n        self.reset_parameters()\n        if fan_in_fan_out:\n            self.weight.data = self.weight.data.transpose(0, 1)"
+            },
+            {
+              "sourceId": "E26",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L235-L244",
+              "locator": "loralib/layers.py:L235",
+              "supports": "Static source fragment extracted from loralib/layers.py:L235, symbol MergedLinear.forward; target code was not executed and reproduction was not verified.",
+              "text": "    def forward(self, x: torch.Tensor):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        if self.merged:\n            return F.linear(x, T(self.weight), bias=self.bias)\n        else:\n            result = F.linear(x, T(self.weight), bias=self.bias)\n            if self.r > 0:\n                result += self.lora_dropout(x) @ T(self.merge_AB().T) * self.scaling\n            return result"
+            },
+            {
+              "sourceId": "E27",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L208-L216",
+              "locator": "loralib/layers.py:L208",
+              "supports": "Static source fragment extracted from loralib/layers.py:L208, symbol MergedLinear.merge_AB; target code was not executed and reproduction was not verified.",
+              "text": "    def merge_AB(self):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        delta_w = F.conv1d(\n            self.lora_A.unsqueeze(0), \n            self.lora_B.unsqueeze(-1), \n            groups=sum(self.enable_lora)\n        ).squeeze(0)\n        return T(self.zero_pad(delta_w))"
+            },
+            {
+              "sourceId": "E28",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L196-L201",
+              "locator": "loralib/layers.py:L196",
+              "supports": "Static source fragment extracted from loralib/layers.py:L196, symbol MergedLinear.reset_parameters; target code was not executed and reproduction was not verified.",
+              "text": "    def reset_parameters(self):\n        nn.Linear.reset_parameters(self)\n        if hasattr(self, 'lora_A'):\n            # initialize A the same way as the default for nn.Linear and B to zero\n            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))\n            nn.init.zeros_(self.lora_B)"
+            },
+            {
+              "sourceId": "E29",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L218-L233",
+              "locator": "loralib/layers.py:L218",
+              "supports": "Static source fragment extracted from loralib/layers.py:L218, symbol MergedLinear.train; target code was not executed and reproduction was not verified.",
+              "text": "    def train(self, mode: bool = True):\n        def T(w):\n            return w.transpose(0, 1) if self.fan_in_fan_out else w\n        nn.Linear.train(self, mode)\n        if mode:\n            if self.merge_weights and self.merged:\n                # Make sure that the weights are not merged\n                if self.r > 0 and any(self.enable_lora):\n                    self.weight.data -= self.merge_AB() * self.scaling\n                self.merged = False\n        else:\n            if self.merge_weights and not self.merged:\n                # Merge the weights and mark it\n                if self.r > 0 and any(self.enable_lora):\n                    self.weight.data += self.merge_AB() * self.scaling\n                self.merged = True        "
+            },
+            {
+              "sourceId": "E30",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/layers.py#L203-L206",
+              "locator": "loralib/layers.py:L203",
+              "supports": "Static source fragment extracted from loralib/layers.py:L203, symbol MergedLinear.zero_pad; target code was not executed and reproduction was not verified.",
+              "text": "    def zero_pad(self, x):\n        result = x.new_zeros((len(self.lora_ind), *x.shape[1:]))\n        result[self.lora_ind] = x\n        return result"
+            },
+            {
+              "sourceId": "E31",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/utils.py#L33-L49",
+              "locator": "loralib/utils.py:L33",
+              "supports": "Static source fragment extracted from loralib/utils.py:L33, symbol lora_state_dict; target code was not executed and reproduction was not verified.",
+              "text": "def lora_state_dict(model: nn.Module, bias: str = 'none') -> Dict[str, torch.Tensor]:\n    my_state_dict = model.state_dict()\n    if bias == 'none':\n        return {k: my_state_dict[k] for k in my_state_dict if 'lora_' in k}\n    elif bias == 'all':\n        return {k: my_state_dict[k] for k in my_state_dict if 'lora_' in k or 'bias' in k}\n    elif bias == 'lora_only':\n        to_return = {}\n        for k in my_state_dict:\n            if 'lora_' in <REDACTED_LOCAL_PATH>                to_return[k] = my_state_dict[k]\n                bias_name = k.split('lora_')[0]+'bias'\n                if bias_name in my_state_dict:\n                    to_return[bias_name] = my_state_dict[bias_name]\n        return to_return\n    else:\n        raise NotImplementedError"
+            },
+            {
+              "sourceId": "E32",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/loralib/utils.py#L13-L30",
+              "locator": "loralib/utils.py:L13",
+              "supports": "Static source fragment extracted from loralib/utils.py:L13, symbol mark_only_lora_as_trainable; target code was not executed and reproduction was not verified.",
+              "text": "def mark_only_lora_as_trainable(model: nn.Module, bias: str = 'none') -> None:\n    for n, p in model.named_parameters():\n        if 'lora_' not in <REDACTED_LOCAL_PATH>            p.requires_grad = False\n    if bias == 'none':\n        return\n    elif bias == 'all':\n        for n, p in model.named_parameters():\n            if 'bias' in <REDACTED_LOCAL_PATH>                p.requires_grad = True\n    elif bias == 'lora_only':\n        for m in model.modules():\n            if isinstance(m, LoRALayer) and \\\n                hasattr(m, 'bias') and \\\n                m.bias is not None:\n                    m.bias.requires_grad = True\n    else:\n        raise NotImplementedError"
+            },
+            {
+              "sourceId": "E33",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/setup.py#L1-L23",
+              "locator": "setup.py:L1",
+              "supports": "Static source fragment extracted from setup.py:L1, symbol setup.py; target code was not executed and reproduction was not verified.",
+              "text": "import setuptools\n\nwith open(\"README.md\", \"r\", encoding=\"utf-8\") as fh:\n    long_description = fh.read()\n\nsetuptools.setup(\n    name=\"loralib\",\n    version=\"0.1.2\",\n    author=\"Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, Weizhu Chen\",\n    author_email=\"edward.hu@microsoft.com\",\n    description=\"PyTorch implementation of low-rank adaptation (LoRA), a parameter-efficient approach to adapt a large pre-trained deep learning model which obtains performance on-par with full fine-tuning.\",\n    long_description=long_description,\n    long_description_content_type=\"text/markdown\",\n    url=\"https://github.com/microsoft/LoRA\",\n    packages=setuptools.find_packages(),\n    classifiers=[\n        \"Programming Language :: Python :: 3\",\n        \"License :: OSI Approved :: MIT License\",\n        \"Operating System :: OS Independent\",\n    ],\n    python_requires='>=3.6',\n)\n"
+            },
+            {
+              "sourceId": "E34",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/README.md#L1-L190",
+              "locator": "README.md:L1",
+              "supports": "Static source fragment extracted from README.md:L1; target code was not executed and reproduction was not verified.",
+              "text": "# LoRA: Low-Rank Adaptation of Large Language Models\r\n\r\nThis repo contains the source code of the Python package `loralib` and several examples of how to integrate it with PyTorch models, such as those in Hugging Face.\r\nWe only support PyTorch for now.\r\nSee our paper for a detailed description of LoRA.\r\n\r\n**LoRA: Low-Rank Adaptation of Large Language Models** <br>\r\n*Edward J. Hu\\*, Yelong Shen\\*, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, Weizhu Chen* <br>\r\nPaper: https://arxiv.org/abs/2106.09685 <br>\r\nVideo explainer: https://www.youtube.com/watch?v=DhRoTONcyZE <br>\r\n\r\n*Update 2/2023: LoRA is now supported by the [State-of-the-art Parameter-Efficient Fine-Tuning (PEFT)](https://github.com/huggingface/peft) library by Hugging Face.*\r\n\r\nLoRA reduces the number of trainable parameters by learning pairs of rank-decompostion matrices while freezing the original weights.\r\nThis vastly reduces the storage requirement for large language models adapted to specific tasks and enables efficient task-switching during deployment all without introducing inference latency.\r\nLoRA also outperforms several other adaptation methods including adapter, prefix-tuning, and fine-tuning.\r\n\r\nWe obtain result comparable or superior to full finetuning on the GLUE benchmark using [RoBERTa (Liu et al., 2019)](https://arxiv.org/abs/1907.11692) base and large and [DeBERTa (He et al., 2020)](https://arxiv.org/abs/2006.03654) XXL 1.5B, while only training and storing a fraction of the parameters. Click the numbers below to download the RoBERTa and DeBERTa LoRA checkpoints.\r\n\r\n|   |         | RoBERTa base <br> Fine-tune  |  RoBERTa base <br> LoRA  | DeBERTa XXL <br> Fine-tune | DeBERTa XXL <br> LoRA  |\r\n|---|-------------------------|----------------|--------------------------|-----------------|-----------------|\r\n|   | # of Trainable Params.  | 125M | 0.8M | 1.5B | 4.7M     |\r\n|   | MNLI (m-Acc/mm-Acc)     | <b>87.6</b> | [<b>87.5</b>±.3/86.9±.3](https://github.com/microsoft/LoRA/releases/download/RoBERTa-base/roberta_base_lora_mnli.bin) |91.7/<b>91.9</b>| [<b>91.9</b>±.1/<b>91.9</b>±.2](https://github.com/microsoft/LoRA/releases/download/DeBERTa/deberta_v2_xxlarge_lora_mnli.bin)       |\r\n|   | SST2 (Acc)              | 94.8 | [<b>95.1</b>±.2](https://github.com/microsoft/LoRA/releases/download/RoBERTa-base/roberta_base_lora_sst2.bin) | <b>97.2</b>    | [96.9±.2](https://github.com/microsoft/LoRA/releases/download/DeBERTa/deberta_v2_xxlarge_lora_sst2.bin)                    |\r\n|   | MRPC (Acc)              | <b>90.2</b> | [<b>89.7</b>±.7](https://github.com/microsoft/LoRA/releases/download/RoBERTa-base/roberta_base_lora_mrpc.bin) | 92.0           | [<b>92.6</b>±.6](https://github.com/microsoft/LoRA/releases/download/DeBERTa/deberta_v2_xxlarge_lora_mrpc.bin)             |\r\n|   | CoLA (Matthew's Corr)   | <b>63.6</b> | [<b>63.4</b>±1.2](https://github.com/microsoft/LoRA/releases/download/RoBERTa-base/roberta_base_lora_cola.bin) | <b>72.0</b>    | [<b>72.4</b>±1.1](https://github.com/microsoft/LoRA/releases/download/DeBERTa/deberta_v2_xxlarge_lora_cola.bin)           |\r\n|   | QNLI (Acc)              | 92.8 | [<b>93.3</b>±.3](https://github.com/microsoft/LoRA/releases/download/RoBERTa-base/roberta_base_lora_qnli.bin) | <b>96.0</b>    | [<b>96.0</b>±.1](https://github.com/microsoft/LoRA/releases/download/DeBERTa/deberta_v2_xxlarge_lora_qnli.bin)            |\r\n|   | QQP (Acc)               | <b>91.9</b> | [90.8±.1](https://github.com/microsoft/LoRA/releases/download/RoBERTa-base/roberta_base_lora_qqp.bin) | 92.7           | [<b>92.9</b>±.1](https://github.com/microsoft/LoRA/releases/download/DeBERTa/deberta_v2_xxlarge_lora_qqp.bin)           |\r\n|   | RTE (Acc)               | 78.7 | [<b>86.6</b>±.7](https://github.com/microsoft/LoRA/releases/download/RoBERTa-base/roberta_base_lora_rte.bin) | 93.9           | [<b>94.9</b>±.4](https://github.com/microsoft/LoRA/releases/download/DeBERTa/deberta_v2_xxlarge_lora_rte.bin)           |\r\n|   | STSB (Pearson/Spearman Corr) | 91.2 | [<b>91.5</b>±.2/<b>91.3</b>±.2](https://github.com/microsoft/LoRA/releases/download/RoBERTa-base/roberta_base_lora_stsb.bin) |<b>92.9</b>/92.6| [<b>93.0</b>±.2/<b>92.9</b>±.3](https://github.com/microsoft/LoRA/releases/download/DeBERTa/deberta_v2_xxlarge_lora_stsb.bin)      |\r\n|   | Average  | 86.40 | <b>87.24</b> | 91.06 | <b>91.32</b> |\r\n\r\n<i>Note: You still need the original pre-trained checkpoint from [Hugging Face](https://huggingface.co/) to use the LoRA checkpoints.</i>\r\n\r\nFine-tuning numbers are taken from [Liu et al. (2019)](https://arxiv.org/abs/1907.11692) and [He et al. (2020)](https://arxiv.org/abs/2006.03654).  We include confidence intervals on results from our experiments. Please follow the instructions in `examples/NLU/` to reproduce our results.\r\n\r\nOn GPT-2, LoRA compares favorably to both full finetuning and other efficient tuning methods, such as [adapter (Houlsby et al., 2019)](https://arxiv.org/abs/1902.00751) and [prefix tuning (Li and Liang, 2021)](https://arxiv.org/abs/2101.00190). We evaluated on E2E NLG Challenge, DART, and WebNLG:\r\n\r\n|   | Method              | # of Trainable Params | E2E (BLEU)   | DART (BLEU)  | WebNLG (BLEU-U/S/A)            |\r\n|---|---------------------|-----------------------|--------------|--------------|--------------------------------|\r\n|   | GPT-2 M (Fine-Tune) | 354.92M               | 68.2         | 46.0         | 30.4/<b>63.2</b>/47.6          |\r\n|   | GPT-2 M (Adapter)   | 0.37M                 | 66.3         | 42.4         | 45.1/54.5/50.2                 |\r\n|   | GPT-2 M (Prefix)    | 0.35M                 | 69.7         | 45.7         | 44.1/63.1/54.4                 |\r\n|   | GPT-2 M (LoRA)      | 0.35M                 |<b>70.4</b>±.1|<b>47.1</b>±.2| <b>46.7</b>±.4/62.1±.2/<b>55.3</b>±.2 |\r\n|   | GPT-2 L (Fine-Tune) | 774.03M               | 68.5         | 46.5         | 41.7/<b>64.6</b>/54.2          |\r\n|   | GPT-2 L (Adapter)   | 0.88M                 | 69.1±.1      | 45.7±.1      | <b>49.8</b>±.0/61.1±.0/56.0±.0 |\r\n|   | GPT-2 L (Prefix)    | 0.77M                 | 70.3         | 46.5         | 47.0/64.2/56.4                 |\r\n|   | GPT-2 L (LoRA)      | 0.77M                 |<b>70.4</b>±.1|<b>47.5</b>±.1| 48.4±.3/<b>64.0</b>±.3/<b>57.0</b>±.1 |\r\n\r\nNon-LoRA baselines, except for adapter on GPT-2 large, are taken from [Li and Liang (2021)](https://arxiv.org/abs/2101.00190). We include confidence intervals on results from our experiments.\r\n\r\nDownload the GPT-2 LoRA checkpoints:\r\n * [GPT-2 Medium E2E](https://github.com/microsoft/LoRA/releases/download/GPT-2/gpt2_md_lora_e2e.pt) (1.5 MB)\r\n * [GPT-2 Medium DART](https://github.com/microsoft/LoRA/releases/download/GPT-2/gpt2_md_lora_dart.pt) (1.5 MB)\r\n * [GPT-2 Medium WebNLG](https://github.com/microsoft/LoRA/releases/download/GPT-2/gpt2_md_lora_webnlg.pt) (1.5 MB)\r\n * [GPT-2 Large E2E](https://github.com/microsoft/LoRA/releases/download/GPT-2/gpt2_lg_lora_e2e.pt) (2.3 MB)\r\n * [GPT-2 Large DART](https://github.com/microsoft/LoRA/releases/download/GPT-2/gpt2_lg_lora_dart.pt) (2.3 MB)\r\n * [GPT-2 Large WebNLG](https://github.com/microsoft/LoRA/releases/download/GPT-2/gpt2_lg_lora_webnlg.pt) (2.3 MB)\r\n\r\nPlease follow the instructions in `examples/NLG/` to reproduce our result.\r\n## Repository Overview\r\n\r\n<i>(The initial release of this repo has been archived in the branch \"snapshot-9-15-2021\")</i>\r\n\r\nThere are several directories in this repo:\r\n* [loralib/](loralib) contains the source code for the package `loralib`, which needs to be installed to run the examples we provide;\r\n* [examples/NLG/](examples/NLG) contains an example implementation of LoRA in GPT-2 using our package, which can be used to reproduce the result in our paper;\r\n* [examples/NLU/](examples/NLU) contains an example implementation of LoRA in RoBERTa and DeBERTa using our package, which produces competitive results on the GLUE benchmark;\r\n* See how we use `loralib` in [GPT-2](examples/NLG/src/model.py), [RoBERTa](examples/NLU/src/transformers/models/roberta/modeling_roberta.py), and [DeBERTa v2](examples/NLU/src/transformers/models/deberta_v2/modeling_deberta_v2.py)\r\n\r\n## Quickstart\r\n\r\n 1. Installing `loralib` is simply\r\n ```bash\r\n pip install loralib\r\n # Alternatively\r\n # pip install git+https://github.com/microsoft/LoRA\r\n ```\r\n\r\n 2. You can choose to adapt some layers by replacing them with counterparts implemented in `loralib`. We only support `nn.Linear`, `nn.Embedding`, and `nn.Conv2d` for now. We also support a `MergedLinear` for cases where a single `nn.Linear` represents more than one layers, such as in some implementations of the attention `qkv` projection (see Additional Notes for more).\r\n ```python\r\n # ===== Before =====\r\n # layer = nn.Linear(in_features, out_features)\r\n\r\n # ===== After ======\r\n import loralib as lora\r\n # Add a pair of low-rank adaptation matrices with rank r=16\r\n layer = lora.Linear(in_features, out_features, r=16)\r\n ```\r\n\r\n 3. Before the training loop begins, mark only LoRA parameters as trainable.\r\n ```python\r\n import loralib as lora\r\n model = BigModel()\r\n # This sets requires_grad to False for all parameters without the string \"lora_\" in their names\r\n lora.mark_only_lora_as_trainable(model)\r\n # Training loop\r\n for batch in dataloader:\r\n    ...\r\n ```\r\n 4. When saving a checkpoint, generate a `state_dict` that only contains LoRA parameters.\r\n ```python\r\n # ===== Before =====\r\n # torch.save(model.state_dict(), checkpoint_path)\r\n # ===== After =====\r\n torch.save(lora.lora_state_dict(model), checkpoint_path)\r\n ```\r\n 5. When loading a checkpoint using `load_state_dict`, be sure to set `strict=False`.\r\n ```python\r\n # Load the pretrained checkpoint first\r\n model.load_state_dict(torch.load('ckpt_pretrained.pt'), strict=False)\r\n # Then load the LoRA checkpoint\r\n model.load_state_dict(torch.load('ckpt_lora.pt'), strict=False)\r\n ```\r\n\r\n#### Now training can proceed as usual.\r\n\r\n## Additional Notes\r\n\r\n1. While we focus on a simple yet effect setup, namely adapting only the `q` and `v` projection in a Transformer, in our examples, LoRA can be apply to any subsets of pre-trained weights. We encourage you to explore different configurations, such as adapting the embedding layer by replacing `nn.Embedding` with `lora.Embedding` and/or adapting the MLP layers. It's very likely that the optimal configuration varies for different model architectures and tasks.\r\n\r\n2. Some Transformer implementation uses a single `nn.Linear` for the projection matrices for query, key, and value. If one wishes to constrain the rank of the updates to the individual matrices, one has to either break it up into three separate matrices or use `lora.MergedLinear`. Make sure to modify the checkpoint accordingly if you choose to break up the layer.\r\n```python\r\n# ===== Before =====\r\n# qkv_proj = nn.Linear(d_model, 3*d_model)\r\n# ===== After =====\r\n# Break it up (remember to modify the pretrained checkpoint accordingly)\r\nq_proj = lora.Linear(d_model, d_model, r=8)\r\nk_proj = nn.Linear(d_model, d_model)\r\nv_proj = lora.Linear(d_model, d_model, r=8)\r\n# Alternatively, use lora.MergedLinear (recommended)\r\nqkv_proj = lora.MergedLinear(d_model, 3*d_model, r=8, enable_lora=[True, False, True])\r\n```\r\n3. Training bias vectors in tandem with LoRA might be a cost-efficient way to squeeze out extra task performance (if you tune the learning rate carefully). While we did not study its effect thoroughly in our paper, we make it easy to try in `lora`. You can mark some biases as trainable by passing \"all\" or \"lora_only\" to `bias=` when calling `mark_only_lora_as_trainable`. Remember to pass the corresponding `bias=` argument to `lora_state_dict` when saving a checkpoint.\r\n```python\r\n# ===== Before =====\r\n# lora.mark_only_lora_as_trainable(model) # Not training any bias vectors\r\n# ===== After =====\r\n# Training all bias vectors associated with modules we apply LoRA to \r\nlora.mark_only_lora_as_trainable(model, bias='lora_only')\r\n# Alternatively, we can train *all* bias vectors in the model, including LayerNorm biases\r\nlora.mark_only_lora_as_trainable(model, bias='all')\r\n# When saving a checkpoint, use the same bias= ('all' or 'lora_only')\r\ntorch.save(lora.lora_state_dict(model, bias='all'), checkpoint_path)\r\n```\r\n4. Calling `model.eval()` will trigger the merging of LoRA parameters with the corresponding pretrained ones, which eliminates additional latency for subsequent forward passes. Calling `model.train()` again will undo the merge. This can be disabled by passing `merge_weights=False` to LoRA layers.\r\n\r\n## Contact\r\nPlease contact us or post an issue if you have any questions.\r\n\r\nFor questions related to the package `loralib`:\r\n* Edward Hu (edward@edwardjhu.com)\r\n* Phillip Wallis (phwallis@microsoft.com)\r\n* Weizhu Chen (wzchen@microsoft.com)\r\n\r\nThe GPT-2 example:\r\n* Phillip Wallis (phwallis@microsoft.com)\r\n* Yelong Shen (yeshe@microsoft.com)\r\n\r\nThe RoBERTa/DeBERTa example:\r\n* Lu Wang (luw@microsoft.com)\r\n\r\n## Acknowledgements\r\nWe thank in alphabetical order Jianfeng Gao, Jade Huang, Jiayuan Huang, Lisa Xiang Li, Xiaodong Liu, Yabin Liu, Benjamin Van Durme, Luis Vargas, Haoran Wei, Peter Welinder, and Greg Yang for providing valuable feedback.\r\n\r\n## Citation\r\n```BibTeX\r\n@inproceedings{\r\nhu2022lora,\r\ntitle={Lo{RA}: Low-Rank Adaptation of Large Language Models},\r\nauthor={Edward J Hu and Yelong Shen and Phillip Wallis and Zeyuan Allen-Zhu and Yuanzhi Li and Shean Wang and Lu Wang and Weizhu Chen},\r\nbooktitle={International Conference on Learning Representations},\r\nyear={2022},\r\nurl={https://openreview.net/forum?id=nZeVKeeFYf9}\r\n}\r\n```\r\n\r\n## Contributing\r\n\r\nThis project welcomes contributions and suggestions.  Most contributions require you to agree to a\r\nContributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us\r\nthe rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.\r\n\r\nWhen you submit a pull request, a CLA bot will automatically determine whether you need to provide\r\na CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions\r\nprovided by the bot. You will only need to do this once across all repos using our CLA.\r\n\r\nThis project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).\r\nFor more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or\r\ncontact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.\r\n"
+            },
+            {
+              "sourceId": "E35",
+              "url": "https://github.com/microsoft/LoRA/blob/c4593f060e6a368d7bb5af5273b8e42810cdef90/setup.py#L1-L22",
+              "locator": "setup.py:L1",
+              "supports": "Static source fragment extracted from setup.py:L1; target code was not executed and reproduction was not verified.",
+              "text": "import setuptools\r\n\r\nwith open(\"README.md\", \"r\", encoding=\"utf-8\") as fh:\r\n    long_description = fh.read()\r\n\r\nsetuptools.setup(\r\n    name=\"loralib\",\r\n    version=\"0.1.2\",\r\n    author=\"Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, Weizhu Chen\",\r\n    author_email=\"edward.hu@microsoft.com\",\r\n    description=\"PyTorch implementation of low-rank adaptation (LoRA), a parameter-efficient approach to adapt a large pre-trained deep learning model which obtains performance on-par with full fine-tuning.\",\r\n    long_description=long_description,\r\n    long_description_content_type=\"text/markdown\",\r\n    url=\"https://github.com/microsoft/LoRA\",\r\n    packages=setuptools.find_packages(),\r\n    classifiers=[\r\n        \"Programming Language :: Python :: 3\",\r\n        \"License :: OSI Approved :: MIT License\",\r\n        \"Operating System :: OS Independent\",\r\n    ],\r\n    python_requires='>=3.6',\r\n)\r\n"
+            }
+          ],
+          "paperEvidence": [],
+          "paperCodeRelations": [],
+          "diagnostics": {
+            "provider": "codewiki-static",
+            "codewikiVersion": "2.0.0",
+            "codewikiCommit": "f0975ea19b17568ceb55cd5422206e1a1ae13c0b",
+            "metrics": {
+              "cloneMs": 12332.601,
+              "staticAnalysisMs": 1206.818,
+              "llmEnrichmentMs": 0.0,
+              "totalMs": 23329.696
+            },
+            "counts": {
+              "componentCount": 33,
+              "dependencyEdgeCount": 24,
+              "artifactCount": 1,
+              "evidenceCount": 35
+            }
+          },
+          "url": "https://github.com/microsoft/LoRA",
+          "license": "UNKNOWN",
+          "isMock": false,
+          "relationEvidence": "Explicit repository input only; paper/repository relationship has not been independently verified.",
+          "paperComparison": {
+            "mode": "DETERMINISTIC_LEXICAL_PAPER_REPOSITORY_COMPARISON_NO_LLM",
+            "inputNotesSha256": "f9209f031c01a165fbd649a81ed6a87b9339e4c64ad6f31431f8a5aeb84a8f3c",
+            "paperCount": 1,
+            "papers": [
+              {
+                "source": {
+                  "paperId": "https://openalex.org/W3168867926",
+                  "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+                  "doi": "10.48550/arxiv.2106.09685",
+                  "url": "https://openalex.org/W3168867926",
+                  "pdfUrl": "https://arxiv.org/pdf/2106.09685",
+                  "repositoryUrls": [
+                    "https://github.com/microsoft/LoRA"
+                  ]
+                },
+                "noteSha256": "0292f6098dfd9c23133318793499c744a5cec60ec1dff986b98d98c8ab158430",
+                "paperEvidence": [
+                  {
+                    "sourceId": "https://openalex.org/W3168867926",
+                    "url": "https://arxiv.org/pdf/2106.09685",
+                    "locator": "Lo pages 15-17",
+                    "supports": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20]."
+                  },
+                  {
+                    "sourceId": "https://openalex.org/W3168867926",
+                    "url": "https://arxiv.org/pdf/2106.09685",
+                    "locator": "Lo pages 9-11",
+                    "supports": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20]. LoRA matches or exceeds the fine-tuning baseline on all three GPT-3 datasets while using far fewer trainable parameters: 4.7M or 37.7M for LoRA versus 175,255.8M for full fine-tuning [evidence-3, Lo pages 7-8]. Adapting both \\(W_q\\) and \\(W_v\\) gives the best overall performance under the tested parameter budget, and a rank as small as one can suffice for adapting both \\(W_q\\) and \\(W_v\\) on these datasets, suggesting the update matrix can have a very small intrinsic rank [evidence-2, Lo pages 9-11]. LoRA also shows favorable sample efficiency on MNLI subsets and more stable scaling behavior than prefix-embedding or prefix-layer tuning as trainable parameters increase [evidence-4, Lo pages 23-24]. The authors state that they do not expect a small rank to work for every task or dataset; if the downstream task is in a different language from pretraining, retraining the entire model, similar to LoRA with \\(r=d_{\\text{model}}\\), could outperform LoRA with a small rank [evidence-2, Lo pages 9-11]. They note that a thorough investigation into the performance drop when using many special tokens is out of scope, though they suspect input distribution shift [evidence-3, Lo pages 7-8]. They also state that the relationship between model size and optimal adaptation rank remains an open question, and identify as a next question how strongly task-specific directions need to be amplified [evidence-4, Lo pages 23-24]. Due to high training cost, GPT-3 experiments report typical standard deviations over random seeds rather than one for every entry [evidence-3, Lo pages 7-8]."
+                  },
+                  {
+                    "sourceId": "https://openalex.org/W3168867926",
+                    "url": "https://arxiv.org/pdf/2106.09685",
+                    "locator": "Lo pages 7-8",
+                    "supports": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20]. LoRA matches or exceeds the fine-tuning baseline on all three GPT-3 datasets while using far fewer trainable parameters: 4.7M or 37.7M for LoRA versus 175,255.8M for full fine-tuning [evidence-3, Lo pages 7-8]. Adapting both \\(W_q\\) and \\(W_v\\) gives the best overall performance under the tested parameter budget, and a rank as small as one can suffice for adapting both \\(W_q\\) and \\(W_v\\) on these datasets, suggesting the update matrix can have a very small intrinsic rank [evidence-2, Lo pages 9-11]. LoRA also shows favorable sample efficiency on MNLI subsets and more stable scaling behavior than prefix-embedding or prefix-layer tuning as trainable parameters increase [evidence-4, Lo pages 23-24]. The authors state that they do not expect a small rank to work for every task or dataset; if the downstream task is in a different language from pretraining, retraining the entire model, similar to LoRA with \\(r=d_{\\text{model}}\\), could outperform LoRA with a small rank [evidence-2, Lo pages 9-11]. They note that a thorough investigation into the performance drop when using many special tokens is out of scope, though they suspect input distribution shift [evidence-3, Lo pages 7-8]. They also state that the relationship between model size and optimal adaptation rank remains an open question, and identify as a next question how strongly task-specific directions need to be amplified [evidence-4, Lo pages 23-24]. Due to high training cost, GPT-3 experiments report typical standard deviations over random seeds rather than one for every entry [evidence-3, Lo pages 7-8]."
+                  },
+                  {
+                    "sourceId": "https://openalex.org/W3168867926",
+                    "url": "https://arxiv.org/pdf/2106.09685",
+                    "locator": "Lo pages 23-24",
+                    "supports": "LoRA matches or exceeds the fine-tuning baseline on all three GPT-3 datasets while using far fewer trainable parameters: 4.7M or 37.7M for LoRA versus 175,255.8M for full fine-tuning [evidence-3, Lo pages 7-8]. Adapting both \\(W_q\\) and \\(W_v\\) gives the best overall performance under the tested parameter budget, and a rank as small as one can suffice for adapting both \\(W_q\\) and \\(W_v\\) on these datasets, suggesting the update matrix can have a very small intrinsic rank [evidence-2, Lo pages 9-11]. LoRA also shows favorable sample efficiency on MNLI subsets and more stable scaling behavior than prefix-embedding or prefix-layer tuning as trainable parameters increase [evidence-4, Lo pages 23-24]. The authors state that they do not expect a small rank to work for every task or dataset; if the downstream task is in a different language from pretraining, retraining the entire model, similar to LoRA with \\(r=d_{\\text{model}}\\), could outperform LoRA with a small rank [evidence-2, Lo pages 9-11]. They note that a thorough investigation into the performance drop when using many special tokens is out of scope, though they suspect input distribution shift [evidence-3, Lo pages 7-8]. They also state that the relationship between model size and optimal adaptation rank remains an open question, and identify as a next question how strongly task-specific directions need to be amplified [evidence-4, Lo pages 23-24]. Due to high training cost, GPT-3 experiments report typical standard deviations over random seeds rather than one for every entry [evidence-3, Lo pages 7-8]."
+                  },
+                  {
+                    "sourceId": "https://openalex.org/W3168867926",
+                    "url": "https://arxiv.org/pdf/2106.09685",
+                    "locator": "Lo pages 13-14",
+                    "supports": "deep learning performs deep\n   learning. arXiv preprint arXiv:2001.04413, 2020a.\n\nZeyuan Allen-Zhu and Yuanzhi Li. Feature puriﬁcation: How adversarial training performs robust\n  deep learning. arXiv preprint arXiv:2005.10190, 2020b.\n\nZeyuan Allen-Zhu, Yuanzhi Li, and Zhao Song. A convergence theory for deep learning via over-\n  parameterization. In ICML, 2019. Full version available at http://arxiv.org/abs/1811.\n  03962.\n\nJimmy Lei Ba, Jamie Ryan Kiros, and Geoffrey E. Hinton. Layer normalization, 2016.\n\nTom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhari-\n  wal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal,\n  Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel M.\n   Ziegler, Jeffrey Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler, Mateusz Litwin,\n  Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford,\n   Ilya Sutskever, and Dario Amodei. Language Models are Few-Shot Learners. arXiv:2005.14165\n   [cs], July 2020. URL http://arxiv.org/abs/2005.14165.\n\nJian-Feng Cai, Emmanuel J Cand`es, and Zuowei Shen. A singular value thresholding algorithm for\n  matrix completion. SIAM Journal on optimization, 20(4):1956–1982, 2010.\n\nDaniel Cer, Mona Diab, Eneko Agirre, Inigo Lopez-Gazpio, and Lucia Specia. Semeval-2017 task\n   1: Semantic textual similarity multilingual and crosslingual focused evaluation. Proceedings of\n  the 11th International Workshop on Semantic Evaluation (SemEval-2017), 2017. doi: 10.18653/\n  v1/s17-2001. URL http://dx.doi.org/10.18653/v1/S17-2001.\n\nRonan Collobert and Jason Weston. A uniﬁed architecture for natural language processing: deep\n  neural networks with multitask learning.  In Proceedings of the 25th international conference\n  on Machine learning, ICML ’08, pp. 160–167, New York, NY, USA, July 2008. Association\n   for Computing Machinery. ISBN 978-1-60558-205-4.  doi: 10.1145/1390156.1390177. URL\n  https://doi.org/10.1145/1390156.1390177.\n\nMisha Denil, Babak Shakibi, Laurent Dinh, Marc’Aurelio Ranzato, and Nando de Freitas. Predicting\n  parameters in deep learning, 2014.\n\nJacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. Bert: Pre-training of deep\n   bidirectional transformers for language understanding, 2019a.\n\nJacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of Deep\n  Bidirectional Transformers for Language Understanding.  arXiv:1810.04805 [cs], May 2019b.\n  URL http://arxiv.org/abs/1810.04805. arXiv: 1810.04805.\n\nWilliam B. Dolan and Chris Brockett. Automatically constructing a corpus of sentential paraphrases.\n  In Proceedings of the Third International Workshop on Paraphrasing (IWP2005), 2005. URL\n  https://aclanthology.org/I05-5002.\n\nClaire Gardent, Anastasia Shimorina, Shashi Narayan, and Laura Perez-Beltrachini. The webnlg\n  challenge: Generating text from rdf data. In Proceedings of the 10th International Conference on\n  Natural Language Generation, pp. 124–133, 2017.\n\n\n                                       13Behrooz Ghorbani, Song Mei, Theodor Misiakiewicz, and Andrea Montanari. When do neural\n  networks outperform kernel methods? arXiv preprint arXiv:2006.13409, 2020.\n\nBogdan Gliwa, Iwona Mochol, Maciej Biesek, and Aleksander Wawer. Samsum corpus: A human-\n  annotated dialogue dataset for abstractive summarization. CoRR, abs/1911.12237, 2019. URL\n  http://arxiv.org/abs/1911.12237.\n\nLars Grasedyck, Daniel Kressner, and Christine Tobler. A literature survey of low-rank tensor\n  approximation techniques. GAMM-Mitteilungen, 36(1):53–78, 2013.\n\nJihun Ham and Daniel D. Lee. Grassmann discriminant analysis: a unifying view on subspace-based\n   learning.  In ICML, pp. 376–383, 2008. URL https://doi.org/10.1145/1390156.\n  1390204.\n\nKaren Hambardzumyan, Hrant Khachatrian, and Jonathan May. WARP: Word-level Adversarial\n  ReProgramming. arXiv:2101.00121 [cs], December 2020. URL http://arxiv.org/abs/\n  2101.00121. arXiv: 2101.00121.\n\nPengcheng He, Xiaodong Liu, Jianfeng Gao, and Weizhu Chen. Deberta: Decoding-enhanced bert\n  with disentangled attention, 2021.\n\nNeil Houlsby, Andrei Giurgiu, Stanislaw Jastrzebski, Bruna Morrone, Quentin de Laroussilhe,\n  Andrea Gesmundo, Mona Attariyan, and Sylvain Gelly. Parameter-Efﬁcient Transfer Learning\n   for NLP. arXiv:1902.00751 [cs, stat], June 2019. URL http://arxiv.org/abs/1902.\n  00751.\n\nMax Jaderberg, Andrea Vedaldi, and Andrew Zisserman. Speeding up convolutional neural networks\n  with low rank expansions. arXiv preprint arXiv:1405.3866, 2014.\n\nMikhail Khodak, Neil Tenenholtz, Lester Mackey, and Nicol`o Fusi. Initialization and regularization\n  of factorized neural layers, 2021.\n\nDiederik P. Kingma and Jimmy Ba. Adam: A method for stochastic optimization, 2017.\n\nDmitry Lepikhin, HyoukJoong Lee, Yuanzhong Xu, Dehao Chen, Orhan Firat, Yanping Huang,\n  Maxim Krikun, Noam Shazeer, and Zhifeng Chen. Gshard: Scaling giant models with conditional"
+                  },
+                  {
+                    "sourceId": "https://openalex.org/W3168867926",
+                    "url": "https://arxiv.org/pdf/2106.09685",
+                    "locator": "Lo pages 19-20",
+                    "supports": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20]."
+                  }
+                ],
+                "repositoryIdentifierMentions": [
+                  {
+                    "identifier": "2106.09685",
+                    "repositoryEvidenceId": "E34"
+                  }
+                ],
+                "rows": [
+                  {
+                    "field": "method",
+                    "paperText": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20].",
+                    "matches": [
+                      {
+                        "repositoryEvidenceId": "E7",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E8",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E9",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E10",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E11",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E12",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E13",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E14",
+                        "terms": [
+                          "lora"
+                        ]
+                      }
+                    ],
+                    "observation": "lexical_matches_only",
+                    "semanticClaimVerified": false
+                  },
+                  {
+                    "field": "findings",
+                    "paperText": "LoRA matches or exceeds the fine-tuning baseline on all three GPT-3 datasets while using far fewer trainable parameters: 4.7M or 37.7M for LoRA versus 175,255.8M for full fine-tuning [evidence-3, Lo pages 7-8]. Adapting both \\(W_q\\) and \\(W_v\\) gives the best overall performance under the tested parameter budget, and a rank as small as one can suffice for adapting both \\(W_q\\) and \\(W_v\\) on these datasets, suggesting the update matrix can have a very small intrinsic rank [evidence-2, Lo pages 9-11]. LoRA also shows favorable sample efficiency on MNLI subsets and more stable scaling behavior than prefix-embedding or prefix-layer tuning as trainable parameters increase [evidence-4, Lo pages 23-24].",
+                    "matches": [
+                      {
+                        "repositoryEvidenceId": "E7",
+                        "terms": [
+                          "lora",
+                          "trainable",
+                          "parameter"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E8",
+                        "terms": [
+                          "lora",
+                          "trainable",
+                          "parameter"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E9",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E10",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E11",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E12",
+                        "terms": [
+                          "lora",
+                          "trainable",
+                          "parameter",
+                          "embedding"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E13",
+                        "terms": [
+                          "lora",
+                          "trainable",
+                          "parameter",
+                          "embedding"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E14",
+                        "terms": [
+                          "lora",
+                          "embedding"
+                        ]
+                      }
+                    ],
+                    "observation": "lexical_matches_only",
+                    "semanticClaimVerified": false
+                  },
+                  {
+                    "field": "limitations",
+                    "paperText": "The authors state that they do not expect a small rank to work for every task or dataset; if the downstream task is in a different language from pretraining, retraining the entire model, similar to LoRA with \\(r=d_{\\text{model}}\\), could outperform LoRA with a small rank [evidence-2, Lo pages 9-11]. They note that a thorough investigation into the performance drop when using many special tokens is out of scope, though they suspect input distribution shift [evidence-3, Lo pages 7-8]. They also state that the relationship between model size and optimal adaptation rank remains an open question, and identify as a next question how strongly task-specific directions need to be amplified [evidence-4, Lo pages 23-24]. Due to high training cost, GPT-3 experiments report typical standard deviations over random seeds rather than one for every entry [evidence-3, Lo pages 7-8].",
+                    "matches": [
+                      {
+                        "repositoryEvidenceId": "E7",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E8",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E9",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E10",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E11",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E12",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E13",
+                        "terms": [
+                          "lora"
+                        ]
+                      },
+                      {
+                        "repositoryEvidenceId": "E14",
+                        "terms": [
+                          "lora"
+                        ]
+                      }
+                    ],
+                    "observation": "lexical_matches_only",
+                    "semanticClaimVerified": false
+                  }
+                ]
+              }
+            ],
+            "semanticReproductionAnalysis": false,
+            "reproductionVerified": false,
+            "limitations": [
+              "Lexical overlap does not verify implementation, equivalence, experiments or performance.",
+              "No match does not prove absence: only extracted static evidence was searched.",
+              "An identifier mention does not prove this is the authors official repository."
+            ]
+          }
+        }
+      }
+    ],
+    "warnings": [
+      "LICENSE_NOT_VERIFIED",
+      "PAPER_REPOSITORY_RELATION_NOT_VERIFIED",
+      "PAPER_CONTEXT_LEXICAL_ONLY_NOT_REPRODUCTION_VERIFICATION"
+    ]
+  },
+  "taskStates": [
+    {
+      "messageId": "result-6fae8cca-cc4b-49c1-ad9c-05978676da95",
+      "state": "accepted",
+      "timeUtc": "2026-10-30T00:10:49.626338+00:00"
+    },
+    {
+      "messageId": "result-3bc9dc9e-9948-41b3-9687-0352f6671742",
+      "state": "working",
+      "timeUtc": "2026-10-30T00:10:49.667469+00:00"
+    },
+    {
+      "messageId": "result-61ebaede-5bf1-422a-9e93-2b8760a14342",
+      "state": "awaiting-completion",
+      "timeUtc": "2026-10-30T00:11:16.563286+00:00"
+    },
+    {
+      "messageId": "result-3a7d66b0-2c78-4b46-ad6a-aeca85068cd6",
+      "state": "completed",
+      "timeUtc": "2026-10-30T00:11:16.713560+00:00"
+    }
+  ],
+  "protocolCompleted": true,
+  "businessReady": true,
+  "remoteStateUnknown": false,
+  "startPublishPath": {
+    "connectionPresent": true,
+    "connectionClosed": false,
+    "transportAvailable": true,
+    "channelPresent": true,
+    "channelClosed": false,
+    "exchangePresent": true,
+    "exchangeChannelClosed": false,
+    "exchangeUsesCurrentChannel": true
+  },
+  "completePublishPath": {
+    "connectionPresent": true,
+    "connectionClosed": false,
+    "transportAvailable": true,
+    "channelPresent": true,
+    "channelClosed": false,
+    "exchangePresent": true,
+    "exchangeChannelClosed": false,
+    "exchangeUsesCurrentChannel": true
+  },
+  "disbandPublished": true,
+  "disbandPublishPath": {
+    "connectionPresent": true,
+    "connectionClosed": false,
+    "transportAvailable": true,
+    "channelPresent": true,
+    "channelClosed": false,
+    "exchangePresent": true,
+    "exchangeChannelClosed": false,
+    "exchangeUsesCurrentChannel": true
+  },
+  "disbandSettleCompleted": true,
+  "consumerCleanupCompleted": true,
+  "partnerDisbandConfirmed": true,
+  "disbandCommandId": "mgmt-cmd-151d9be2-45ff-407b-9619-2c307abecad7",
+  "groupResourceCleanup": {
+    "partnerQueue": true,
+    "leaderQueue": true,
+    "exchange": true
+  },
+  "groupResourceCleanupDeferred": [],
+  "cleanupAttempted": true,
+  "cleanupSucceeded": true,
+  "aclDeleted": true,
+  "groupResourcesDeleted": true,
+  "connectionClosed": true,
+  "events": [
+    {
+      "event": "OFFLINE_PREFLIGHT_PASSED",
+      "timeUtc": "2026-10-30T00:10:00.169262+00:00"
+    },
+    {
+      "event": "LEADER_ACL_WRITE_ATTEMPT",
+      "timeUtc": "2026-10-30T00:10:00.174333+00:00"
+    },
+    {
+      "event": "LEADER_ACL_AUTHORIZED",
+      "timeUtc": "2026-10-30T00:10:01.564524+00:00"
+    },
+    {
+      "event": "GROUP_CREATE_ATTEMPT",
+      "timeUtc": "2026-10-30T00:10:01.946069+00:00"
+    },
+    {
+      "event": "GROUP_CREATED",
+      "timeUtc": "2026-10-30T00:10:02.078158+00:00"
+    },
+    {
+      "event": "PARTNER_ACL_AUTHORIZED",
+      "timeUtc": "2026-10-30T00:10:02.471654+00:00"
+    },
+    {
+      "event": "INVITATION_PUBLISH_ATTEMPT",
+      "timeUtc": "2026-10-30T00:10:02.474870+00:00"
+    },
+    {
+      "event": "INVITATION_PUBLISHED",
+      "timeUtc": "2026-10-30T00:10:02.557294+00:00"
+    },
+    {
+      "event": "GROUP_JOINED_CONFIRMED",
+      "timeUtc": "2026-10-30T00:10:02.707575+00:00"
+    },
+    {
+      "event": "TASK_RELEASE_WAITING",
+      "timeUtc": "2026-10-30T00:10:02.710797+00:00"
+    },
+    {
+      "event": "TASK_RELEASE_CONFIRMED",
+      "timeUtc": "2026-10-30T00:10:49.390879+00:00"
+    },
+    {
+      "event": "TASK_START_ATTEMPT",
+      "timeUtc": "2026-10-30T00:10:49.394321+00:00"
+    },
+    {
+      "event": "TASK_START_PUBLISHED",
+      "timeUtc": "2026-10-30T00:10:49.617987+00:00"
+    },
+    {
+      "event": "TASK_STATE_ACCEPTED",
+      "timeUtc": "2026-10-30T00:10:49.626357+00:00"
+    },
+    {
+      "event": "TASK_STATE_WORKING",
+      "timeUtc": "2026-10-30T00:10:49.667483+00:00"
+    },
+    {
+      "event": "TASK_STATE_AWAITING_COMPLETION",
+      "timeUtc": "2026-10-30T00:11:16.563303+00:00"
+    },
+    {
+      "event": "BUSINESS_RESULT_VALIDATED",
+      "timeUtc": "2026-10-30T00:11:16.590814+00:00"
+    },
+    {
+      "event": "TASK_COMPLETE_ATTEMPT",
+      "timeUtc": "2026-10-30T00:11:16.597454+00:00"
+    },
+    {
+      "event": "TASK_COMPLETE_PUBLISHED",
+      "timeUtc": "2026-10-30T00:11:16.678600+00:00"
+    },
+    {
+      "event": "TASK_STATE_COMPLETED",
+      "timeUtc": "2026-10-30T00:11:16.713579+00:00"
+    },
+    {
+      "event": "TASK_COMPLETED_CONFIRMED",
+      "timeUtc": "2026-10-30T00:11:16.720038+00:00"
+    },
+    {
+      "event": "CLEANUP_STARTED",
+      "timeUtc": "2026-10-30T00:11:16.726433+00:00"
+    },
+    {
+      "event": "DISBAND_PUBLISH_ATTEMPT",
+      "timeUtc": "2026-10-30T00:11:16.733636+00:00"
+    },
+    {
+      "event": "PARTNER_LEAVE_CONFIRMED",
+      "timeUtc": "2026-10-30T00:11:17.082509+00:00"
+    },
+    {
+      "event": "CLEANUP_FINISHED",
+      "timeUtc": "2026-10-30T00:11:21.193959+00:00"
+    }
+  ],
+  "error": null,
+  "cleanupErrors": [],
+  "passed": true,
+  "task": {
+    "schemaVersion": "0.2",
+    "subtaskId": "S3",
+    "taskType": "repository_analyze",
+    "goal": "结合全文笔记静态分析论文明确给出的仓库结构、依赖与复现准备障碍；不执行目标代码。",
+    "input": {
+      "papers": [
+        {
+          "paperId": "https://openalex.org/W3168867926",
+          "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+          "doi": "10.48550/arxiv.2106.09685",
+          "url": "https://openalex.org/W3168867926",
+          "pdfUrl": "https://arxiv.org/pdf/2106.09685",
+          "repositoryUrls": [
+            "https://github.com/microsoft/LoRA"
+          ]
+        }
+      ],
+      "paperNotes": [
+        {
+          "source": {
+            "paperId": "https://openalex.org/W3168867926",
+            "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+            "doi": "10.48550/arxiv.2106.09685",
+            "url": "https://openalex.org/W3168867926",
+            "pdfUrl": "https://arxiv.org/pdf/2106.09685",
+            "repositoryUrls": [
+              "https://github.com/microsoft/LoRA"
+            ]
+          },
+          "method": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20].",
+          "findings": "LoRA matches or exceeds the fine-tuning baseline on all three GPT-3 datasets while using far fewer trainable parameters: 4.7M or 37.7M for LoRA versus 175,255.8M for full fine-tuning [evidence-3, Lo pages 7-8]. Adapting both \\(W_q\\) and \\(W_v\\) gives the best overall performance under the tested parameter budget, and a rank as small as one can suffice for adapting both \\(W_q\\) and \\(W_v\\) on these datasets, suggesting the update matrix can have a very small intrinsic rank [evidence-2, Lo pages 9-11]. LoRA also shows favorable sample efficiency on MNLI subsets and more stable scaling behavior than prefix-embedding or prefix-layer tuning as trainable parameters increase [evidence-4, Lo pages 23-24].",
+          "limitations": "The authors state that they do not expect a small rank to work for every task or dataset; if the downstream task is in a different language from pretraining, retraining the entire model, similar to LoRA with \\(r=d_{\\text{model}}\\), could outperform LoRA with a small rank [evidence-2, Lo pages 9-11]. They note that a thorough investigation into the performance drop when using many special tokens is out of scope, though they suspect input distribution shift [evidence-3, Lo pages 7-8]. They also state that the relationship between model size and optimal adaptation rank remains an open question, and identify as a next question how strongly task-specific directions need to be amplified [evidence-4, Lo pages 23-24]. Due to high training cost, GPT-3 experiments report typical standard deviations over random seeds rather than one for every entry [evidence-3, Lo pages 7-8].",
+          "analysisLevel": "fulltext",
+          "evidence": [
+            {
+              "sourceId": "https://openalex.org/W3168867926",
+              "url": "https://arxiv.org/pdf/2106.09685",
+              "locator": "Lo pages 15-17",
+              "supports": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20].",
+              "text": "imensional output targets.\n  In 2013 IEEE international conference on acoustics, speech and signal processing, pp. 6655–\n  6659. IEEE, 2013.\n\nMohammad Shoeybi, Mostofa Patwary, Raul Puri, Patrick LeGresley, Jared Casper, and Bryan\n  Catanzaro.  Megatron-lm: Training multi-billion parameter language models using model par-\n   allelism, 2020.\n\nRichard Socher, Alex Perelygin, Jean Wu, Jason Chuang, Christopher D. Manning, Andrew Ng,\n  and Christopher Potts. Recursive deep models for semantic compositionality over a sentiment\n  treebank.  In Proceedings of the 2013 Conference on Empirical Methods in Natural Language\n  Processing, pp. 1631–1642, Seattle, Washington, USA, October 2013. Association for Computa-\n   tional Linguistics. URL https://aclanthology.org/D13-1170.\n\n\n                                       15Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez,\n  Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Proceedings of the 31st In-\n  ternational Conference on Neural Information Processing Systems, pp. 6000–6010, 2017.\n\nAlex Wang, Amanpreet Singh, Julian Michael, Felix Hill, Omer Levy, and Samuel R. Bowman.\n  Glue: A multi-task benchmark and analysis platform for natural language understanding, 2019.\n\nAlex Wang, Yada Pruksachatkun, Nikita Nangia, Amanpreet Singh, Julian Michael, Felix Hill, Omer\n  Levy, and Samuel R. Bowman. Superglue: A stickier benchmark for general-purpose language\n  understanding systems, 2020.\n\nAlex Warstadt, Amanpreet Singh, and Samuel R Bowman. Neural network acceptability judgments.\n  arXiv preprint arXiv:1805.12471, 2018.\n\nAdina Williams, Nikita Nangia, and Samuel Bowman. A broad-coverage challenge corpus for sen-\n  tence understanding through inference.  In Proceedings of the 2018 Conference of the North\n  American Chapter of the Association for Computational Linguistics: Human Language Technolo-\n   gies, Volume 1 (Long Papers), pp. 1112–1122, New Orleans, Louisiana, June 2018. Association\n   for Computational Linguistics. doi: 10.18653/v1/N18-1101. URL https://www.aclweb.\n  org/anthology/N18-1101.\n\nThomas Wolf, Lysandre Debut, Victor Sanh, Julien Chaumond, Clement Delangue, Anthony Moi,\n   Pierric Cistac, Tim Rault, R´emi Louf, Morgan Funtowicz, Joe Davison, Sam Shleifer, Patrick\n  von Platen, Clara Ma, Yacine Jernite, Julien Plu, Canwen Xu, Teven Le Scao, Sylvain Gug-\n   ger, Mariama Drame, Quentin Lhoest, and Alexander M. Rush. Transformers: State-of-the-art\n   natural language processing. In Proceedings of the 2020 Conference on Empirical Methods in\n  Natural Language Processing: System Demonstrations, pp. 38–45, Online, October 2020. As-\n  sociation for Computational Linguistics. URL https://www.aclweb.org/anthology/\n  2020.emnlp-demos.6.\n\nGreg Yang  and Edward  J. Hu.    Feature  Learning  in  Inﬁnite-Width  Neural  Networks.\n  arXiv:2011.14522 [cond-mat], May 2021. URL http://arxiv.org/abs/2011.14522.\n  arXiv: 2011.14522.\n\nElad Ben Zaken, Shauli Ravfogel, and Yoav Goldberg. Bitﬁt: Simple parameter-efﬁcient ﬁne-tuning\n   for transformer-based masked language-models, 2021.\n\nYu Zhang, Ekapol Chuangsuwanich, and James Glass. Extracting deep neural network bottleneck\n   features using low-rank matrix factorization. In 2014 IEEE international conference on acoustics,\n  speech and signal processing (ICASSP), pp. 185–189. IEEE, 2014.\n\nYong Zhao, Jinyu Li, and Yifan Gong. Low-rank plus diagonal adaptation for deep neural networks.\n  In 2016 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP),\n  pp. 5005–5009. IEEE, 2016.\n\nVictor Zhong, Caiming Xiong, and Richard Socher. Seq2sql: Generating structured queries from\n   natural language using reinforcement learning. CoRR, abs/1709.00103, 2017. URL http://\n  arxiv.org/abs/1709.00103.\n\n\nA  LARGE LANGUAGE MODELS STILL NEED PARAMETER UPDATES\n\nFew-shot learning, or prompt engineering, is very advantageous when we only have a handful of\ntraining samples. However, in practice, we can often afford to curate a few thousand or more training\nexamples for performance-sensitive applications. As shown in Table 8, ﬁne-tuning improves the\nmodel performance drastically compared to few-shot learning on datasets large and small. We take\nthe GPT-3 few-shot result on RTE from the GPT-3 paper (Brown et al., 2020). For MNLI-matched,\nwe use two demonstrations per class and six in-context examples in total.\n\n\n                                       16            Method         MNLI-m (Val. Acc./%)  RTE (Val. Acc./%)\n\n            GPT-3 Few-Shot             40.6                  69.0\n            GPT-3 Fine-Tuned            89.5                  85.4\n\n Table 8: Fine-tuning signiﬁcantly outperforms few-shot learning on GPT-3 (Brown et al., 2020).\n\n\nB  INFERENCE LATENCY INTRODUCED BY ADAPTER LAYERS\n\nAdapter layers are external modules added to a pre-trained model in a sequential manner, whereas\nour proposal, LoRA, can be seen as external modules added in a parallel manner. Conseque",
+              "summary": "imensional output targets.\n  In 2013 IEEE international conference on acoustics, speech and signal processing, pp. 6655–\n  6659. IEEE, 2013.\n\nMohammad Shoeybi, Mostofa Patwary, Raul Puri, Patrick LeGresley, Jared Casper, and Bryan\n  Catanzaro.  Megatron-lm: Training multi-billion parameter language models using model par-\n   allelism, 2020.\n\nRichard Socher, Alex Perelygin, Jean Wu, Jason Chuang, Christopher D. Manning, Andrew Ng,\n  and Christopher Potts. Recursive deep models for semantic compositionality over a sentiment\n  treebank.  In Proceedings of the 2013 Conference on Empirical Methods in Natural Language\n  Processing, pp. 1631–1642, Seattle, Washington, USA, October 2013. Association for Computa-\n   tional Linguistics. URL https://aclanthology.org/D13-1170.\n\n\n                                       15Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez,\n  Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. In Proceedings of the 31st In-\n  ternational Conference on Neural Information Processing Systems, pp. 6000–6010, 2017.\n\nAlex Wang, Amanpreet Singh, Julian Michael, Felix Hill, Omer Levy, and Samuel R. Bowman.\n  Glue: A multi-task benchmark and analysis platform for natural language understanding, 2019.\n\nAlex Wang, Yada Pruksachatkun, Nikita Nangia, Amanpreet Singh, Julian Michael, Felix Hill, Omer\n  Levy, and Samuel R. Bowman. Superglue: A stickier benchmark for general-purpose language\n  understanding systems, 2020.\n\nAlex Warstadt, Amanpreet Singh, and Samuel R Bowman. Neural network acceptability judgments.\n  arXiv preprint arXiv:1805.12471, 2018.\n\nAdina Williams, Nikita Nangia, and Samuel Bowman. A broad-coverage challenge corpus for sen-\n  tence understanding through inference.  In Proceedings of the 2018 Conference of the North\n  American Chapter of the Association for Computational Linguistics: Human Language Technolo-\n   gies, Volume 1 (Long Papers), pp. 1112–1122, New Orleans, Louisiana, June 2018. Association\n   for Computational Linguistics. doi: 10.18653/v1/N18-1101. URL https://www.aclweb.\n  org/anthology/N18-1101.\n\nThomas Wolf, Lysandre Debut, Victor Sanh, Julien Chaumond, Clement Delangue, Anthony Moi,\n   Pierric Cistac, Tim Rault, R´emi Louf, Morgan Funtowicz, Joe Davison, Sam Shleifer, Patrick\n  von Platen, Clara Ma, Yacine Jernite, Julien Plu, Canwen Xu, Teven Le Scao, Sylvain Gug-\n   ger, Mariama Drame, Quentin Lhoest, and Alexander M. Rush. Transformers: State-of-the-art\n   natural language processing. In Proceedings of the 2020 Conference on Empirical Methods in\n  Natural Language Processing: System Demonstrations, pp. 38–45, Online, October 2020. As-\n  sociation for Computational Linguistics. URL https://www.aclweb.org/anthology/\n  2020.emnlp-demos.6.\n\nGreg Yang  and Edward  J. Hu.    Feature  Learning  in  Inﬁnite-Width  Neural  Networks.\n  arXiv:2011.14522 [cond-mat], May 2021. URL http://arxiv.org/abs/2011.14522.\n  arXiv: 2011.14522.\n\nElad Ben Zaken, Shauli Ravfogel, and Yoav Goldberg. Bitﬁt: Simple parameter-efﬁcient ﬁne-tuning\n   for transformer-based masked language-models, 2021.\n\nYu Zhang, Ekapol Chuangsuwanich, and James Glass. Extracting deep neural network bottleneck\n   features using low-rank matrix factorization. In 2014 IEEE international conference on acoustics,\n  speech and signal processing (ICASSP), pp. 185–189. IEEE, 2014.\n\nYong Zhao, Jinyu Li, and Yifan Gong. Low-rank plus diagonal adaptation for deep neural networks.\n  In 2016 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP),\n  pp. 5005–5009. IEEE, 2016.\n\nVictor Zhong, Caiming Xiong, and Richard Socher. Seq2sql: Generating structured queries from\n   natural language using reinforcement learning. CoRR, abs/1709.00103, 2017. URL http://\n  arxiv.org/abs/1709.00103.\n\n\nA  LARGE LANGUAGE MODELS STILL NEED PARAMETER UPDATES\n\nFew-shot learning, or prompt engineering, is very advantageous when we only have a handful of\ntraining samples. However, in practice, we can often afford to curate a few thousand or more training\nexamples for performance-sensitive applications. As shown in Table 8, ﬁne-tuning improves the\nmodel performance drastically compared to few-shot learning on datasets large and small. We take\nthe GPT-3 few-shot result on RTE from the GPT-3 paper (Brown et al., 2020). For MNLI-matched,\nwe use two demonstrations per class and six in-context examples in total.\n\n\n                                       16            Method         MNLI-m (Val. Acc./%)  RTE (Val. Acc./%)\n\n            GPT-3 Few-Shot             40.6                  69.0\n            GPT-3 Fine-Tuned            89.5                  85.4\n\n Table 8: Fine-tuning signiﬁcantly outperforms few-shot learning on GPT-3 (Brown et al., 2020).\n\n\nB  INFERENCE LATENCY INTRODUCED BY ADAPTER LAYERS\n\nAdapter layers are external modules added to a pre-trained model in a sequential manner, whereas\nour proposal, LoRA, can be seen as external modules added in a parallel manner. Conseque",
+              "score": null
+            },
+            {
+              "sourceId": "https://openalex.org/W3168867926",
+              "url": "https://arxiv.org/pdf/2106.09685",
+              "locator": "Lo pages 9-11",
+              "supports": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20]. LoRA matches or exceeds the fine-tuning baseline on all three GPT-3 datasets while using far fewer trainable parameters: 4.7M or 37.7M for LoRA versus 175,255.8M for full fine-tuning [evidence-3, Lo pages 7-8]. Adapting both \\(W_q\\) and \\(W_v\\) gives the best overall performance under the tested parameter budget, and a rank as small as one can suffice for adapting both \\(W_q\\) and \\(W_v\\) on these datasets, suggesting the update matrix can have a very small intrinsic rank [evidence-2, Lo pages 9-11]. LoRA also shows favorable sample efficiency on MNLI subsets and more stable scaling behavior than prefix-embedding or prefix-layer tuning as trainable parameters increase [evidence-4, Lo pages 23-24]. The authors state that they do not expect a small rank to work for every task or dataset; if the downstream task is in a different language from pretraining, retraining the entire model, similar to LoRA with \\(r=d_{\\text{model}}\\), could outperform LoRA with a small rank [evidence-2, Lo pages 9-11]. They note that a thorough investigation into the performance drop when using many special tokens is out of scope, though they suspect input distribution shift [evidence-3, Lo pages 7-8]. They also state that the relationship between model size and optimal adaptation rank remains an open question, and identify as a next question how strongly task-specific directions need to be amplified [evidence-4, Lo pages 23-24]. Due to high training cost, GPT-3 experiments report typical standard deviations over random seeds rather than one for every entry [evidence-3, Lo pages 7-8].",
+              "text": "tical result in Allen-Zhu & Li (2020b) suggests that\nlow-rank adaptations can be useful for adversarial training. In sum, we believe that our proposed\nlow-rank adaptation update is well-motivated by the literature.\n\n7  UNDERSTANDING THE LOW-RANK UPDATES\n\nGiven the empirical advantage of LoRA, we hope to further explain the properties of the low-rank\nadaptation learned from downstream tasks. Note that the low-rank structure not only lowers the\nhardware barrier to entry which allows us to run multiple experiments in parallel, but also gives\nbetter interpretability of how the update weights are correlated with the pre-trained weights. We\nfocus our study on GPT-3 175B, where we achieved the largest reduction of trainable parameters\n(up to 10,000×) without adversely affecting task performances.\n\nWe perform a sequence of empirical studies to answer the following questions: 1) Given a parameter\nbudget constraint, which subset of weight matrices in a pre-trained Transformer should we adapt\n\n\n                                       9to maximize downstream performance?  2) Is the “optimal” adaptation matrix ∆W really rank-\ndeﬁcient? If so, what is a good rank to use in practice? 3) What is the connection between ∆W and\nW? Does ∆W highly correlate with W? How large is ∆W comparing to W?\n\nWe believe that our answers to question (2) and (3) shed light on the fundamental principles of using\npre-trained language models for downstream tasks, which is a critical topic in NLP.\n\n7.1  WHICH WEIGHT MATRICES IN TRANSFORMER SHOULD WE APPLY LORA TO?\n\nGiven a limited parameter budget, which types of weights should we adapt with LoRA to obtain\nthe best performance on downstream tasks? As mentioned in Section 4.2, we only consider weight\nmatrices in the self-attention module. We set a parameter budget of 18M (roughly 35MB if stored\nin FP16) on GPT-3 175B, which corresponds to r = 8 if we adapt one type of attention weights or\nr = 4 if we adapt two types, for all 96 layers. The result is presented in Table 5.\n\n                                   # of Trainable Parameters = 18M\n\n   Weight Type      Wq  Wk  Wv  Wo   Wq, Wk  Wq, Wv  Wq, Wk, Wv, Wo\n   Rank r             8     8     8     8      4        4            2\n\n   WikiSQL (±0.5%)   70.4   70.0   73.0   73.2    71.4      73.7          73.7\n   MultiNLI (±0.1%)   91.0   90.8   91.0   91.3    91.3      91.3          91.7\n\nTable 5: Validation accuracy on WikiSQL and MultiNLI after applying LoRA to different types of\nattention weights in GPT-3, given the same number of trainable parameters. Adapting both Wq and\nWv gives the best performance overall. We ﬁnd the standard deviation across random seeds to be\nconsistent for a given dataset, which we report in the ﬁrst column.\n\nNote that putting all the parameters in ∆Wq or ∆Wk results in signiﬁcantly lower performance,\nwhile adapting both Wq and Wv yields the best result.  This suggests that even a rank of four\ncaptures enough information in ∆W such that it is preferable to adapt more weight matrices than\nadapting a single type of weights with a larger rank.\n\n7.2  WHAT IS THE OPTIMAL RANK r FOR LORA?\n\nWe turn our attention to the effect of rank r on model performance.  We adapt {Wq, Wv},\n{Wq, Wk, Wv, Wc}, and just Wq for a comparison.\n\n                           Weight Type     r = 1   r = 2   r = 4   r = 8   r = 64\n\n                      Wq          68.8    69.6    70.5    70.4     70.0      WikiSQL(±0.5%)\n                         Wq, Wv        73.4    73.3    73.7    73.8     73.5\n                     Wq, Wk, Wv, Wo    74.1    73.7    74.0    74.0     73.9\n                      Wq          90.7    90.9    91.1    90.7     90.7\n      MultiNLI (±0.1%)      Wq, Wv        91.3    91.4    91.3    91.6     91.4\n                     Wq, Wk, Wv, Wo    91.2    91.7    91.7    91.5     91.4\n\nTable 6: Validation accuracy on WikiSQL and MultiNLI with different rank r. To our surprise, a\nrank as small as one sufﬁces for adapting both Wq and Wv on these datasets while training Wq alone\nneeds a larger r. We conduct a similar experiment on GPT-2 in Section H.2.\n\nTable 6 shows that, surprisingly, LoRA already performs competitively with a very small r (more\nso for {Wq, Wv} than just Wq).  This suggests the update matrix ∆W could have a very small\n“intrinsic rank”.6 To further support this ﬁnding, we check the overlap of the subspaces learned by\ndifferent choices of r and by different random seeds. We argue that increasing r does not cover a\nmore meaningful subspace, which suggests that a low-rank adaptation matrix is sufﬁcient.\n\n   6However, we do not expect a small r to work for every task or dataset. Consider the following thought\nexperiment: if the downstream task were in a different language than the one used for pre-training, retraining\nthe entire model (similar to LoRA with r = dmodel) could certainly outperform LoRA with a small r.\n\n\n                                       10Subspace similarity between different r.  Given Ar=8 and Ar=64 which are the l",
+              "summary": "tical result in Allen-Zhu & Li (2020b) suggests that\nlow-rank adaptations can be useful for adversarial training. In sum, we believe that our proposed\nlow-rank adaptation update is well-motivated by the literature.\n\n7  UNDERSTANDING THE LOW-RANK UPDATES\n\nGiven the empirical advantage of LoRA, we hope to further explain the properties of the low-rank\nadaptation learned from downstream tasks. Note that the low-rank structure not only lowers the\nhardware barrier to entry which allows us to run multiple experiments in parallel, but also gives\nbetter interpretability of how the update weights are correlated with the pre-trained weights. We\nfocus our study on GPT-3 175B, where we achieved the largest reduction of trainable parameters\n(up to 10,000×) without adversely affecting task performances.\n\nWe perform a sequence of empirical studies to answer the following questions: 1) Given a parameter\nbudget constraint, which subset of weight matrices in a pre-trained Transformer should we adapt\n\n\n                                       9to maximize downstream performance?  2) Is the “optimal” adaptation matrix ∆W really rank-\ndeﬁcient? If so, what is a good rank to use in practice? 3) What is the connection between ∆W and\nW? Does ∆W highly correlate with W? How large is ∆W comparing to W?\n\nWe believe that our answers to question (2) and (3) shed light on the fundamental principles of using\npre-trained language models for downstream tasks, which is a critical topic in NLP.\n\n7.1  WHICH WEIGHT MATRICES IN TRANSFORMER SHOULD WE APPLY LORA TO?\n\nGiven a limited parameter budget, which types of weights should we adapt with LoRA to obtain\nthe best performance on downstream tasks? As mentioned in Section 4.2, we only consider weight\nmatrices in the self-attention module. We set a parameter budget of 18M (roughly 35MB if stored\nin FP16) on GPT-3 175B, which corresponds to r = 8 if we adapt one type of attention weights or\nr = 4 if we adapt two types, for all 96 layers. The result is presented in Table 5.\n\n                                   # of Trainable Parameters = 18M\n\n   Weight Type      Wq  Wk  Wv  Wo   Wq, Wk  Wq, Wv  Wq, Wk, Wv, Wo\n   Rank r             8     8     8     8      4        4            2\n\n   WikiSQL (±0.5%)   70.4   70.0   73.0   73.2    71.4      73.7          73.7\n   MultiNLI (±0.1%)   91.0   90.8   91.0   91.3    91.3      91.3          91.7\n\nTable 5: Validation accuracy on WikiSQL and MultiNLI after applying LoRA to different types of\nattention weights in GPT-3, given the same number of trainable parameters. Adapting both Wq and\nWv gives the best performance overall. We ﬁnd the standard deviation across random seeds to be\nconsistent for a given dataset, which we report in the ﬁrst column.\n\nNote that putting all the parameters in ∆Wq or ∆Wk results in signiﬁcantly lower performance,\nwhile adapting both Wq and Wv yields the best result.  This suggests that even a rank of four\ncaptures enough information in ∆W such that it is preferable to adapt more weight matrices than\nadapting a single type of weights with a larger rank.\n\n7.2  WHAT IS THE OPTIMAL RANK r FOR LORA?\n\nWe turn our attention to the effect of rank r on model performance.  We adapt {Wq, Wv},\n{Wq, Wk, Wv, Wc}, and just Wq for a comparison.\n\n                           Weight Type     r = 1   r = 2   r = 4   r = 8   r = 64\n\n                      Wq          68.8    69.6    70.5    70.4     70.0      WikiSQL(±0.5%)\n                         Wq, Wv        73.4    73.3    73.7    73.8     73.5\n                     Wq, Wk, Wv, Wo    74.1    73.7    74.0    74.0     73.9\n                      Wq          90.7    90.9    91.1    90.7     90.7\n      MultiNLI (±0.1%)      Wq, Wv        91.3    91.4    91.3    91.6     91.4\n                     Wq, Wk, Wv, Wo    91.2    91.7    91.7    91.5     91.4\n\nTable 6: Validation accuracy on WikiSQL and MultiNLI with different rank r. To our surprise, a\nrank as small as one sufﬁces for adapting both Wq and Wv on these datasets while training Wq alone\nneeds a larger r. We conduct a similar experiment on GPT-2 in Section H.2.\n\nTable 6 shows that, surprisingly, LoRA already performs competitively with a very small r (more\nso for {Wq, Wv} than just Wq).  This suggests the update matrix ∆W could have a very small\n“intrinsic rank”.6 To further support this ﬁnding, we check the overlap of the subspaces learned by\ndifferent choices of r and by different random seeds. We argue that increasing r does not cover a\nmore meaningful subspace, which suggests that a low-rank adaptation matrix is sufﬁcient.\n\n   6However, we do not expect a small r to work for every task or dataset. Consider the following thought\nexperiment: if the downstream task were in a different language than the one used for pre-training, retraining\nthe entire model (similar to LoRA with r = dmodel) could certainly outperform LoRA with a small r.\n\n\n                                       10Subspace similarity between different r.  Given Ar=8 and Ar=64 which are the l",
+              "score": null
+            },
+            {
+              "sourceId": "https://openalex.org/W3168867926",
+              "url": "https://arxiv.org/pdf/2106.09685",
+              "locator": "Lo pages 7-8",
+              "supports": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20]. LoRA matches or exceeds the fine-tuning baseline on all three GPT-3 datasets while using far fewer trainable parameters: 4.7M or 37.7M for LoRA versus 175,255.8M for full fine-tuning [evidence-3, Lo pages 7-8]. Adapting both \\(W_q\\) and \\(W_v\\) gives the best overall performance under the tested parameter budget, and a rank as small as one can suffice for adapting both \\(W_q\\) and \\(W_v\\) on these datasets, suggesting the update matrix can have a very small intrinsic rank [evidence-2, Lo pages 9-11]. LoRA also shows favorable sample efficiency on MNLI subsets and more stable scaling behavior than prefix-embedding or prefix-layer tuning as trainable parameters increase [evidence-4, Lo pages 23-24]. The authors state that they do not expect a small rank to work for every task or dataset; if the downstream task is in a different language from pretraining, retraining the entire model, similar to LoRA with \\(r=d_{\\text{model}}\\), could outperform LoRA with a small rank [evidence-2, Lo pages 9-11]. They note that a thorough investigation into the performance drop when using many special tokens is out of scope, though they suspect input distribution shift [evidence-3, Lo pages 7-8]. They also state that the relationship between model size and optimal adaptation rank remains an open question, and identify as a next question how strongly task-specific directions need to be amplified [evidence-4, Lo pages 23-24]. Due to high training cost, GPT-3 experiments report typical standard deviations over random seeds rather than one for every entry [evidence-3, Lo pages 7-8].",
+              "text": "019) and Pfeiffer et al. (2021) according to their\nsetup. To ensure a fair comparison, we make two crucial changes to how we evaluate LoRA when\ncomparing with adapters. First, we use the same batch size for all tasks and use a sequence length\nof 128 to match the adapter baselines. Second, we initialize the model to the pre-trained model for\nMRPC, RTE, and STS-B, not a model already adapted to MNLI like the ﬁne-tuning baseline. Runs\nfollowing this more restricted setup from Houlsby et al. (2019) are labeled with †. The result is\npresented in Table 2 (Top Three Sections). See Section D.1 for details on the hyperparameters used.\n\n\n5.3  DEBERTA XXL\n\nDeBERTa (He et al., 2021) is a more recent variant of BERT that is trained on a much larger\nscale and performs very competitively on benchmarks such as GLUE (Wang et al., 2019) and Su-\nperGLUE (Wang et al., 2020). We evaluate if LoRA can still match the performance of a fully\nﬁne-tuned DeBERTa XXL (1.5B) on GLUE. The result is presented in Table 2 (Bottom Section).\nSee Section D.2 for details on the hyperparameters used.\n\n\n5.4  GPT-2 MEDIUM/LARGE\n\nHaving shown that LoRA can be a competitive alternative to full ﬁne-tuning on NLU, we hope to\nanswer if LoRA still prevails on NLG models, such as GPT-2 medium and large (Radford et al.,\nb). We keep our setup as close as possible to Li & Liang (2021) for a direct comparison. Due\nto space constraint, we only present our result on E2E NLG Challenge (Table 3) in this section.\nSee Section F.1 for results on WebNLG (Gardent et al., 2017) and DART (Nan et al., 2020). We\ninclude a list of the hyperparameters used in Section D.3.\n\n\n                                       7                            # Trainable  WikiSQL  MNLI-m   SAMSum\n        Model&Method\n                               Parameters   Acc. (%)   Acc. (%)    R1/R2/RL\n\n         GPT-3 (FT)         175,255.8M     73.8       89.5     52.0/28.0/44.5\n         GPT-3 (BitFit)          14.2M     71.3       91.0     51.3/27.4/43.5\n         GPT-3 (PreEmbed)       3.2M     63.1       88.6     48.3/24.2/40.5\n         GPT-3 (PreLayer)        20.2M     70.1       89.5     50.8/27.3/43.5\n         GPT-3 (AdapterH)        7.1M     71.9       89.8     53.0/28.9/44.8\n         GPT-3 (AdapterH)       40.1M     73.2       91.5     53.2/29.0/45.1\n\n         GPT-3 (LoRA)           4.7M     73.4       91.7     53.8/29.8/45.9\n         GPT-3 (LoRA)          37.7M     74.0       91.6     53.4/29.2/45.1\n\nTable 4: Performance of different adaptation methods on GPT-3 175B. We report the logical form\nvalidation accuracy on WikiSQL, validation accuracy on MultiNLI-matched, and Rouge-1/2/L on\nSAMSum. LoRA performs better than prior approaches, including full ﬁne-tuning. The results\non WikiSQL have a ﬂuctuation around ±0.5%, MNLI-m around ±0.1%, and SAMSum around\n±0.2/±0.2/±0.1 for the three metrics.\n\n\n5.5  SCALING UP TO GPT-3 175B\n\nAs a ﬁnal stress test for LoRA, we scale up to GPT-3 with 175 billion parameters. Due to the high\ntraining cost, we only report the typical standard deviation for a given task over random seeds, as\nopposed to providing one for every entry. See Section D.4 for details on the hyperparameters used.\n\nAs shown in Table 4, LoRA matches or exceeds the ﬁne-tuning baseline on all three datasets. Note\nthat not all methods beneﬁt monotonically from having more trainable parameters, as shown in Fig-\nure 2. We observe a signiﬁcant performance drop when we use more than 256 special tokens for\npreﬁx-embedding tuning or more than 32 special tokens for preﬁx-layer tuning. This corroborates\nsimilar observations in Li & Liang (2021). While a thorough investigation into this phenomenon\nis out-of-scope for this work, we suspect that having more special tokens causes the input distri-\nbution to shift further away from the pre-training data distribution. Separately, we investigate the\nperformance of different adaptation approaches in the low-data regime in Section F.3.\n\n                           WikiSQL                                         MultiNLI-matched\n    0.75                                                     0.92\n\n    0.70                                                     0.90  Accuracy                                  Method\n    0.65                                       Fine-Tune      0.88\n                                             PrefixEmbed\n    0.60                                         PrefixLayer     0.86   Validation                                           Adapter(H)\n    0.55                                 LoRA          0.84\n           6      7      8      9     10     11                6      7      8      9     10     11\n                     log10 # Trainable Parameters                              log10 # Trainable Parameters\n\nFigure 2: GPT-3 175B validation accuracy vs. number of trainable parameters of several adaptation\nmethods on WikiSQL and MNLI-matched. LoRA exhibits better scalability and task performance.\nSee Section F.2 for more details on the plotted data",
+              "summary": "019) and Pfeiffer et al. (2021) according to their\nsetup. To ensure a fair comparison, we make two crucial changes to how we evaluate LoRA when\ncomparing with adapters. First, we use the same batch size for all tasks and use a sequence length\nof 128 to match the adapter baselines. Second, we initialize the model to the pre-trained model for\nMRPC, RTE, and STS-B, not a model already adapted to MNLI like the ﬁne-tuning baseline. Runs\nfollowing this more restricted setup from Houlsby et al. (2019) are labeled with †. The result is\npresented in Table 2 (Top Three Sections). See Section D.1 for details on the hyperparameters used.\n\n\n5.3  DEBERTA XXL\n\nDeBERTa (He et al., 2021) is a more recent variant of BERT that is trained on a much larger\nscale and performs very competitively on benchmarks such as GLUE (Wang et al., 2019) and Su-\nperGLUE (Wang et al., 2020). We evaluate if LoRA can still match the performance of a fully\nﬁne-tuned DeBERTa XXL (1.5B) on GLUE. The result is presented in Table 2 (Bottom Section).\nSee Section D.2 for details on the hyperparameters used.\n\n\n5.4  GPT-2 MEDIUM/LARGE\n\nHaving shown that LoRA can be a competitive alternative to full ﬁne-tuning on NLU, we hope to\nanswer if LoRA still prevails on NLG models, such as GPT-2 medium and large (Radford et al.,\nb). We keep our setup as close as possible to Li & Liang (2021) for a direct comparison. Due\nto space constraint, we only present our result on E2E NLG Challenge (Table 3) in this section.\nSee Section F.1 for results on WebNLG (Gardent et al., 2017) and DART (Nan et al., 2020). We\ninclude a list of the hyperparameters used in Section D.3.\n\n\n                                       7                            # Trainable  WikiSQL  MNLI-m   SAMSum\n        Model&Method\n                               Parameters   Acc. (%)   Acc. (%)    R1/R2/RL\n\n         GPT-3 (FT)         175,255.8M     73.8       89.5     52.0/28.0/44.5\n         GPT-3 (BitFit)          14.2M     71.3       91.0     51.3/27.4/43.5\n         GPT-3 (PreEmbed)       3.2M     63.1       88.6     48.3/24.2/40.5\n         GPT-3 (PreLayer)        20.2M     70.1       89.5     50.8/27.3/43.5\n         GPT-3 (AdapterH)        7.1M     71.9       89.8     53.0/28.9/44.8\n         GPT-3 (AdapterH)       40.1M     73.2       91.5     53.2/29.0/45.1\n\n         GPT-3 (LoRA)           4.7M     73.4       91.7     53.8/29.8/45.9\n         GPT-3 (LoRA)          37.7M     74.0       91.6     53.4/29.2/45.1\n\nTable 4: Performance of different adaptation methods on GPT-3 175B. We report the logical form\nvalidation accuracy on WikiSQL, validation accuracy on MultiNLI-matched, and Rouge-1/2/L on\nSAMSum. LoRA performs better than prior approaches, including full ﬁne-tuning. The results\non WikiSQL have a ﬂuctuation around ±0.5%, MNLI-m around ±0.1%, and SAMSum around\n±0.2/±0.2/±0.1 for the three metrics.\n\n\n5.5  SCALING UP TO GPT-3 175B\n\nAs a ﬁnal stress test for LoRA, we scale up to GPT-3 with 175 billion parameters. Due to the high\ntraining cost, we only report the typical standard deviation for a given task over random seeds, as\nopposed to providing one for every entry. See Section D.4 for details on the hyperparameters used.\n\nAs shown in Table 4, LoRA matches or exceeds the ﬁne-tuning baseline on all three datasets. Note\nthat not all methods beneﬁt monotonically from having more trainable parameters, as shown in Fig-\nure 2. We observe a signiﬁcant performance drop when we use more than 256 special tokens for\npreﬁx-embedding tuning or more than 32 special tokens for preﬁx-layer tuning. This corroborates\nsimilar observations in Li & Liang (2021). While a thorough investigation into this phenomenon\nis out-of-scope for this work, we suspect that having more special tokens causes the input distri-\nbution to shift further away from the pre-training data distribution. Separately, we investigate the\nperformance of different adaptation approaches in the low-data regime in Section F.3.\n\n                           WikiSQL                                         MultiNLI-matched\n    0.75                                                     0.92\n\n    0.70                                                     0.90  Accuracy                                  Method\n    0.65                                       Fine-Tune      0.88\n                                             PrefixEmbed\n    0.60                                         PrefixLayer     0.86   Validation                                           Adapter(H)\n    0.55                                 LoRA          0.84\n           6      7      8      9     10     11                6      7      8      9     10     11\n                     log10 # Trainable Parameters                              log10 # Trainable Parameters\n\nFigure 2: GPT-3 175B validation accuracy vs. number of trainable parameters of several adaptation\nmethods on WikiSQL and MNLI-matched. LoRA exhibits better scalability and task performance.\nSee Section F.2 for more details on the plotted data",
+              "score": null
+            },
+            {
+              "sourceId": "https://openalex.org/W3168867926",
+              "url": "https://arxiv.org/pdf/2106.09685",
+              "locator": "Lo pages 23-24",
+              "supports": "LoRA matches or exceeds the fine-tuning baseline on all three GPT-3 datasets while using far fewer trainable parameters: 4.7M or 37.7M for LoRA versus 175,255.8M for full fine-tuning [evidence-3, Lo pages 7-8]. Adapting both \\(W_q\\) and \\(W_v\\) gives the best overall performance under the tested parameter budget, and a rank as small as one can suffice for adapting both \\(W_q\\) and \\(W_v\\) on these datasets, suggesting the update matrix can have a very small intrinsic rank [evidence-2, Lo pages 9-11]. LoRA also shows favorable sample efficiency on MNLI subsets and more stable scaling behavior than prefix-embedding or prefix-layer tuning as trainable parameters increase [evidence-4, Lo pages 23-24]. The authors state that they do not expect a small rank to work for every task or dataset; if the downstream task is in a different language from pretraining, retraining the entire model, similar to LoRA with \\(r=d_{\\text{model}}\\), could outperform LoRA with a small rank [evidence-2, Lo pages 9-11]. They note that a thorough investigation into the performance drop when using many special tokens is out of scope, though they suspect input distribution shift [evidence-3, Lo pages 7-8]. They also state that the relationship between model size and optimal adaptation rank remains an open question, and identify as a next question how strongly task-specific directions need to be amplified [evidence-4, Lo pages 23-24]. Due to high training cost, GPT-3 experiments report typical standard deviations over random seeds rather than one for every entry [evidence-3, Lo pages 7-8].",
+              "text": "37.7 M            73.8       91.6\n                    rq = rk = rv = ro = 4            37.7 M            74.0       91.7\n                         rq = rv = 64                301.9 M            73.6       91.4\n                   rq = rk = rv = ro = 64           603.8 M            73.9       91.4\n                  rq = rv = 8, lp = 8, li = 4           37.8 M            75.0       91.4\n LoRA+PE     rq = rv = 32, lp = 8, li = 4         151.1 M            75.9       91.1\n                  rq = rv = 64, lp = 8, li = 4         302.1 M            76.2       91.3\n LoRA+PL      rq = rv = 8, lp = 8, li = 4           52.8 M            72.9       90.2\n\nTable 15: Hyperparameter analysis of different adaptation approaches on WikiSQL and MNLI. Both\npreﬁx-embedding tuning (PreﬁxEmbed) and preﬁx-layer tuning (PreﬁxLayer) perform worse as we\nincrease the number of trainable parameters, while LoRA’s performance stabilizes. Performance is\nmeasured in validation accuracy.\n\n\n  Method             MNLI(m)-100  MNLI(m)-1k  MNLI(m)-10k  MNLI(m)-392K\n\n  GPT-3 (Fine-Tune)          60.2            85.8            88.9             89.5\n  GPT-3 (PreﬁxEmbed)       37.6            75.2            79.5             88.6\n  GPT-3 (PreﬁxLayer)         48.3            82.5            85.9             89.6\n  GPT-3 (LoRA)              63.8            85.6            89.2             91.7\n\nTable 16: Validation accuracy of different methods on subsets of MNLI using GPT-3 175B. MNLI-\nn describes a subset with n training examples. We evaluate with the full validation set. LoRA\nperforms exhibits favorable sample-efﬁciency compared to other methods, including ﬁne-tuning.\n\n\nTo be concrete, let the singular values of UAi⊤ UBj to be σ1, σ2, · · · , σp where p = min{i, j}. We\nknow that the Projection Metric Ham & Lee (2008) is deﬁned as:\n\n                 v     p\n                 u                                                √p]                       d(UA,i UB)j =                 utp − X σ2i ∈[0,\n                                                i=1\n\n\n                                       23   Hyperparameters     Adaptation    MNLI-100  MNLI-1k  MNLI-10K  MNLI-392K\n\n   Optimizer                     -                    AdamW\n  Warmup Tokens              -                             250,000\n  LR Schedule                  -                               Linear\n   Batch Size                    -            20         20        100         128\n   # Epoch                       -            40         40         4           2\n\n                      FineTune                          5.00E-6\n                   PreﬁxEmbed     2.00E-04    2.00E-04    4.00E-04     5.00E-04\n   Learning Rate\n                      PreﬁxLayer     5.00E-05    5.00E-05    5.00E-05     1.00E-04\n                  LoRA                           2.00E-4\n\n                  PreﬁxEmbed lp      16         32         64          256\n   Adaptation-       PreﬁxEmbed li                        8\n   Speciﬁc            PreﬁxTune                              lp = li = 8\n                  LoRA                            rq = rv = 8\n\n   Table 17: The hyperparameters used for different GPT-3 adaptation methods on MNLI(m)-n.\n\n\n\nwhere our similarity is deﬁned as:\n\n                                                     i     j   Ppi=1 σ2i    1               i     j             φ(A, B, i, j) = ψ(UA, UB) =      =    1 −d(UA, UB)2                                         p      p\n\nThis similarity satisﬁes that if UAi and UBj share the same column span, then φ(A, B, i, j) = 1. If\nthey are completely orthogonal, then φ(A, B, i, j) = 0. Otherwise, φ(A, B, i, j) ∈(0, 1).\n\n\nH  ADDITIONAL EXPERIMENTS ON LOW-RANK MATRICES\n\n\nWe present additional results from our investigation into the low-rank update matrices.\n\n\nH.1  CORRELATION BETWEEN LORA MODULES\n\nSee Figure 6 and Figure 7 for how the results presented in Figure 3 and Figure 4 generalize to other\nlayers.\n\n\nH.2  EFFECT OF r ON GPT-2\n\nWe repeat our experiment on the effect of r (Section 7.2) in GPT-2. Using the E2E NLG Challenge\ndataset as an example, we report the validation loss and test metrics achieved by different choices\nof r after training for 26,000 steps. We present our result in Table 18. The optimal rank for GPT-2\nMedium is between 4 and 16 depending on the metric used, which is similar to that for GPT-3 175B.\nNote that the relationship between model size and the optimal rank for adaptation is still an open\nquestion.\n\n\nH.3  CORRELATION BETWEEN W AND ∆W\n\nSee Figure 8 for the normalized subspace similarity between W and ∆W with varying r.\n\nNote again that ∆W does not contain the top singular directions of W, since the similarity between\nthe top 4 directions in ∆W and the top-10% of those in W barely exceeds 0.2. This gives evidence\nthat ∆W contains those “task-speciﬁc” directions that are otherwise not emphasized in W.\n\nAn interesting next question to answer, is how “strong” do we need to amplify those task-speciﬁc\ndirections, in order for the model ada",
+              "summary": "37.7 M            73.8       91.6\n                    rq = rk = rv = ro = 4            37.7 M            74.0       91.7\n                         rq = rv = 64                301.9 M            73.6       91.4\n                   rq = rk = rv = ro = 64           603.8 M            73.9       91.4\n                  rq = rv = 8, lp = 8, li = 4           37.8 M            75.0       91.4\n LoRA+PE     rq = rv = 32, lp = 8, li = 4         151.1 M            75.9       91.1\n                  rq = rv = 64, lp = 8, li = 4         302.1 M            76.2       91.3\n LoRA+PL      rq = rv = 8, lp = 8, li = 4           52.8 M            72.9       90.2\n\nTable 15: Hyperparameter analysis of different adaptation approaches on WikiSQL and MNLI. Both\npreﬁx-embedding tuning (PreﬁxEmbed) and preﬁx-layer tuning (PreﬁxLayer) perform worse as we\nincrease the number of trainable parameters, while LoRA’s performance stabilizes. Performance is\nmeasured in validation accuracy.\n\n\n  Method             MNLI(m)-100  MNLI(m)-1k  MNLI(m)-10k  MNLI(m)-392K\n\n  GPT-3 (Fine-Tune)          60.2            85.8            88.9             89.5\n  GPT-3 (PreﬁxEmbed)       37.6            75.2            79.5             88.6\n  GPT-3 (PreﬁxLayer)         48.3            82.5            85.9             89.6\n  GPT-3 (LoRA)              63.8            85.6            89.2             91.7\n\nTable 16: Validation accuracy of different methods on subsets of MNLI using GPT-3 175B. MNLI-\nn describes a subset with n training examples. We evaluate with the full validation set. LoRA\nperforms exhibits favorable sample-efﬁciency compared to other methods, including ﬁne-tuning.\n\n\nTo be concrete, let the singular values of UAi⊤ UBj to be σ1, σ2, · · · , σp where p = min{i, j}. We\nknow that the Projection Metric Ham & Lee (2008) is deﬁned as:\n\n                 v     p\n                 u                                                √p]                       d(UA,i UB)j =                 utp − X σ2i ∈[0,\n                                                i=1\n\n\n                                       23   Hyperparameters     Adaptation    MNLI-100  MNLI-1k  MNLI-10K  MNLI-392K\n\n   Optimizer                     -                    AdamW\n  Warmup Tokens              -                             250,000\n  LR Schedule                  -                               Linear\n   Batch Size                    -            20         20        100         128\n   # Epoch                       -            40         40         4           2\n\n                      FineTune                          5.00E-6\n                   PreﬁxEmbed     2.00E-04    2.00E-04    4.00E-04     5.00E-04\n   Learning Rate\n                      PreﬁxLayer     5.00E-05    5.00E-05    5.00E-05     1.00E-04\n                  LoRA                           2.00E-4\n\n                  PreﬁxEmbed lp      16         32         64          256\n   Adaptation-       PreﬁxEmbed li                        8\n   Speciﬁc            PreﬁxTune                              lp = li = 8\n                  LoRA                            rq = rv = 8\n\n   Table 17: The hyperparameters used for different GPT-3 adaptation methods on MNLI(m)-n.\n\n\n\nwhere our similarity is deﬁned as:\n\n                                                     i     j   Ppi=1 σ2i    1               i     j             φ(A, B, i, j) = ψ(UA, UB) =      =    1 −d(UA, UB)2                                         p      p\n\nThis similarity satisﬁes that if UAi and UBj share the same column span, then φ(A, B, i, j) = 1. If\nthey are completely orthogonal, then φ(A, B, i, j) = 0. Otherwise, φ(A, B, i, j) ∈(0, 1).\n\n\nH  ADDITIONAL EXPERIMENTS ON LOW-RANK MATRICES\n\n\nWe present additional results from our investigation into the low-rank update matrices.\n\n\nH.1  CORRELATION BETWEEN LORA MODULES\n\nSee Figure 6 and Figure 7 for how the results presented in Figure 3 and Figure 4 generalize to other\nlayers.\n\n\nH.2  EFFECT OF r ON GPT-2\n\nWe repeat our experiment on the effect of r (Section 7.2) in GPT-2. Using the E2E NLG Challenge\ndataset as an example, we report the validation loss and test metrics achieved by different choices\nof r after training for 26,000 steps. We present our result in Table 18. The optimal rank for GPT-2\nMedium is between 4 and 16 depending on the metric used, which is similar to that for GPT-3 175B.\nNote that the relationship between model size and the optimal rank for adaptation is still an open\nquestion.\n\n\nH.3  CORRELATION BETWEEN W AND ∆W\n\nSee Figure 8 for the normalized subspace similarity between W and ∆W with varying r.\n\nNote again that ∆W does not contain the top singular directions of W, since the similarity between\nthe top 4 directions in ∆W and the top-10% of those in W barely exceeds 0.2. This gives evidence\nthat ∆W contains those “task-speciﬁc” directions that are otherwise not emphasized in W.\n\nAn interesting next question to answer, is how “strong” do we need to amplify those task-speciﬁc\ndirections, in order for the model ada",
+              "score": null
+            },
+            {
+              "sourceId": "https://openalex.org/W3168867926",
+              "url": "https://arxiv.org/pdf/2106.09685",
+              "locator": "Lo pages 13-14",
+              "supports": "deep learning performs deep\n   learning. arXiv preprint arXiv:2001.04413, 2020a.\n\nZeyuan Allen-Zhu and Yuanzhi Li. Feature puriﬁcation: How adversarial training performs robust\n  deep learning. arXiv preprint arXiv:2005.10190, 2020b.\n\nZeyuan Allen-Zhu, Yuanzhi Li, and Zhao Song. A convergence theory for deep learning via over-\n  parameterization. In ICML, 2019. Full version available at http://arxiv.org/abs/1811.\n  03962.\n\nJimmy Lei Ba, Jamie Ryan Kiros, and Geoffrey E. Hinton. Layer normalization, 2016.\n\nTom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhari-\n  wal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal,\n  Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel M.\n   Ziegler, Jeffrey Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler, Mateusz Litwin,\n  Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford,\n   Ilya Sutskever, and Dario Amodei. Language Models are Few-Shot Learners. arXiv:2005.14165\n   [cs], July 2020. URL http://arxiv.org/abs/2005.14165.\n\nJian-Feng Cai, Emmanuel J Cand`es, and Zuowei Shen. A singular value thresholding algorithm for\n  matrix completion. SIAM Journal on optimization, 20(4):1956–1982, 2010.\n\nDaniel Cer, Mona Diab, Eneko Agirre, Inigo Lopez-Gazpio, and Lucia Specia. Semeval-2017 task\n   1: Semantic textual similarity multilingual and crosslingual focused evaluation. Proceedings of\n  the 11th International Workshop on Semantic Evaluation (SemEval-2017), 2017. doi: 10.18653/\n  v1/s17-2001. URL http://dx.doi.org/10.18653/v1/S17-2001.\n\nRonan Collobert and Jason Weston. A uniﬁed architecture for natural language processing: deep\n  neural networks with multitask learning.  In Proceedings of the 25th international conference\n  on Machine learning, ICML ’08, pp. 160–167, New York, NY, USA, July 2008. Association\n   for Computing Machinery. ISBN 978-1-60558-205-4.  doi: 10.1145/1390156.1390177. URL\n  https://doi.org/10.1145/1390156.1390177.\n\nMisha Denil, Babak Shakibi, Laurent Dinh, Marc’Aurelio Ranzato, and Nando de Freitas. Predicting\n  parameters in deep learning, 2014.\n\nJacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. Bert: Pre-training of deep\n   bidirectional transformers for language understanding, 2019a.\n\nJacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of Deep\n  Bidirectional Transformers for Language Understanding.  arXiv:1810.04805 [cs], May 2019b.\n  URL http://arxiv.org/abs/1810.04805. arXiv: 1810.04805.\n\nWilliam B. Dolan and Chris Brockett. Automatically constructing a corpus of sentential paraphrases.\n  In Proceedings of the Third International Workshop on Paraphrasing (IWP2005), 2005. URL\n  https://aclanthology.org/I05-5002.\n\nClaire Gardent, Anastasia Shimorina, Shashi Narayan, and Laura Perez-Beltrachini. The webnlg\n  challenge: Generating text from rdf data. In Proceedings of the 10th International Conference on\n  Natural Language Generation, pp. 124–133, 2017.\n\n\n                                       13Behrooz Ghorbani, Song Mei, Theodor Misiakiewicz, and Andrea Montanari. When do neural\n  networks outperform kernel methods? arXiv preprint arXiv:2006.13409, 2020.\n\nBogdan Gliwa, Iwona Mochol, Maciej Biesek, and Aleksander Wawer. Samsum corpus: A human-\n  annotated dialogue dataset for abstractive summarization. CoRR, abs/1911.12237, 2019. URL\n  http://arxiv.org/abs/1911.12237.\n\nLars Grasedyck, Daniel Kressner, and Christine Tobler. A literature survey of low-rank tensor\n  approximation techniques. GAMM-Mitteilungen, 36(1):53–78, 2013.\n\nJihun Ham and Daniel D. Lee. Grassmann discriminant analysis: a unifying view on subspace-based\n   learning.  In ICML, pp. 376–383, 2008. URL https://doi.org/10.1145/1390156.\n  1390204.\n\nKaren Hambardzumyan, Hrant Khachatrian, and Jonathan May. WARP: Word-level Adversarial\n  ReProgramming. arXiv:2101.00121 [cs], December 2020. URL http://arxiv.org/abs/\n  2101.00121. arXiv: 2101.00121.\n\nPengcheng He, Xiaodong Liu, Jianfeng Gao, and Weizhu Chen. Deberta: Decoding-enhanced bert\n  with disentangled attention, 2021.\n\nNeil Houlsby, Andrei Giurgiu, Stanislaw Jastrzebski, Bruna Morrone, Quentin de Laroussilhe,\n  Andrea Gesmundo, Mona Attariyan, and Sylvain Gelly. Parameter-Efﬁcient Transfer Learning\n   for NLP. arXiv:1902.00751 [cs, stat], June 2019. URL http://arxiv.org/abs/1902.\n  00751.\n\nMax Jaderberg, Andrea Vedaldi, and Andrew Zisserman. Speeding up convolutional neural networks\n  with low rank expansions. arXiv preprint arXiv:1405.3866, 2014.\n\nMikhail Khodak, Neil Tenenholtz, Lester Mackey, and Nicol`o Fusi. Initialization and regularization\n  of factorized neural layers, 2021.\n\nDiederik P. Kingma and Jimmy Ba. Adam: A method for stochastic optimization, 2017.\n\nDmitry Lepikhin, HyoukJoong Lee, Yuanzhong Xu, Dehao Chen, Orhan Firat, Yanping Huang,\n  Maxim Krikun, Noam Shazeer, and Zhifeng Chen. Gshard: Scaling giant models with conditional",
+              "text": "deep learning performs deep\n   learning. arXiv preprint arXiv:2001.04413, 2020a.\n\nZeyuan Allen-Zhu and Yuanzhi Li. Feature puriﬁcation: How adversarial training performs robust\n  deep learning. arXiv preprint arXiv:2005.10190, 2020b.\n\nZeyuan Allen-Zhu, Yuanzhi Li, and Zhao Song. A convergence theory for deep learning via over-\n  parameterization. In ICML, 2019. Full version available at http://arxiv.org/abs/1811.\n  03962.\n\nJimmy Lei Ba, Jamie Ryan Kiros, and Geoffrey E. Hinton. Layer normalization, 2016.\n\nTom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhari-\n  wal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal,\n  Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel M.\n   Ziegler, Jeffrey Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler, Mateusz Litwin,\n  Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford,\n   Ilya Sutskever, and Dario Amodei. Language Models are Few-Shot Learners. arXiv:2005.14165\n   [cs], July 2020. URL http://arxiv.org/abs/2005.14165.\n\nJian-Feng Cai, Emmanuel J Cand`es, and Zuowei Shen. A singular value thresholding algorithm for\n  matrix completion. SIAM Journal on optimization, 20(4):1956–1982, 2010.\n\nDaniel Cer, Mona Diab, Eneko Agirre, Inigo Lopez-Gazpio, and Lucia Specia. Semeval-2017 task\n   1: Semantic textual similarity multilingual and crosslingual focused evaluation. Proceedings of\n  the 11th International Workshop on Semantic Evaluation (SemEval-2017), 2017. doi: 10.18653/\n  v1/s17-2001. URL http://dx.doi.org/10.18653/v1/S17-2001.\n\nRonan Collobert and Jason Weston. A uniﬁed architecture for natural language processing: deep\n  neural networks with multitask learning.  In Proceedings of the 25th international conference\n  on Machine learning, ICML ’08, pp. 160–167, New York, NY, USA, July 2008. Association\n   for Computing Machinery. ISBN 978-1-60558-205-4.  doi: 10.1145/1390156.1390177. URL\n  https://doi.org/10.1145/1390156.1390177.\n\nMisha Denil, Babak Shakibi, Laurent Dinh, Marc’Aurelio Ranzato, and Nando de Freitas. Predicting\n  parameters in deep learning, 2014.\n\nJacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. Bert: Pre-training of deep\n   bidirectional transformers for language understanding, 2019a.\n\nJacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of Deep\n  Bidirectional Transformers for Language Understanding.  arXiv:1810.04805 [cs], May 2019b.\n  URL http://arxiv.org/abs/1810.04805. arXiv: 1810.04805.\n\nWilliam B. Dolan and Chris Brockett. Automatically constructing a corpus of sentential paraphrases.\n  In Proceedings of the Third International Workshop on Paraphrasing (IWP2005), 2005. URL\n  https://aclanthology.org/I05-5002.\n\nClaire Gardent, Anastasia Shimorina, Shashi Narayan, and Laura Perez-Beltrachini. The webnlg\n  challenge: Generating text from rdf data. In Proceedings of the 10th International Conference on\n  Natural Language Generation, pp. 124–133, 2017.\n\n\n                                       13Behrooz Ghorbani, Song Mei, Theodor Misiakiewicz, and Andrea Montanari. When do neural\n  networks outperform kernel methods? arXiv preprint arXiv:2006.13409, 2020.\n\nBogdan Gliwa, Iwona Mochol, Maciej Biesek, and Aleksander Wawer. Samsum corpus: A human-\n  annotated dialogue dataset for abstractive summarization. CoRR, abs/1911.12237, 2019. URL\n  http://arxiv.org/abs/1911.12237.\n\nLars Grasedyck, Daniel Kressner, and Christine Tobler. A literature survey of low-rank tensor\n  approximation techniques. GAMM-Mitteilungen, 36(1):53–78, 2013.\n\nJihun Ham and Daniel D. Lee. Grassmann discriminant analysis: a unifying view on subspace-based\n   learning.  In ICML, pp. 376–383, 2008. URL https://doi.org/10.1145/1390156.\n  1390204.\n\nKaren Hambardzumyan, Hrant Khachatrian, and Jonathan May. WARP: Word-level Adversarial\n  ReProgramming. arXiv:2101.00121 [cs], December 2020. URL http://arxiv.org/abs/\n  2101.00121. arXiv: 2101.00121.\n\nPengcheng He, Xiaodong Liu, Jianfeng Gao, and Weizhu Chen. Deberta: Decoding-enhanced bert\n  with disentangled attention, 2021.\n\nNeil Houlsby, Andrei Giurgiu, Stanislaw Jastrzebski, Bruna Morrone, Quentin de Laroussilhe,\n  Andrea Gesmundo, Mona Attariyan, and Sylvain Gelly. Parameter-Efﬁcient Transfer Learning\n   for NLP. arXiv:1902.00751 [cs, stat], June 2019. URL http://arxiv.org/abs/1902.\n  00751.\n\nMax Jaderberg, Andrea Vedaldi, and Andrew Zisserman. Speeding up convolutional neural networks\n  with low rank expansions. arXiv preprint arXiv:1405.3866, 2014.\n\nMikhail Khodak, Neil Tenenholtz, Lester Mackey, and Nicol`o Fusi. Initialization and regularization\n  of factorized neural layers, 2021.\n\nDiederik P. Kingma and Jimmy Ba. Adam: A method for stochastic optimization, 2017.\n\nDmitry Lepikhin, HyoukJoong Lee, Yuanzhong Xu, Dehao Chen, Orhan Firat, Yanping Huang,\n  Maxim Krikun, Noam Shazeer, and Zhifeng Chen. Gshard: Scaling giant models with conditional",
+              "summary": "deep learning performs deep\n   learning. arXiv preprint arXiv:2001.04413, 2020a.\n\nZeyuan Allen-Zhu and Yuanzhi Li. Feature puriﬁcation: How adversarial training performs robust\n  deep learning. arXiv preprint arXiv:2005.10190, 2020b.\n\nZeyuan Allen-Zhu, Yuanzhi Li, and Zhao Song. A convergence theory for deep learning via over-\n  parameterization. In ICML, 2019. Full version available at http://arxiv.org/abs/1811.\n  03962.\n\nJimmy Lei Ba, Jamie Ryan Kiros, and Geoffrey E. Hinton. Layer normalization, 2016.\n\nTom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhari-\n  wal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal,\n  Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel M.\n   Ziegler, Jeffrey Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler, Mateusz Litwin,\n  Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford,\n   Ilya Sutskever, and Dario Amodei. Language Models are Few-Shot Learners. arXiv:2005.14165\n   [cs], July 2020. URL http://arxiv.org/abs/2005.14165.\n\nJian-Feng Cai, Emmanuel J Cand`es, and Zuowei Shen. A singular value thresholding algorithm for\n  matrix completion. SIAM Journal on optimization, 20(4):1956–1982, 2010.\n\nDaniel Cer, Mona Diab, Eneko Agirre, Inigo Lopez-Gazpio, and Lucia Specia. Semeval-2017 task\n   1: Semantic textual similarity multilingual and crosslingual focused evaluation. Proceedings of\n  the 11th International Workshop on Semantic Evaluation (SemEval-2017), 2017. doi: 10.18653/\n  v1/s17-2001. URL http://dx.doi.org/10.18653/v1/S17-2001.\n\nRonan Collobert and Jason Weston. A uniﬁed architecture for natural language processing: deep\n  neural networks with multitask learning.  In Proceedings of the 25th international conference\n  on Machine learning, ICML ’08, pp. 160–167, New York, NY, USA, July 2008. Association\n   for Computing Machinery. ISBN 978-1-60558-205-4.  doi: 10.1145/1390156.1390177. URL\n  https://doi.org/10.1145/1390156.1390177.\n\nMisha Denil, Babak Shakibi, Laurent Dinh, Marc’Aurelio Ranzato, and Nando de Freitas. Predicting\n  parameters in deep learning, 2014.\n\nJacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. Bert: Pre-training of deep\n   bidirectional transformers for language understanding, 2019a.\n\nJacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of Deep\n  Bidirectional Transformers for Language Understanding.  arXiv:1810.04805 [cs], May 2019b.\n  URL http://arxiv.org/abs/1810.04805. arXiv: 1810.04805.\n\nWilliam B. Dolan and Chris Brockett. Automatically constructing a corpus of sentential paraphrases.\n  In Proceedings of the Third International Workshop on Paraphrasing (IWP2005), 2005. URL\n  https://aclanthology.org/I05-5002.\n\nClaire Gardent, Anastasia Shimorina, Shashi Narayan, and Laura Perez-Beltrachini. The webnlg\n  challenge: Generating text from rdf data. In Proceedings of the 10th International Conference on\n  Natural Language Generation, pp. 124–133, 2017.\n\n\n                                       13Behrooz Ghorbani, Song Mei, Theodor Misiakiewicz, and Andrea Montanari. When do neural\n  networks outperform kernel methods? arXiv preprint arXiv:2006.13409, 2020.\n\nBogdan Gliwa, Iwona Mochol, Maciej Biesek, and Aleksander Wawer. Samsum corpus: A human-\n  annotated dialogue dataset for abstractive summarization. CoRR, abs/1911.12237, 2019. URL\n  http://arxiv.org/abs/1911.12237.\n\nLars Grasedyck, Daniel Kressner, and Christine Tobler. A literature survey of low-rank tensor\n  approximation techniques. GAMM-Mitteilungen, 36(1):53–78, 2013.\n\nJihun Ham and Daniel D. Lee. Grassmann discriminant analysis: a unifying view on subspace-based\n   learning.  In ICML, pp. 376–383, 2008. URL https://doi.org/10.1145/1390156.\n  1390204.\n\nKaren Hambardzumyan, Hrant Khachatrian, and Jonathan May. WARP: Word-level Adversarial\n  ReProgramming. arXiv:2101.00121 [cs], December 2020. URL http://arxiv.org/abs/\n  2101.00121. arXiv: 2101.00121.\n\nPengcheng He, Xiaodong Liu, Jianfeng Gao, and Weizhu Chen. Deberta: Decoding-enhanced bert\n  with disentangled attention, 2021.\n\nNeil Houlsby, Andrei Giurgiu, Stanislaw Jastrzebski, Bruna Morrone, Quentin de Laroussilhe,\n  Andrea Gesmundo, Mona Attariyan, and Sylvain Gelly. Parameter-Efﬁcient Transfer Learning\n   for NLP. arXiv:1902.00751 [cs, stat], June 2019. URL http://arxiv.org/abs/1902.\n  00751.\n\nMax Jaderberg, Andrea Vedaldi, and Andrew Zisserman. Speeding up convolutional neural networks\n  with low rank expansions. arXiv preprint arXiv:1405.3866, 2014.\n\nMikhail Khodak, Neil Tenenholtz, Lester Mackey, and Nicol`o Fusi. Initialization and regularization\n  of factorized neural layers, 2021.\n\nDiederik P. Kingma and Jimmy Ba. Adam: A method for stochastic optimization, 2017.\n\nDmitry Lepikhin, HyoukJoong Lee, Yuanzhong Xu, Dehao Chen, Orhan Firat, Yanping Huang,\n  Maxim Krikun, Noam Shazeer, and Zhifeng Chen. Gshard: Scaling giant models with conditional",
+              "score": null
+            },
+            {
+              "sourceId": "https://openalex.org/W3168867926",
+              "url": "https://arxiv.org/pdf/2106.09685",
+              "locator": "Lo pages 19-20",
+              "supports": "The central approach is LoRA, a low-rank adaptation method that can be viewed as external modules added in parallel to a pretrained model, rather than sequentially as adapter layers [evidence-1, Lo pages 15-17]. The authors study low-rank adaptation of Transformer self-attention weight matrices, empirically investigating which weight matrices to adapt, whether the adaptation matrix is low-rank, and what rank is effective [evidence-2, Lo pages 9-11]. They compare LoRA with full fine-tuning and other adaptation approaches on GPT-3 175B, GPT-2 medium/large, and DeBERTa XXL, using tasks such as WikiSQL, MultiNLI, SAMSum, GLUE, and E2E NLG [evidence-3, Lo pages 7-8; evidence-6, Lo pages 19-20].",
+              "text": "128\n\n                  Batch Size                                 32\n RoBERTa large   # Epochs         5      20     20      20     10     20     20     20\n  AdptP (0.8M)†   Learning Rate   3E-04  3E-04   3E-04   3E-04  3E-04  3E-04  3E-04   3E-04\n                   Bottleneck r                               16\n              Max Seq. Len.                             128\n\n                  Batch Size                                 32\n RoBERTa large   # Epochs        10      5      10      10      5      20     20     10\n  AdptH (6M)†    Learning Rate   3E-05  3E-04   3E-04   3E-04  3E-04  3E-04  3E-04   3E-04\n                   Bottleneck r                               64\n              Max Seq. Len.                             128\n\n                  Batch Size                                 32\n RoBERTa large   # Epochs        10      5      10      10      5      20     20     10\n  AdptH (0.8M)†   Learning Rate   3E-04  3E-04   3E-04   3E-04  3E-04  3E-04  3E-04   3E-04\n                   Bottleneck r                                8\n              Max Seq. Len.                             128\n\n         Table 9: The hyperparameters we used for RoBERTa on the GLUE benchmark.\n\n\nD.3  GPT-2\n\nWe train all of our GPT-2 models using AdamW (Loshchilov & Hutter, 2017) with a linear learning\nrate schedule for 5 epochs. We use the batch size, learning rate, and beam search beam size described\nin Li & Liang (2021). Accordingly, we also tune the above hyperparameters for LoRA. We report the\nmean over 3 random seeds; the result for each run is taken from the best epoch. The hyperparameters\nused for LoRA in GPT-2 are listed in Table 11. For those used for other baselines, see Li & Liang\n(2021).\n\n\nD.4  GPT-3\n\nFor all GPT-3 experiments, we train using AdamW (Loshchilov & Hutter, 2017) for 2 epochs with\na batch size of 128 samples and a weight decay factor of 0.1. We use a sequence length of 384 for\n\n\n                                       19 Method           Dataset      MNLI  SST-2  MRPC  CoLA  QNLI  QQP   RTE   STS-B\n\n                  Optimizer                       AdamW\n               Warmup Ratio                                   0.1\n             LR Schedule                                  Linear\n\n                  Batch Size        8      8      32      4      6      8      4      4\n                 # Epochs         5      16     30      10      8      11     11     10\n DeBERTa XXL\n                  Learning Rate   1E-04  6E-05   2E-04   1E-04  1E-04  1E-04  2E-04   2E-04\n    LoRA\n                 Weight Decay     0      0.01     0.01     0      0.01    0.01    0.01     0.1\n              CLS Dropout     0.15     0      0       0.1      0.1      0.2      0.2      0.2\n             LoRA Conﬁg.                              rq = rv = 8\n             LoRA α                                   8\n              Max Seq. Len.   256    128    128     64     512    320    320    128\n\n  Table 10: The hyperparameters for DeBERTa XXL on tasks included in the GLUE benchmark.\n\n\n                     Dataset              E2E  WebNLG  DART\n\n                                                       Training\n\n                    Optimizer               AdamW\n                   Weight Decay            0.01     0.01       0.0\n                   Dropout Prob              0.1       0.1        0.0\n                    Batch Size                       8\n                  # Epoch                         5\n                Warmup Steps                   500\n                    Learning Rate Schedule            Linear\n                    Label Smooth             0.1       0.1        0.0\n                    Learning Rate                    0.0002\n                     Adaptation                       rq = rv = 4\n               LoRA α                         32\n\n                                                        Inference\n\n                Beam Size                       10\n                   Length Penalty            0.9       0.8        0.8\n                  no repeat ngram size               4\n\n         Table 11: The hyperparameters for GPT-2 LoRA on E2E, WebNLG and DART.\n\n\n\nWikiSQL (Zhong et al., 2017), 768 for MNLI (Williams et al., 2018), and 2048 for SAMSum (Gliwa\net al., 2019). We tune learning rate for all method-dataset combinations. See Section D.4 for more\ndetails on the hyperparameters used. For preﬁx-embedding tuning, we ﬁnd the optimal lp and li\nto be 256 and 8, respectively, totalling 3.2M trainable parameters. We use lp = 8 and li = 8 for\npreﬁx-layer tuning with 20.2M trainable parameters to obtain the overall best performance. We\npresent two parameter budgets for LoRA: 4.7M (rq = rv = 1 or rv = 2) and 37.7M (rq = rv = 8\nor rq = rk = rv = ro = 2). We report the best validation performance from each run. The training\nhyperparameters used in our GPT-3 experiments are listed in Table 12.\n\n\nE  COMBINING LORA WITH PREFIX TUNING\n\nLoRA can be naturally combined with existing preﬁx-based approaches. In this section, w",
+              "summary": "128\n\n                  Batch Size                                 32\n RoBERTa large   # Epochs         5      20     20      20     10     20     20     20\n  AdptP (0.8M)†   Learning Rate   3E-04  3E-04   3E-04   3E-04  3E-04  3E-04  3E-04   3E-04\n                   Bottleneck r                               16\n              Max Seq. Len.                             128\n\n                  Batch Size                                 32\n RoBERTa large   # Epochs        10      5      10      10      5      20     20     10\n  AdptH (6M)†    Learning Rate   3E-05  3E-04   3E-04   3E-04  3E-04  3E-04  3E-04   3E-04\n                   Bottleneck r                               64\n              Max Seq. Len.                             128\n\n                  Batch Size                                 32\n RoBERTa large   # Epochs        10      5      10      10      5      20     20     10\n  AdptH (0.8M)†   Learning Rate   3E-04  3E-04   3E-04   3E-04  3E-04  3E-04  3E-04   3E-04\n                   Bottleneck r                                8\n              Max Seq. Len.                             128\n\n         Table 9: The hyperparameters we used for RoBERTa on the GLUE benchmark.\n\n\nD.3  GPT-2\n\nWe train all of our GPT-2 models using AdamW (Loshchilov & Hutter, 2017) with a linear learning\nrate schedule for 5 epochs. We use the batch size, learning rate, and beam search beam size described\nin Li & Liang (2021). Accordingly, we also tune the above hyperparameters for LoRA. We report the\nmean over 3 random seeds; the result for each run is taken from the best epoch. The hyperparameters\nused for LoRA in GPT-2 are listed in Table 11. For those used for other baselines, see Li & Liang\n(2021).\n\n\nD.4  GPT-3\n\nFor all GPT-3 experiments, we train using AdamW (Loshchilov & Hutter, 2017) for 2 epochs with\na batch size of 128 samples and a weight decay factor of 0.1. We use a sequence length of 384 for\n\n\n                                       19 Method           Dataset      MNLI  SST-2  MRPC  CoLA  QNLI  QQP   RTE   STS-B\n\n                  Optimizer                       AdamW\n               Warmup Ratio                                   0.1\n             LR Schedule                                  Linear\n\n                  Batch Size        8      8      32      4      6      8      4      4\n                 # Epochs         5      16     30      10      8      11     11     10\n DeBERTa XXL\n                  Learning Rate   1E-04  6E-05   2E-04   1E-04  1E-04  1E-04  2E-04   2E-04\n    LoRA\n                 Weight Decay     0      0.01     0.01     0      0.01    0.01    0.01     0.1\n              CLS Dropout     0.15     0      0       0.1      0.1      0.2      0.2      0.2\n             LoRA Conﬁg.                              rq = rv = 8\n             LoRA α                                   8\n              Max Seq. Len.   256    128    128     64     512    320    320    128\n\n  Table 10: The hyperparameters for DeBERTa XXL on tasks included in the GLUE benchmark.\n\n\n                     Dataset              E2E  WebNLG  DART\n\n                                                       Training\n\n                    Optimizer               AdamW\n                   Weight Decay            0.01     0.01       0.0\n                   Dropout Prob              0.1       0.1        0.0\n                    Batch Size                       8\n                  # Epoch                         5\n                Warmup Steps                   500\n                    Learning Rate Schedule            Linear\n                    Label Smooth             0.1       0.1        0.0\n                    Learning Rate                    0.0002\n                     Adaptation                       rq = rv = 4\n               LoRA α                         32\n\n                                                        Inference\n\n                Beam Size                       10\n                   Length Penalty            0.9       0.8        0.8\n                  no repeat ngram size               4\n\n         Table 11: The hyperparameters for GPT-2 LoRA on E2E, WebNLG and DART.\n\n\n\nWikiSQL (Zhong et al., 2017), 768 for MNLI (Williams et al., 2018), and 2048 for SAMSum (Gliwa\net al., 2019). We tune learning rate for all method-dataset combinations. See Section D.4 for more\ndetails on the hyperparameters used. For preﬁx-embedding tuning, we ﬁnd the optimal lp and li\nto be 256 and 8, respectively, totalling 3.2M trainable parameters. We use lp = 8 and li = 8 for\npreﬁx-layer tuning with 20.2M trainable parameters to obtain the overall best performance. We\npresent two parameter budgets for LoRA: 4.7M (rq = rv = 1 or rv = 2) and 37.7M (rq = rv = 8\nor rq = rk = rv = ro = 2). We report the best validation performance from each run. The training\nhyperparameters used in our GPT-3 experiments are listed in Table 12.\n\n\nE  COMBINING LORA WITH PREFIX TUNING\n\nLoRA can be naturally combined with existing preﬁx-based approaches. In this section, w",
+              "score": null
+            }
+          ]
+        }
+      ],
+      "repositoryUrls": [
+        "https://github.com/microsoft/LoRA"
+      ]
+    },
+    "constraints": {
+      "maxRepositories": 1,
+      "executeCode": false,
+      "allowRepositorySearch": false,
+      "requirePaperNotes": true
+    },
+    "outputSchema": "code_records.v1"
+  },
+  "partnerLeaveTimeoutSeconds": 20,
+  "partnerLeaveReceipt": {
+    "messageId": "leave-receipt-85d1fce6db1dbc6f5eb9b44a1561fb42",
+    "senderId": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+    "groupId": "rm-repository-chain-e6f096562e0b4fa0b9b79135bd640161",
+    "sessionId": "session-6a54d8ac3f4c46dd865497ca20ebd62e",
+    "disbandCommandId": "mgmt-cmd-151d9be2-45ff-407b-9619-2c307abecad7",
+    "receivedAt": "2026-10-30T00:11:17.082400+00:00"
+  },
+  "ignoredTaskResults": 0,
+  "elapsedMs": 81090
+}

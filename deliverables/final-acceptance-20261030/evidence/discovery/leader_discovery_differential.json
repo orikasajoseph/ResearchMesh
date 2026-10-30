@@ -1,0 +1,783 @@
+{
+  "checkedAtUtc": "2026-10-30T04:32:59.854747+00:00",
+  "leaderAic": "1.2.156.3088.1.BUPT.RECKYJ.Q77J9R.52YOLZ.11P6",
+  "transport": {
+    "clientCertificateConfigured": true,
+    "serverTrust": "system",
+    "endpoint": "https://wt.ioa.pub/discovery/acps-adp-v2/discover"
+  },
+  "requestsAndResponses": [
+    {
+      "endpoint": "https://wt.ioa.pub/discovery/acps-adp-v2/discover",
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO"
+            },
+            {
+              "field": "skills.id",
+              "op": "eq",
+              "value": "literature.search"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "response": {
+        "result": {
+          "acsMap": {
+            "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO": {
+              "aic": "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO",
+              "name": "统一科研智能体",
+              "active": true,
+              "skills": [
+                {
+                  "id": "literature.search",
+                  "name": "文献检索",
+                  "tags": [
+                    "literature",
+                    "search"
+                  ],
+                  "version": "1.0.0",
+                  "description": "按主题检索文献语料并排序"
+                },
+                {
+                  "id": "literature.summarize",
+                  "name": "文献摘要",
+                  "tags": [
+                    "literature",
+                    "summary"
+                  ],
+                  "version": "1.0.0",
+                  "description": "生成逐篇摘要并提炼主题"
+                },
+                {
+                  "id": "trend.analysis",
+                  "name": "趋势分析",
+                  "tags": [
+                    "literature",
+                    "trend"
+                  ],
+                  "version": "1.0.0",
+                  "description": "分析研究趋势、热点与空白"
+                },
+                {
+                  "id": "hypothesis.generate",
+                  "name": "假设生成",
+                  "tags": [
+                    "hypothesis",
+                    "planning"
+                  ],
+                  "version": "1.0.0",
+                  "description": "基于文献主题生成可检验假设"
+                },
+                {
+                  "id": "experiment.plan",
+                  "name": "实验规划",
+                  "tags": [
+                    "experiment",
+                    "planning"
+                  ],
+                  "version": "1.0.0",
+                  "description": "输出变量/指标/步骤/风险完整的实验方案"
+                },
+                {
+                  "id": "data.process",
+                  "name": "数据处理",
+                  "tags": [
+                    "data",
+                    "etl"
+                  ],
+                  "version": "1.0.0",
+                  "description": "按实验方案采集并清洗实验数据"
+                },
+                {
+                  "id": "stats.analyze",
+                  "name": "统计分析",
+                  "tags": [
+                    "stats",
+                    "analysis"
+                  ],
+                  "version": "1.0.0",
+                  "description": "统计检验、效应量与可视化规格"
+                },
+                {
+                  "id": "report.draft",
+                  "name": "报告初稿",
+                  "tags": [
+                    "writing",
+                    "report"
+                  ],
+                  "version": "1.0.0",
+                  "description": "汇总各环节产出撰写报告初稿"
+                },
+                {
+                  "id": "report.polish",
+                  "name": "报告润色",
+                  "tags": [
+                    "writing",
+                    "polish"
+                  ],
+                  "version": "1.0.0",
+                  "description": "润色定稿：标题/摘要/关键词/参考文献"
+                }
+              ],
+              "version": "1.0.0",
+              "provider": {
+                "department": "",
+                "organization": "统一科研智能体 URA"
+              },
+              "endPoints": [
+                {
+                  "url": "https://47.104.84.47:8443/rpc",
+                  "security": [
+                    {
+                      "mtls": []
+                    }
+                  ],
+                  "transport": "JSONRPC"
+                },
+                {
+                  "url": "https://47.104.84.47:8443/api",
+                  "security": [
+                    {
+                      "mtls": []
+                    }
+                  ],
+                  "transport": "HTTP_JSON"
+                }
+              ],
+              "webAppUrl": "https://47.104.84.47:8443/",
+              "description": "统一科研智能体（URA）：在单一 AIP 身份下聚合文献分析、实验规划、数据处理与成果撰写四类核心能力，支持能力发现、点对点知识请求与互联访问。它把科研目标自动分解为带依赖的 DAG，自主完成从文献调研到研究报告定稿的全流程，并通过 AIP 国标与梧桐智能体互联平台完成注册、发现与互联。",
+              "capabilities": {
+                "streaming": false,
+                "messageQueue": [],
+                "notification": false
+              },
+              "protocolVersion": "02.02",
+              "securitySchemes": {
+                "mtls": {
+                  "type": "mutualTLS",
+                  "description": "智能体间mTLS双向认证"
+                }
+              },
+              "lastModifiedTime": "2026-10-28T10:10:30.356662+08:00",
+              "defaultInputModes": [
+                "text/plain"
+              ],
+              "defaultOutputModes": [
+                "text/plain",
+                "application/json"
+              ]
+            }
+          },
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": [
+                {
+                  "aic": "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO",
+                  "skillId": "literature.search",
+                  "ranking": 1,
+                  "memo": "Filtered query result"
+                }
+              ]
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": [
+                    {
+                      "aic": "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO",
+                      "skillId": "literature.search",
+                      "ranking": 1,
+                      "memo": "Filtered query result"
+                    }
+                  ]
+                }
+              ],
+              "status": "ok",
+              "durationMs": 4
+            }
+          ],
+          "aliveMap": {
+            "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO": {
+              "alive": true,
+              "aliveLastSeenAt": "2026-10-30T04:32:44.074Z"
+            }
+          }
+        }
+      },
+      "clientCertificateConfigured": true,
+      "serverTrust": "system"
+    },
+    {
+      "endpoint": "https://wt.ioa.pub/discovery/acps-adp-v2/discover",
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 3
+            }
+          ]
+        }
+      },
+      "clientCertificateConfigured": true,
+      "serverTrust": "system"
+    },
+    {
+      "endpoint": "https://wt.ioa.pub/discovery/acps-adp-v2/discover",
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "skills.id",
+              "op": "eq",
+              "value": "literature.search"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "response": {
+        "result": {
+          "acsMap": {
+            "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO": {
+              "aic": "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO",
+              "name": "统一科研智能体",
+              "active": true,
+              "skills": [
+                {
+                  "id": "literature.search",
+                  "name": "文献检索",
+                  "tags": [
+                    "literature",
+                    "search"
+                  ],
+                  "version": "1.0.0",
+                  "description": "按主题检索文献语料并排序"
+                },
+                {
+                  "id": "literature.summarize",
+                  "name": "文献摘要",
+                  "tags": [
+                    "literature",
+                    "summary"
+                  ],
+                  "version": "1.0.0",
+                  "description": "生成逐篇摘要并提炼主题"
+                },
+                {
+                  "id": "trend.analysis",
+                  "name": "趋势分析",
+                  "tags": [
+                    "literature",
+                    "trend"
+                  ],
+                  "version": "1.0.0",
+                  "description": "分析研究趋势、热点与空白"
+                },
+                {
+                  "id": "hypothesis.generate",
+                  "name": "假设生成",
+                  "tags": [
+                    "hypothesis",
+                    "planning"
+                  ],
+                  "version": "1.0.0",
+                  "description": "基于文献主题生成可检验假设"
+                },
+                {
+                  "id": "experiment.plan",
+                  "name": "实验规划",
+                  "tags": [
+                    "experiment",
+                    "planning"
+                  ],
+                  "version": "1.0.0",
+                  "description": "输出变量/指标/步骤/风险完整的实验方案"
+                },
+                {
+                  "id": "data.process",
+                  "name": "数据处理",
+                  "tags": [
+                    "data",
+                    "etl"
+                  ],
+                  "version": "1.0.0",
+                  "description": "按实验方案采集并清洗实验数据"
+                },
+                {
+                  "id": "stats.analyze",
+                  "name": "统计分析",
+                  "tags": [
+                    "stats",
+                    "analysis"
+                  ],
+                  "version": "1.0.0",
+                  "description": "统计检验、效应量与可视化规格"
+                },
+                {
+                  "id": "report.draft",
+                  "name": "报告初稿",
+                  "tags": [
+                    "writing",
+                    "report"
+                  ],
+                  "version": "1.0.0",
+                  "description": "汇总各环节产出撰写报告初稿"
+                },
+                {
+                  "id": "report.polish",
+                  "name": "报告润色",
+                  "tags": [
+                    "writing",
+                    "polish"
+                  ],
+                  "version": "1.0.0",
+                  "description": "润色定稿：标题/摘要/关键词/参考文献"
+                }
+              ],
+              "version": "1.0.0",
+              "provider": {
+                "department": "",
+                "organization": "统一科研智能体 URA"
+              },
+              "endPoints": [
+                {
+                  "url": "https://47.104.84.47:8443/rpc",
+                  "security": [
+                    {
+                      "mtls": []
+                    }
+                  ],
+                  "transport": "JSONRPC"
+                },
+                {
+                  "url": "https://47.104.84.47:8443/api",
+                  "security": [
+                    {
+                      "mtls": []
+                    }
+                  ],
+                  "transport": "HTTP_JSON"
+                }
+              ],
+              "webAppUrl": "https://47.104.84.47:8443/",
+              "description": "统一科研智能体（URA）：在单一 AIP 身份下聚合文献分析、实验规划、数据处理与成果撰写四类核心能力，支持能力发现、点对点知识请求与互联访问。它把科研目标自动分解为带依赖的 DAG，自主完成从文献调研到研究报告定稿的全流程，并通过 AIP 国标与梧桐智能体互联平台完成注册、发现与互联。",
+              "capabilities": {
+                "streaming": false,
+                "messageQueue": [],
+                "notification": false
+              },
+              "protocolVersion": "02.02",
+              "securitySchemes": {
+                "mtls": {
+                  "type": "mutualTLS",
+                  "description": "智能体间mTLS双向认证"
+                }
+              },
+              "lastModifiedTime": "2026-10-28T10:10:30.356662+08:00",
+              "defaultInputModes": [
+                "text/plain"
+              ],
+              "defaultOutputModes": [
+                "text/plain",
+                "application/json"
+              ]
+            }
+          },
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": [
+                {
+                  "aic": "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO",
+                  "skillId": "literature.search",
+                  "ranking": 1,
+                  "memo": "Filtered query result"
+                }
+              ]
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": [
+                    {
+                      "aic": "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO",
+                      "skillId": "literature.search",
+                      "ranking": 1,
+                      "memo": "Filtered query result"
+                    }
+                  ]
+                }
+              ],
+              "status": "ok",
+              "durationMs": 3
+            }
+          ],
+          "aliveMap": {
+            "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO": {
+              "alive": true,
+              "aliveLastSeenAt": "2026-10-30T04:32:44.074Z"
+            }
+          }
+        }
+      },
+      "clientCertificateConfigured": true,
+      "serverTrust": "system"
+    },
+    {
+      "endpoint": "https://wt.ioa.pub/discovery/acps-adp-v2/discover",
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 4
+            }
+          ]
+        }
+      },
+      "clientCertificateConfigured": true,
+      "serverTrust": "system"
+    },
+    {
+      "endpoint": "https://wt.ioa.pub/discovery/acps-adp-v2/discover",
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "skills.id",
+              "op": "eq",
+              "value": "paper.analyze"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 3
+            }
+          ]
+        }
+      },
+      "clientCertificateConfigured": true,
+      "serverTrust": "system"
+    },
+    {
+      "endpoint": "https://wt.ioa.pub/discovery/acps-adp-v2/discover",
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.Q77J9R.52YOLZ.11P6"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 4
+            }
+          ]
+        }
+      },
+      "clientCertificateConfigured": true,
+      "serverTrust": "system"
+    },
+    {
+      "endpoint": "https://wt.ioa.pub/discovery/acps-adp-v2/discover",
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "skills.id",
+              "op": "eq",
+              "value": "repository.analyze"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 4
+            }
+          ]
+        }
+      },
+      "clientCertificateConfigured": true,
+      "serverTrust": "system"
+    }
+  ],
+  "summary": [
+    {
+      "target": "public",
+      "queryKind": "aic+skill",
+      "aic": "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO",
+      "skill": "literature.search",
+      "httpStatus": 200,
+      "acsExact": true,
+      "skillExact": true,
+      "aliveExact": true,
+      "acsMapKeys": [
+        "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO"
+      ],
+      "returnedAgentAics": [
+        "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO"
+      ],
+      "routesStatus": [
+        "ok"
+      ]
+    },
+    {
+      "target": "literature",
+      "queryKind": "aic-only",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+      "skill": "literature.search",
+      "httpStatus": 200,
+      "acsExact": false,
+      "skillExact": false,
+      "aliveExact": false,
+      "acsMapKeys": [],
+      "returnedAgentAics": [],
+      "routesStatus": [
+        "ok"
+      ]
+    },
+    {
+      "target": "literature",
+      "queryKind": "skill-only",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+      "skill": "literature.search",
+      "httpStatus": 200,
+      "acsExact": false,
+      "skillExact": false,
+      "aliveExact": false,
+      "acsMapKeys": [
+        "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO"
+      ],
+      "returnedAgentAics": [
+        "1.2.156.3088.1.BUPT.GYB312.GQ4OFC.20XZT6.0QBO"
+      ],
+      "routesStatus": [
+        "ok"
+      ]
+    },
+    {
+      "target": "reader",
+      "queryKind": "aic-only",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+      "skill": "paper.analyze",
+      "httpStatus": 200,
+      "acsExact": false,
+      "skillExact": false,
+      "aliveExact": false,
+      "acsMapKeys": [],
+      "returnedAgentAics": [],
+      "routesStatus": [
+        "ok"
+      ]
+    },
+    {
+      "target": "reader",
+      "queryKind": "skill-only",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+      "skill": "paper.analyze",
+      "httpStatus": 200,
+      "acsExact": false,
+      "skillExact": false,
+      "aliveExact": false,
+      "acsMapKeys": [],
+      "returnedAgentAics": [],
+      "routesStatus": [
+        "ok"
+      ]
+    },
+    {
+      "target": "repository",
+      "queryKind": "aic-only",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.Q77J9R.52YOLZ.11P6",
+      "skill": "repository.analyze",
+      "httpStatus": 200,
+      "acsExact": false,
+      "skillExact": false,
+      "aliveExact": false,
+      "acsMapKeys": [],
+      "returnedAgentAics": [],
+      "routesStatus": [
+        "ok"
+      ]
+    },
+    {
+      "target": "repository",
+      "queryKind": "skill-only",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.Q77J9R.52YOLZ.11P6",
+      "skill": "repository.analyze",
+      "httpStatus": 200,
+      "acsExact": false,
+      "skillExact": false,
+      "aliveExact": false,
+      "acsMapKeys": [],
+      "returnedAgentAics": [],
+      "routesStatus": [
+        "ok"
+      ]
+    }
+  ]
+}

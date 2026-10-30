@@ -1,0 +1,95 @@
+{
+  "evidenceType": "kafka_heartbeat_single_send_and_groupless_readback",
+  "generatedAt": "2026-10-30T08:03:54.587811+00:00",
+  "broker": "wt.ioa.pub:19092",
+  "topic": "amp.heartbeat",
+  "securityProtocol": "PLAINTEXT",
+  "consumer": {
+    "groupId": null,
+    "autoCommit": false,
+    "assignment": "manual_ack_partition_offset"
+  },
+  "records": [
+    {
+      "identity": "reader",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+      "sentPayload": {
+        "schema_version": "1.0",
+        "log_id": "f02a93f7-9caf-40e2-806f-45aad507f402",
+        "log_type": "heartbeat",
+        "timestamp": "2026-10-30T08:03:53.501700+00:00",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+        "body": {
+          "uptimeSeconds": 0.008
+        }
+      },
+      "sentPayloadSha256": "ce1865b51c8741a4007c2c05d5c727764254abb921020c950a948118b121e76a",
+      "brokerAck": {
+        "topic": "amp.heartbeat",
+        "partition": 0,
+        "offset": 41985932
+      },
+      "readback": {
+        "topic": "amp.heartbeat",
+        "partition": 0,
+        "offset": 41985932,
+        "keyUtf8": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+        "payloadSha256": "ce1865b51c8741a4007c2c05d5c727764254abb921020c950a948118b121e76a",
+        "payloadMatchesSent": true,
+        "payload": {
+          "schema_version": "1.0",
+          "log_id": "f02a93f7-9caf-40e2-806f-45aad507f402",
+          "log_type": "heartbeat",
+          "timestamp": "2026-10-30T08:03:53.501700+00:00",
+          "aic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+          "body": {
+            "uptimeSeconds": 0.008
+          }
+        }
+      }
+    },
+    {
+      "identity": "repository",
+      "aic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+      "sentPayload": {
+        "schema_version": "1.0",
+        "log_id": "a64016b6-71f3-4377-952a-79ce76d54d0a",
+        "log_type": "heartbeat",
+        "timestamp": "2026-10-30T08:03:54.028785+00:00",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+        "body": {
+          "uptimeSeconds": 0.0
+        }
+      },
+      "sentPayloadSha256": "b17e3411a5ebbc9108ed0ad25ce2f4ae768356adbdae7c2c81f14a84bd8a5ef9",
+      "brokerAck": {
+        "topic": "amp.heartbeat",
+        "partition": 0,
+        "offset": 41985943
+      },
+      "readback": {
+        "topic": "amp.heartbeat",
+        "partition": 0,
+        "offset": 41985943,
+        "keyUtf8": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+        "payloadSha256": "b17e3411a5ebbc9108ed0ad25ce2f4ae768356adbdae7c2c81f14a84bd8a5ef9",
+        "payloadMatchesSent": true,
+        "payload": {
+          "schema_version": "1.0",
+          "log_id": "a64016b6-71f3-4377-952a-79ce76d54d0a",
+          "log_type": "heartbeat",
+          "timestamp": "2026-10-30T08:03:54.028785+00:00",
+          "aic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+          "body": {
+            "uptimeSeconds": 0.0
+          }
+        }
+      }
+    }
+  ],
+  "sideEffects": {
+    "formalAgentsStarted": 0,
+    "groupsCreated": 0,
+    "registryOrDspOperations": 0
+  }
+}

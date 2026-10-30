@@ -1,0 +1,70 @@
+{
+  "scope": "FORMAL_PLATFORM_THREE_AGENT_ORCHESTRATION_CORE_V1",
+  "userQuery": "检索 LoRA 论文，阅读全文并依据论文信息静态分析其明确给出的 GitHub 仓库；不执行代码。",
+  "planSha256": "94bbb0f93c515a5c546c01e7e504b934f180548cbf91354c40f10c46182d2a1c",
+  "state": "completed",
+  "stages": [
+    {
+      "stage": "literature_search",
+      "subtaskId": "S1",
+      "state": "completed",
+      "taskSha256": "d0d6f67abd613dd4e1726b8de80f47aff198527aa56b3362d3efc850975ea1c4",
+      "attempts": 1,
+      "runnerAttempted": true,
+      "recordSha256": "846bc5850701c3f4434dba12b686c6c402ba573e6e1d09f333e4143ff5913b8e",
+      "groupId": "rm-literature-e495e36bf2e9446284dccbe54c29f607",
+      "sessionId": "session-65fc4981aa6e474d8aab2b6a79a7b97d",
+      "taskId": "task-f31b36aa6f014408b5145081847fba38",
+      "partnerAic": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL",
+      "resultSha256": "e30fb8f614a06f18a3c940209217c756d1b75ac338f0a42695454d2b7fbc48de"
+    },
+    {
+      "stage": "paper_read",
+      "subtaskId": "S2",
+      "state": "completed",
+      "taskSha256": "c2bb96eabce8cd4a6ade8bd3d4df1b3846b94ddcfb5e72fc0577c056a252f482",
+      "attempts": 1,
+      "runnerAttempted": true,
+      "preparationSha256": "d8a650dfb754eb3e79c7c216958ea33c5e4569a4c74283945f828a5fbffe7aef",
+      "recordSha256": "05dfeeabcd1679a5db1a5a82648ea932db68330cf5a408816aff3634657d8ea4",
+      "groupId": "rm-reader-e2aba6103d2242f4939fa46b5a9ff207",
+      "sessionId": "session-9130fd24dd7b48cc9c5627a4b305c4b9",
+      "taskId": "task-f588de1f5f6e4ffda08c7001694e15b2",
+      "partnerAic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+      "resultSha256": "2535314805f6055332173e1a1358aad642a1908dfc295463685937b7bcbd32b9"
+    },
+    {
+      "stage": "repository_analyze",
+      "subtaskId": "S3",
+      "state": "completed",
+      "taskSha256": "e2479d3fe12c3fcdbc7451d6f81848838ef8cb70c233c5fca1b11600f4fe9091",
+      "attempts": 1,
+      "runnerAttempted": true,
+      "recordSha256": "e63cee4df17c3e9bb3db1bc8e8a6a71ae1a47e8e6205f365351a3be1a7ebc7e3",
+      "groupId": "rm-repository-chain-e6f096562e0b4fa0b9b79135bd640161",
+      "sessionId": "session-6a54d8ac3f4c46dd865497ca20ebd62e",
+      "taskId": "task-88307e0012dc40feb5514f307bbee3dd",
+      "partnerAic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+      "resultSha256": "1e4dbf3fa60799c595ebee6aeb37c0b0a07d441d85518059ece8b6b80604cf79"
+    }
+  ],
+  "results": {
+    "S1": {
+      "stage": "literature_search",
+      "resultSha256": "e30fb8f614a06f18a3c940209217c756d1b75ac338f0a42695454d2b7fbc48de",
+      "items": 1
+    },
+    "S2": {
+      "stage": "paper_read",
+      "resultSha256": "2535314805f6055332173e1a1358aad642a1908dfc295463685937b7bcbd32b9",
+      "items": 1
+    },
+    "S3": {
+      "stage": "repository_analyze",
+      "resultSha256": "1e4dbf3fa60799c595ebee6aeb37c0b0a07d441d85518059ece8b6b80604cf79",
+      "items": 1
+    }
+  },
+  "automaticRetries": 0,
+  "formalPlatformExecuted": true
+}

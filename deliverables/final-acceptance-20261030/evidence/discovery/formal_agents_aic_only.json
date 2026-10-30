@@ -1,0 +1,693 @@
+{
+  "evidenceType": "discovery_formal_agents_aic_only",
+  "generatedAt": "2026-10-30T07:36:55.768808+00:00",
+  "sourceTemplate": {
+    "file": "<REDACTED_LOCAL_PATH>",
+    "requestIndex": 1,
+    "request": {
+      "type": "filtered",
+      "query": "",
+      "limit": 5,
+      "filter": {
+        "conditions": [
+          {
+            "field": "aic",
+            "op": "eq",
+            "value": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN"
+          }
+        ],
+        "logic": "and"
+      }
+    }
+  },
+  "transport": {
+    "method": "POST",
+    "endpoint": "https://wt.ioa.pub/discovery/acps-adp-v2/discover",
+    "requestAPI": "httpx.AsyncClient.post(endpoint, json=request)",
+    "httpxVersion": "0.28.1",
+    "serverTrust": "system_ca",
+    "automaticRetries": 0
+  },
+  "records": [
+    {
+      "clientIdentity": "literature",
+      "clientCertificate": {
+        "subject": {
+          "commonName": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL",
+          "countryName": "CN"
+        },
+        "notBefore": "Oct 13 02:08:33 2026 GMT",
+        "notAfter": "Dec  1 02:08:33 2026 GMT",
+        "sha256Fingerprint": "91167f359f9118ce1271794fa082fd2e22e9133c68bca13950613fbbbccb1fe5"
+      },
+      "target": {
+        "name": "Literature",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL"
+      },
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "httpStatus": 200,
+      "tls": {
+        "serverCertificateVerified": true,
+        "serverTrust": "system_ca",
+        "clientCertificateInitialized": true
+      },
+      "acs": {},
+      "agentsAgentSkills": [],
+      "aliveMap": {},
+      "routesStatus": [
+        "ok"
+      ],
+      "serverError": null,
+      "responseTimeMs": 385.306,
+      "error": null,
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "clientIdentity": "literature",
+      "clientCertificate": {
+        "subject": {
+          "commonName": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL",
+          "countryName": "CN"
+        },
+        "notBefore": "Oct 13 02:08:33 2026 GMT",
+        "notAfter": "Dec  1 02:08:33 2026 GMT",
+        "sha256Fingerprint": "91167f359f9118ce1271794fa082fd2e22e9133c68bca13950613fbbbccb1fe5"
+      },
+      "target": {
+        "name": "Reader",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN"
+      },
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "httpStatus": 200,
+      "tls": {
+        "serverCertificateVerified": true,
+        "serverTrust": "system_ca",
+        "clientCertificateInitialized": true
+      },
+      "acs": {},
+      "agentsAgentSkills": [],
+      "aliveMap": {},
+      "routesStatus": [
+        "ok"
+      ],
+      "serverError": null,
+      "responseTimeMs": 120.435,
+      "error": null,
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "clientIdentity": "literature",
+      "clientCertificate": {
+        "subject": {
+          "commonName": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL",
+          "countryName": "CN"
+        },
+        "notBefore": "Oct 13 02:08:33 2026 GMT",
+        "notAfter": "Dec  1 02:08:33 2026 GMT",
+        "sha256Fingerprint": "91167f359f9118ce1271794fa082fd2e22e9133c68bca13950613fbbbccb1fe5"
+      },
+      "target": {
+        "name": "Repository",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X"
+      },
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "httpStatus": 200,
+      "tls": {
+        "serverCertificateVerified": true,
+        "serverTrust": "system_ca",
+        "clientCertificateInitialized": true
+      },
+      "acs": {},
+      "agentsAgentSkills": [],
+      "aliveMap": {},
+      "routesStatus": [
+        "ok"
+      ],
+      "serverError": null,
+      "responseTimeMs": 122.981,
+      "error": null,
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "clientIdentity": "reader",
+      "clientCertificate": {
+        "subject": {
+          "commonName": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+          "organizationName": "ResearchMesh学生参赛团队",
+          "organizationalUnitName": "同济大学电子与信息工程学院",
+          "countryName": "CN"
+        },
+        "notBefore": "Oct 20 06:30:34 2026 GMT",
+        "notAfter": "Dec  8 06:30:34 2026 GMT",
+        "sha256Fingerprint": "b35c5a64591d82faf42c570b8b641e3e3e65b9f61e1cab4dba83be1686ff48e6"
+      },
+      "target": {
+        "name": "Literature",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL"
+      },
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "httpStatus": 200,
+      "tls": {
+        "serverCertificateVerified": true,
+        "serverTrust": "system_ca",
+        "clientCertificateInitialized": true
+      },
+      "acs": {},
+      "agentsAgentSkills": [],
+      "aliveMap": {},
+      "routesStatus": [
+        "ok"
+      ],
+      "serverError": null,
+      "responseTimeMs": 125.427,
+      "error": null,
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "clientIdentity": "reader",
+      "clientCertificate": {
+        "subject": {
+          "commonName": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+          "organizationName": "ResearchMesh学生参赛团队",
+          "organizationalUnitName": "同济大学电子与信息工程学院",
+          "countryName": "CN"
+        },
+        "notBefore": "Oct 20 06:30:34 2026 GMT",
+        "notAfter": "Dec  8 06:30:34 2026 GMT",
+        "sha256Fingerprint": "b35c5a64591d82faf42c570b8b641e3e3e65b9f61e1cab4dba83be1686ff48e6"
+      },
+      "target": {
+        "name": "Reader",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN"
+      },
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "httpStatus": 200,
+      "tls": {
+        "serverCertificateVerified": true,
+        "serverTrust": "system_ca",
+        "clientCertificateInitialized": true
+      },
+      "acs": {},
+      "agentsAgentSkills": [],
+      "aliveMap": {},
+      "routesStatus": [
+        "ok"
+      ],
+      "serverError": null,
+      "responseTimeMs": 139.378,
+      "error": null,
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "clientIdentity": "reader",
+      "clientCertificate": {
+        "subject": {
+          "commonName": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN",
+          "organizationName": "ResearchMesh学生参赛团队",
+          "organizationalUnitName": "同济大学电子与信息工程学院",
+          "countryName": "CN"
+        },
+        "notBefore": "Oct 20 06:30:34 2026 GMT",
+        "notAfter": "Dec  8 06:30:34 2026 GMT",
+        "sha256Fingerprint": "b35c5a64591d82faf42c570b8b641e3e3e65b9f61e1cab4dba83be1686ff48e6"
+      },
+      "target": {
+        "name": "Repository",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X"
+      },
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "httpStatus": 200,
+      "tls": {
+        "serverCertificateVerified": true,
+        "serverTrust": "system_ca",
+        "clientCertificateInitialized": true
+      },
+      "acs": {},
+      "agentsAgentSkills": [],
+      "aliveMap": {},
+      "routesStatus": [
+        "ok"
+      ],
+      "serverError": null,
+      "responseTimeMs": 135.691,
+      "error": null,
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "clientIdentity": "repository",
+      "clientCertificate": {
+        "subject": {
+          "commonName": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+          "organizationName": "ResearchMesh学生参赛团队",
+          "organizationalUnitName": "同济大学电子与信息工程学院",
+          "countryName": "CN"
+        },
+        "notBefore": "Oct 20 06:34:42 2026 GMT",
+        "notAfter": "Dec  8 06:34:42 2026 GMT",
+        "sha256Fingerprint": "6e60d42d641567ac1ad74fb9e30a2efc537d8ededc0cca8fb79f6616925e853b"
+      },
+      "target": {
+        "name": "Literature",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL"
+      },
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.4K8V3F.0113BD.00TL"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "httpStatus": 200,
+      "tls": {
+        "serverCertificateVerified": true,
+        "serverTrust": "system_ca",
+        "clientCertificateInitialized": true
+      },
+      "acs": {},
+      "agentsAgentSkills": [],
+      "aliveMap": {},
+      "routesStatus": [
+        "ok"
+      ],
+      "serverError": null,
+      "responseTimeMs": 139.465,
+      "error": null,
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "clientIdentity": "repository",
+      "clientCertificate": {
+        "subject": {
+          "commonName": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+          "organizationName": "ResearchMesh学生参赛团队",
+          "organizationalUnitName": "同济大学电子与信息工程学院",
+          "countryName": "CN"
+        },
+        "notBefore": "Oct 20 06:34:42 2026 GMT",
+        "notAfter": "Dec  8 06:34:42 2026 GMT",
+        "sha256Fingerprint": "6e60d42d641567ac1ad74fb9e30a2efc537d8ededc0cca8fb79f6616925e853b"
+      },
+      "target": {
+        "name": "Reader",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN"
+      },
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.TFPYUF.2MAZ97.04LN"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "httpStatus": 200,
+      "tls": {
+        "serverCertificateVerified": true,
+        "serverTrust": "system_ca",
+        "clientCertificateInitialized": true
+      },
+      "acs": {},
+      "agentsAgentSkills": [],
+      "aliveMap": {},
+      "routesStatus": [
+        "ok"
+      ],
+      "serverError": null,
+      "responseTimeMs": 136.043,
+      "error": null,
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 7
+            }
+          ]
+        }
+      }
+    },
+    {
+      "clientIdentity": "repository",
+      "clientCertificate": {
+        "subject": {
+          "commonName": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X",
+          "organizationName": "ResearchMesh学生参赛团队",
+          "organizationalUnitName": "同济大学电子与信息工程学院",
+          "countryName": "CN"
+        },
+        "notBefore": "Oct 20 06:34:42 2026 GMT",
+        "notAfter": "Dec  8 06:34:42 2026 GMT",
+        "sha256Fingerprint": "6e60d42d641567ac1ad74fb9e30a2efc537d8ededc0cca8fb79f6616925e853b"
+      },
+      "target": {
+        "name": "Repository",
+        "aic": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X"
+      },
+      "request": {
+        "type": "filtered",
+        "query": "",
+        "limit": 5,
+        "filter": {
+          "conditions": [
+            {
+              "field": "aic",
+              "op": "eq",
+              "value": "1.2.156.3088.1.BUPT.RECKYJ.13NQBJ.YM4WBJ.0E0X"
+            }
+          ],
+          "logic": "and"
+        }
+      },
+      "httpStatus": 200,
+      "tls": {
+        "serverCertificateVerified": true,
+        "serverTrust": "system_ca",
+        "clientCertificateInitialized": true
+      },
+      "acs": {},
+      "agentsAgentSkills": [],
+      "aliveMap": {},
+      "routesStatus": [
+        "ok"
+      ],
+      "serverError": null,
+      "responseTimeMs": 140.94,
+      "error": null,
+      "response": {
+        "result": {
+          "acsMap": {},
+          "agents": [
+            {
+              "group": "filtered",
+              "agentSkills": []
+            }
+          ],
+          "routes": [
+            {
+              "forwardChain": [
+                "AIC-DS-A"
+              ],
+              "agentGroups": [
+                {
+                  "group": "filtered",
+                  "agentSkills": []
+                }
+              ],
+              "status": "ok",
+              "durationMs": 5
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
